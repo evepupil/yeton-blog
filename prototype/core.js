@@ -18,6 +18,9 @@
       readArticles: "阅读文章",
       browseArchive: "浏览归档",
       heroCaption: "保持好奇，持续交付。",
+      profileName: "林墨",
+      profileBio: "保持好奇，持续交付。",
+      zhihuLabel: "知乎",
       featuredTitle: "近期文章",
       viewAll: "查看全部",
       postsTitle: "所有文章",
@@ -53,6 +56,9 @@
       readArticles: "Read writing",
       browseArchive: "Browse archive",
       heroCaption: "Stay curious. Keep shipping.",
+      profileName: "Lin Mo",
+      profileBio: "Stay curious. Keep shipping.",
+      zhihuLabel: "Zhihu",
       featuredTitle: "Recent writing",
       viewAll: "View all",
       postsTitle: "All writing",
@@ -97,6 +103,7 @@
     archiveTimeline: document.querySelector("#archive-timeline"),
     bookList: document.querySelector("#book-list"),
     homeFeatured: document.querySelector("#home-featured"),
+    heroTags: document.querySelector("#hero-tags"),
     localeSelect: document.querySelector("#locale-select"),
     mobileMenu: document.querySelector("#mobile-nav"),
     mobileMenuButton: document.querySelector("#mobile-menu-button"),
@@ -107,7 +114,6 @@
     searchResults: document.querySelector("#search-results"),
     themeButton: document.querySelector("#theme-button"),
     toast: document.querySelector("#toast"),
-    topicRail: document.querySelector("#topic-rail"),
   };
 
   function escapeHtml(value) {

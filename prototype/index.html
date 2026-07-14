@@ -113,32 +113,53 @@
                 <i data-lucide="arrow-right" aria-hidden="true"></i>
               </a>
             </div>
-            <div class="hero-note">
-              <span>林墨 / LIN MO</span>
-              <span>Shanghai, CN</span>
-            </div>
           </div>
 
-          <figure class="hero-media">
-            <img
-              src="assets/hero-workspace.jpg"
-              alt="阳光下摆放着笔记本电脑、笔记本和咖啡的写作桌面"
-              width="1800"
-              height="1200"
-            />
-            <figcaption>
-              <span data-i18n-key="heroCaption">保持好奇，持续交付。</span>
-              <span>© LINMO NOTES</span>
-            </figcaption>
-          </figure>
-        </div>
+          <aside class="hero-side" aria-label="作者与文章主题">
+            <section class="profile-card" aria-labelledby="profile-name">
+              <img
+                class="profile-avatar"
+                src="assets/profile-avatar.jpg"
+                alt="林墨的头像"
+                width="160"
+                height="160"
+              />
+              <div class="profile-copy">
+                <h2 id="profile-name" data-i18n-key="profileName">林墨</h2>
+                <p data-i18n-key="profileBio">保持好奇，持续交付。</p>
+              </div>
+              <nav class="profile-socials" aria-label="社交媒体">
+                <a href="https://github.com/" target="_blank" rel="noreferrer">
+                  <i data-lucide="github" aria-hidden="true"></i>
+                  <span>GitHub</span>
+                </a>
+                <a
+                  href="https://www.zhihu.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <i data-lucide="message-circle" aria-hidden="true"></i>
+                  <span data-i18n-key="zhihuLabel">知乎</span>
+                </a>
+                <a href="rss.xml">
+                  <i data-lucide="rss" aria-hidden="true"></i>
+                  <span>RSS</span>
+                </a>
+              </nav>
+            </section>
 
-        <div class="home-topics">
-          <nav
-            class="shell topic-rail"
-            id="topic-rail"
-            aria-label="热门主题"
-          ></nav>
+            <section class="hero-tags-card" aria-labelledby="hero-tags-title">
+              <div class="hero-card-heading">
+                <i data-lucide="tags" aria-hidden="true"></i>
+                <h2 id="hero-tags-title" data-i18n-key="topicTitle">主题</h2>
+              </div>
+              <nav
+                class="hero-tag-list"
+                id="hero-tags"
+                aria-label="文章主题"
+              ></nav>
+            </section>
+          </aside>
         </div>
 
         <section class="home-featured shell" aria-labelledby="featured-title">
@@ -198,8 +219,8 @@
           </p>
         </header>
         <div class="archive-layout">
-          <aside class="archive-aside">
-            <h2 data-i18n-key="topicTitle">主题</h2>
+          <aside class="archive-aside" aria-labelledby="archive-topics-title">
+            <h2 id="archive-topics-title" data-i18n-key="topicTitle">主题</h2>
             <div class="archive-tags" id="archive-tags"></div>
           </aside>
           <div class="archive-timeline" id="archive-timeline"></div>

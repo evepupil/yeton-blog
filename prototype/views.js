@@ -23,14 +23,14 @@
       locale: state.locale,
     });
     const featured = localeArticles.slice(0, 3);
-    const tags = Blog.getTags(Blog.articles, state.locale).slice(0, 4);
+    const tags = Blog.getTags(Blog.articles, state.locale).slice(0, 6);
 
-    elements.topicRail.innerHTML = tags
+    elements.heroTags.innerHTML = tags
       .map(
         (tag) => `
-          <a class="topic-link" href="#posts" data-route="posts" data-topic="${escapeHtml(tag.name)}">
-            <span>${escapeHtml(tag.name)}</span>
-            <span>${String(tag.count).padStart(2, "0")}</span>
+          <a class="hero-tag" href="#posts" data-route="posts" data-topic="${escapeHtml(tag.name)}">
+            <span>#${escapeHtml(tag.name)}</span>
+            <span>${tag.count}</span>
           </a>`,
       )
       .join("");
