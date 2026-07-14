@@ -1,13 +1,7 @@
-import { StaticPage } from "@/features/static-page/static-page";
+import { PostsPage } from "@/features/posts/posts-page";
 
 export const metadata = { title: "Writing" };
 
 export default function EnglishPostsPage() {
-  return (
-    <StaticPage
-      description="Engineering notes and product thinking, written at a sustainable pace."
-      index="02"
-      title="All writing"
-    />
-  );
+  return <PostsPage locale="en" />;
 }

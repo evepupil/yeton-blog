@@ -1,5 +1,25 @@
-import type { Article, Book, TagSummary } from "@/lib/content/types";
+import type {
+  Article,
+  ArticleNavigation,
+  ArticlePreview,
+  Book,
+  TagSummary,
+} from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
+
+function toArticlePreview(article: Article): ArticlePreview {
+  return {
+    description: article.description,
+    ...(article.image ? { image: article.image } : {}),
+    locale: article.locale,
+    published: article.published,
+    readTime: article.readTime,
+    slug: article.slug,
+    tags: article.tags,
+    title: article.title,
+    wordCount: article.wordCount,
+  };
+}
 
 export function sortArticles(articles: readonly Article[]): Article[] {
   return articles.toSorted((left, right) => {
@@ -18,6 +38,48 @@ export function getPublishedArticles(
   return sortArticles(
     articles.filter((article) => !article.draft && article.locale === locale),
   );
+}
+
+export function getPublishedArticlePreviews(
+  articles: readonly Article[],
+  locale: SiteLocale,
+): ArticlePreview[] {
+  return getPublishedArticles(articles, locale).map(toArticlePreview);
+}
+
+export function findPublishedArticle(
+  articles: readonly Article[],
+  locale: SiteLocale,
+  slug: string,
+): Article | null {
+  return (
+    articles.find(
+      (article) =>
+        article.locale === locale && !article.draft && article.slug === slug,
+    ) ?? null
+  );
+}
+
+export function getArticleNavigation(
+  articles: readonly Article[],
+  article: Article,
+): ArticleNavigation {
+  const published = getPublishedArticles(articles, article.locale);
+  const index = published.findIndex(
+    (candidate) => candidate.slug === article.slug,
+  );
+
+  if (index < 0) {
+    return { next: null, previous: null };
+  }
+
+  const previous = published[index - 1];
+  const next = published[index + 1];
+
+  return {
+    next: next ? toArticlePreview(next) : null,
+    previous: previous ? toArticlePreview(previous) : null,
+  };
 }
 
 export function groupArticlesByYear(

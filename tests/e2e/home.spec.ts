@@ -77,3 +77,67 @@ test("opens and closes the mobile navigation", async ({ page }) => {
   ).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
+
+test("opens a real article with contents and adjacent navigation", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+
+  await page.getByRole("link", { name: "阅读全文" }).first().click();
+  await expect(page).toHaveURL(/\/posts\/cloudflare-pages-nextjs\/$/u);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "把 Next.js 博客稳稳部署到 Cloudflare Pages",
+    }),
+  ).toBeVisible();
+
+  const contents = page.getByRole("complementary", { name: "本文目录" });
+  await contents.getByRole("link", { name: "为什么选 Pages" }).click();
+  expect(decodeURIComponent(new URL(page.url()).hash)).toBe("#为什么选-pages");
+  await expect(page.locator("#为什么选-pages")).toBeInViewport();
+
+  await page
+    .getByRole("navigation", { name: "文章导航" })
+    .getByRole("link", { name: "个人博客的搜索，应该搜到什么" })
+    .click();
+  await expect(page).toHaveURL(/\/posts\/blog-search-design\/$/u);
+
+  await page.getByLabel("选择语言").selectOption("en");
+  await expect(page).toHaveURL(/\/en\/posts\/$/u);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "All writing" }),
+  ).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
+test("filters and paginates the article list through the URL", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/posts/");
+
+  await expect(page.getByText("共 5 篇")).toBeVisible();
+  await expect(page.locator(".post-card")).toHaveCount(4);
+
+  await page.getByRole("button", { name: /前端/u }).click();
+  await expect(page).toHaveURL(/\?tag=%E5%89%8D%E7%AB%AF$/u);
+  await expect(page.getByText("共 2 篇")).toBeVisible();
+  await expect(page.locator(".post-card")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "全部" }).click();
+  await page.getByRole("button", { name: "下一页" }).click();
+  await expect(page).toHaveURL(/\?page=2$/u);
+  await expect(page.locator(".post-card")).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "一周结束时，我只复盘这三个问题",
+    }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator(".post-card")).toHaveCount(1);
+  expect(browserErrors).toEqual([]);
+});

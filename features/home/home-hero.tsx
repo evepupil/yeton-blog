@@ -11,16 +11,19 @@ import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
 import { getLocalizedPath } from "@/lib/i18n";
+import type { TagSummary } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
 
 import { homeContent } from "./home-data";
 
 interface HomeHeroProps {
   readonly locale: SiteLocale;
+  readonly tags: readonly TagSummary[];
 }
 
-export function HomeHero({ locale }: HomeHeroProps) {
+export function HomeHero({ locale, tags }: HomeHeroProps) {
   const content = homeContent[locale];
+  const postsHref = getLocalizedPath("/posts/", locale);
 
   return (
     <section aria-labelledby="home-title" className="shell home-hero">
@@ -28,10 +31,7 @@ export function HomeHero({ locale }: HomeHeroProps) {
         <h1 id="home-title">{content.title}</h1>
         <p>{content.description}</p>
         <div className="hero-actions">
-          <SiteLink
-            className="primary-link"
-            href={getLocalizedPath("/posts/", locale)}
-          >
+          <SiteLink className="primary-link" href={postsHref}>
             {content.readArticles}
             <ArrowUpRight aria-hidden="true" />
           </SiteLink>
@@ -84,9 +84,9 @@ export function HomeHero({ locale }: HomeHeroProps) {
             <Card.Title>{content.topicsTitle}</Card.Title>
           </Card.Header>
           <Card.Content className="topic-list">
-            {content.tags.map((tag) => (
+            {tags.map((tag) => (
               <SiteLink
-                href={getLocalizedPath("/posts/", locale)}
+                href={`${postsHref}?tag=${encodeURIComponent(tag.name)}`}
                 key={tag.name}
               >
                 <span>#{tag.name}</span>

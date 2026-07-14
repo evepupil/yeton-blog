@@ -1,7 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
+  findPublishedArticle,
   findArticleTranslation,
+  getArticleNavigation,
+  getPublishedArticlePreviews,
   getPublishedArticles,
   getPublishedBooks,
   getTagSummaries,
@@ -52,5 +55,22 @@ describe("content queries", () => {
       "ai-engineering",
       "indie-builder-notes",
     ]);
+  });
+
+  it("builds lightweight previews and adjacent article links", () => {
+    const article = findPublishedArticle(
+      articles,
+      "zh-CN",
+      "blog-search-design",
+    );
+    expect(article).not.toBeNull();
+
+    const previews = getPublishedArticlePreviews(articles, "zh-CN");
+    const navigation = getArticleNavigation(articles, article!);
+
+    expect(previews).toHaveLength(5);
+    expect(previews[0]).not.toHaveProperty("body");
+    expect(navigation.previous?.slug).toBe("cloudflare-pages-nextjs");
+    expect(navigation.next?.slug).toBe("ai-writing-workflow");
   });
 });

@@ -3,6 +3,8 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { formatPostDate, getPostHref } from "@/features/posts/post-links";
+import type { ArticlePreview } from "@/lib/content/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import type { SiteLocale } from "@/lib/site-config";
 
@@ -10,11 +12,12 @@ import { homeContent } from "./home-data";
 
 interface RecentPostsProps {
   readonly locale: SiteLocale;
+  readonly posts: readonly ArticlePreview[];
 }
 
-export function RecentPosts({ locale }: RecentPostsProps) {
+export function RecentPosts({ locale, posts }: RecentPostsProps) {
   const content = homeContent[locale];
-  const [primary, ...secondary] = content.featured;
+  const [primary, ...secondary] = posts;
 
   if (!primary) {
     return null;
@@ -51,16 +54,21 @@ export function RecentPosts({ locale }: RecentPostsProps) {
           <Card.Content className="featured-copy">
             <div>
               <div className="article-meta">
-                <span>{primary.topic}</span>
-                <time>{primary.date}</time>
-                {primary.readTime ? <span>{primary.readTime}</span> : null}
+                <span>{primary.tags[0]}</span>
+                <time dateTime={primary.published}>
+                  {formatPostDate(primary.published, locale)}
+                </time>
+                <span>{primary.readTime} MIN</span>
               </div>
               <Card.Title>{primary.title}</Card.Title>
               {primary.description ? (
                 <Card.Description>{primary.description}</Card.Description>
               ) : null}
             </div>
-            <SiteLink className="article-link" href={postsHref}>
+            <SiteLink
+              className="article-link"
+              href={getPostHref(primary.locale, primary.slug)}
+            >
               {content.readPost}
               <ArrowUpRight aria-hidden="true" />
             </SiteLink>
@@ -69,16 +77,21 @@ export function RecentPosts({ locale }: RecentPostsProps) {
 
         <div className="featured-secondary">
           {secondary.map((post) => (
-            <Card.Root className="featured-small" key={post.title}>
+            <Card.Root className="featured-small" key={post.slug}>
               <Card.Content>
                 <div className="article-meta">
-                  <span>{post.topic}</span>
-                  <time>{post.date}</time>
+                  <span>{post.tags[0]}</span>
+                  <time dateTime={post.published}>
+                    {formatPostDate(post.published, locale)}
+                  </time>
                 </div>
                 <Card.Title>{post.title}</Card.Title>
               </Card.Content>
               <Card.Footer>
-                <SiteLink className="article-link" href={postsHref}>
+                <SiteLink
+                  className="article-link"
+                  href={getPostHref(post.locale, post.slug)}
+                >
                   {content.readPost}
                   <ArrowUpRight aria-hidden="true" />
                 </SiteLink>

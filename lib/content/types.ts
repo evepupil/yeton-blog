@@ -1,4 +1,5 @@
 import type { ArticleFrontmatter, BookFrontmatter } from "@/lib/content/schema";
+import type { SiteLocale } from "@/lib/site-config";
 
 export interface ContentHeading {
   readonly depth: 2 | 3;
@@ -17,6 +18,23 @@ interface ContentFile {
 export interface Article extends ArticleFrontmatter, ContentFile {
   readonly readTime: number;
   readonly wordCount: number;
+}
+
+export interface ArticlePreview {
+  readonly description: string;
+  readonly image?: string;
+  readonly locale: SiteLocale;
+  readonly published: string;
+  readonly readTime: number;
+  readonly slug: string;
+  readonly tags: readonly string[];
+  readonly title: string;
+  readonly wordCount: number;
+}
+
+export interface ArticleNavigation {
+  readonly next: ArticlePreview | null;
+  readonly previous: ArticlePreview | null;
 }
 
 export interface Book extends BookFrontmatter, ContentFile {}

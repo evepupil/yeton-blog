@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLocalizedPath,
+  getLocaleSwitchPath,
   getLocaleFromPath,
   stripLocalePrefix,
 } from "../../lib/i18n";
@@ -20,6 +21,11 @@ describe("localized navigation", () => {
     expect(getLocalizedPath("/posts/", "en")).toBe("/en/posts/");
     expect(getLocalizedPath("/en/books/", "zh-CN")).toBe("/books/");
     expect(stripLocalePrefix("/en/")).toBe("/");
+  });
+
+  it("falls back to the writing list when switching a dynamic article", () => {
+    expect(getLocaleSwitchPath("/posts/a-post/", "en")).toBe("/en/posts/");
+    expect(getLocaleSwitchPath("/en/posts/a-post/", "zh-CN")).toBe("/posts/");
   });
 
   it("marks only the matching navigation section active", () => {

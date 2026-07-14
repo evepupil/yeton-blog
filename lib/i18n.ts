@@ -68,3 +68,16 @@ export function getLocalizedPath(pathname: string, locale: SiteLocale): string {
 
   return basePath === "/" ? "/en/" : `/en${basePath}`;
 }
+
+export function getLocaleSwitchPath(
+  pathname: string,
+  locale: SiteLocale,
+): string {
+  const basePath = stripLocalePrefix(pathname);
+
+  if (/^\/posts\/[^/]+\/$/u.test(basePath)) {
+    return getLocalizedPath("/posts/", locale);
+  }
+
+  return getLocalizedPath(basePath, locale);
+}
