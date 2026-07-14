@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# tests
+coverage/
+playwright-report/
+test-results/
+
+# local environment
+.env*
+!.env.example
+
+# cloud providers
+.vercel/
+.wrangler/
+
+# editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+pnpm-debug.log*

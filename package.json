@@ -1,0 +1,54 @@
+{
+  "name": "hero-ui-blog",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.21.0",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "wrangler pages dev out",
+    "deploy": "pnpm build && wrangler pages deploy out",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "pnpm test:unit && pnpm test:prototype",
+    "test:unit": "vitest run",
+    "test:prototype": "node --test tests/content.test.cjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@heroui/react": "3.2.2",
+    "lucide-react": "1.24.0",
+    "next": "16.2.10",
+    "next-themes": "0.4.6",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/postcss": "4.3.2",
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "prettier": "3.9.5",
+    "serve": "14.2.6",
+    "tailwindcss": "4.3.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.110.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver",
+      "workerd"
+    ]
+  }
+}
