@@ -1,0 +1,59 @@
+import { z } from "zod";
+
+import { supportedLocales } from "@/lib/site-config";
+
+const localeSchema = z.enum(supportedLocales);
+const dateSchema = z.iso.date();
+const tagsSchema = z
+  .array(z.string().trim().min(1))
+  .min(1)
+  .superRefine((tags, context) => {
+    if (new Set(tags).size !== tags.length) {
+      context.addIssue({
+        code: "custom",
+        message: "tags must be unique",
+      });
+    }
+  });
+const translationKeySchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+
+export const articleFrontmatterSchema = z
+  .strictObject({
+    title: z.string().trim().min(1),
+    description: z.string().trim().min(1).max(240),
+    published: dateSchema,
+    updated: dateSchema.optional(),
+    locale: localeSchema,
+    tags: tagsSchema,
+    draft: z.boolean().default(false),
+    pinned: z.boolean().default(false),
+    image: z.string().trim().startsWith("/").optional(),
+    translationKey: translationKeySchema.optional(),
+  })
+  .superRefine((article, context) => {
+    if (article.updated && article.updated < article.published) {
+      context.addIssue({
+        code: "custom",
+        message: "updated cannot be earlier than published",
+        path: ["updated"],
+      });
+    }
+  });
+
+export const bookFrontmatterSchema = z.strictObject({
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1).max(240),
+  locale: localeSchema,
+  tags: tagsSchema,
+  status: z.enum(["serializing", "complete"]),
+  progress: z.number().int().min(0).max(100),
+  order: z.number().int().min(0),
+  draft: z.boolean().default(false),
+  translationKey: translationKeySchema.optional(),
+});
+
+export type ArticleFrontmatter = z.infer<typeof articleFrontmatterSchema>;
+export type BookFrontmatter = z.infer<typeof bookFrontmatterSchema>;

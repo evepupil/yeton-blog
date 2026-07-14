@@ -1,0 +1,25 @@
+---
+title: "Field notes from moving a blog to Cloudflare Pages"
+description: "A practical checklist for static output, redirects, assets and runtime boundaries."
+published: "2026-07-09"
+locale: "en"
+tags:
+  - "Cloudflare"
+  - "Next.js"
+  - "Deployment"
+pinned: true
+image: "/images/article-network.jpg"
+translationKey: "cloudflare-pages"
+---
+
+## Keep the static surface large
+
+Posts, archives and feeds are excellent static pages. Reserve runtime code for features that truly need it, such as comments and AI search.
+
+## Make deployment boundaries visible
+
+The build should fail when content or routes are invalid. Runtime functions should have their own request contracts, logs and cost limits.
+
+## Check direct links after every release
+
+Open a post URL directly, then verify images, the feed and the not-found page. A successful home page request does not prove that static routing is correct.

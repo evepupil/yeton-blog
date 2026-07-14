@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-- 阶段 0 工程骨架与阶段 1 公共布局已完成
+- 阶段 0 工程骨架、阶段 1 公共布局和阶段 2 内容管线已完成
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -14,6 +14,7 @@
 - 实现路线图：`docs/roadmap.md`
 - 工程基础：`docs/模块设计/工程基础.md`
 - 设计系统与公共布局：`docs/模块设计/设计系统与公共布局.md`
+- 内容系统：`docs/模块设计/内容系统.md`
 
 ## 环境要求
 
@@ -25,11 +26,23 @@
 ```bash
 pnpm install --frozen-lockfile
 pnpm dev
+pnpm content:check
 pnpm build
 pnpm preview
 ```
 
-`pnpm build` 会把静态站点输出到 `out`。`pnpm preview` 使用 Wrangler 预览该目录，日常实现时按需手动执行。
+`pnpm content:check` 校验全部文章和图书。`pnpm build` 会先执行内容校验，再把静态站点输出到 `out`。`pnpm preview` 使用 Wrangler 预览该目录，日常实现时按需手动执行。
+
+## 内容编写
+
+- 中文文章放在 `content/posts/zh/`，英文文章放在 `content/posts/en/`。
+- 中文图书放在 `content/books/zh/`，英文图书放在 `content/books/en/`。
+- 文件名使用小写 kebab-case，并作为页面 slug，例如 `cloudflare-pages-nextjs.mdx`。
+- 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书还需要 `status`、`progress` 和 `order`。
+- 有译文时，两种语言使用相同的 `translationKey`；没有译文时省略该字段。
+- 本地图片放在 `public/`，frontmatter 使用以 `/` 开头的站内路径。
+
+提交内容前运行 `pnpm content:check`。校验错误会指出具体文件和字段。
 
 ## 项目门禁
 
