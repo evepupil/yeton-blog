@@ -3,7 +3,8 @@ export const supportedLocales = ["zh-CN", "en"] as const;
 export type SiteLocale = (typeof supportedLocales)[number];
 
 export const siteConfig = {
-  name: "HeroUI Blog",
+  name: "林墨手记",
+  englishName: "Linmo Notes",
   author: "林墨",
   description: "关于前端、AI 与独立开发，也记录一些慢下来的时刻。",
   defaultLocale: "zh-CN" satisfies SiteLocale,

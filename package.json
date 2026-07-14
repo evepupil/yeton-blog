@@ -21,6 +21,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-sc": "5.2.10",
+    "@fontsource-variable/noto-serif-sc": "5.2.10",
     "@heroui/react": "3.2.2",
     "lucide-react": "1.24.0",
     "next": "16.2.10",

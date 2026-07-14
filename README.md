@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-- 阶段 0 工程骨架已完成
+- 阶段 0 工程骨架与阶段 1 公共布局已完成
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -13,6 +13,7 @@
 - 原型设计：`docs/prototype-design.md`
 - 实现路线图：`docs/roadmap.md`
 - 工程基础：`docs/模块设计/工程基础.md`
+- 设计系统与公共布局：`docs/模块设计/设计系统与公共布局.md`
 
 ## 环境要求
 

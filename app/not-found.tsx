@@ -1,15 +1,17 @@
-import Link from "next/link";
+import { PageIntro } from "@/components/page/page-intro";
+import { SiteLink } from "@/components/ui/site-link";
 
 export default function NotFoundPage() {
   return (
-    <main className="home-shell">
-      <section className="intro" aria-labelledby="not-found-title">
-        <p className="brand">404</p>
-        <h1 id="not-found-title">这里还没有内容。</h1>
-        <Link className="text-link" href="/">
-          返回首页
-        </Link>
-      </section>
+    <main className="shell static-page">
+      <PageIntro
+        description="这个地址没有对应的页面。"
+        index="404"
+        title="这里还没有内容。"
+      />
+      <SiteLink className="text-link" href="/">
+        返回首页
+      </SiteLink>
     </main>
   );
 }
