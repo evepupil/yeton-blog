@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+	<channel>
+		<title>林墨手记</title>
+		<link>https://example.com/</link>
+		<description>前端、AI、Cloudflare 与独立开发实践。</description>
+		<language>zh-CN</language>
+		<item>
+			<title>把 Next.js 博客稳稳部署到 Cloudflare Pages</title>
+			<link>https://example.com/posts/cloudflare-pages-nextjs</link>
+			<guid>https://example.com/posts/cloudflare-pages-nextjs</guid>
+			<pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
+			<description>从静态导出、构建命令到缓存策略，记录一次真正可复用的部署过程。</description>
+		</item>
+	</channel>
+</rss>
