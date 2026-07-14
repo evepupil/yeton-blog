@@ -6,6 +6,7 @@
 
 - 原型入口：`prototype/index.html`
 - 设计说明：`docs/prototype-design.md`
+- 实现路线图：`docs/roadmap.md`
 - 核心逻辑测试：`node --test tests/content.test.cjs`
 
 原型可以直接在浏览器中打开，无需启动开发服务器。
