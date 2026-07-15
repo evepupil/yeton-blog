@@ -1,0 +1,14 @@
+# Legacy notion-fuwari routes. Keep these redirects one-hop and permanent.
+/posts/en /en/posts/ 301
+/posts/en/* /en/posts/:splat 301
+/archive/en/tag/* /en/tags/:splat 301
+/archive/tag/* /tags/:splat 301
+/archive/en /en/archives/ 301
+/archive/en/* /en/archives/ 301
+/archive /archives/ 301
+/archive/* /archives/ 301
+/about/en /en/about/ 301
+/about/en/* /en/about/ 301
+/books/:book/:chapter/ /books/:book/ 301
+/books/:book/:chapter /books/:book/ 301
+/sitemap-index.xml /sitemap.xml 301

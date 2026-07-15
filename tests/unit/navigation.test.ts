@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { decodeTagSegment, getTagHref } from "@/features/tags/tag-links";
+import { decodePostSlug } from "@/features/posts/post-links";
 import {
   getLocalizedPath,
   getLocaleSwitchPath,
@@ -35,6 +36,12 @@ describe("localized navigation", () => {
     expect(getTagHref("en", "Product Design")).toBe("/en/tags/Product Design/");
     expect(decodeTagSegment("%E5%89%8D%E7%AB%AF")).toBe("前端");
     expect(decodeTagSegment("Product%20Design")).toBe("Product Design");
+  });
+
+  it("decodes legacy Unicode article slugs from dynamic routes", () => {
+    expect(
+      decodePostSlug("cloudflare-%E9%85%8D%E7%BD%AE%E6%95%99%E7%A8%8B"),
+    ).toBe("cloudflare-配置教程");
   });
 
   it("marks only the matching navigation section active", () => {

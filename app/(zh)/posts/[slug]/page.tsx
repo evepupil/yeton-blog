@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { ArticlePage } from "@/features/posts/article-page";
+import { decodePostSlug } from "@/features/posts/post-links";
 import {
   findPublishedArticle,
   findArticleTranslation,
@@ -34,7 +35,8 @@ export async function generateMetadata({
   params,
 }: ArticleRouteProps): Promise<Metadata> {
   const [{ slug }, articles] = await Promise.all([params, getAllArticles()]);
-  const article = findPublishedArticle(articles, "zh-CN", slug);
+  const decodedSlug = decodePostSlug(slug);
+  const article = findPublishedArticle(articles, "zh-CN", decodedSlug);
 
   return article
     ? buildArticleMetadata(
@@ -42,11 +44,11 @@ export async function generateMetadata({
         findArticleTranslation(articles, article, "en"),
       )
     : buildPageMetadata({
-        alternatePaths: { "zh-CN": `/posts/${slug}/` },
+        alternatePaths: { "zh-CN": `/posts/${decodedSlug}/` },
         description: "这个地址没有对应的文章。",
         locale: "zh-CN",
         noIndex: true,
-        pathname: `/posts/${slug}/`,
+        pathname: `/posts/${decodedSlug}/`,
         title: "文章未找到",
       });
 }
@@ -55,7 +57,7 @@ export default async function ChineseArticlePage({
   params,
 }: ArticleRouteProps) {
   const [{ slug }, articles] = await Promise.all([params, getAllArticles()]);
-  const article = findPublishedArticle(articles, "zh-CN", slug);
+  const article = findPublishedArticle(articles, "zh-CN", decodePostSlug(slug));
 
   if (!article) {
     notFound();

@@ -10,6 +10,7 @@ const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
 const requiredFiles = [
   "_headers",
+  "_redirects",
   "404.html",
   "en/404/index.html",
   "en/rss.xml",
@@ -18,6 +19,18 @@ const requiredFiles = [
   "search-index/en.json",
   "search-index/zh-CN.json",
   "sitemap.xml",
+] as const;
+
+const requiredLegacyRedirects = [
+  "/posts/en/* /en/posts/:splat 301",
+  "/archive/en/tag/* /en/tags/:splat 301",
+  "/archive/tag/* /tags/:splat 301",
+  "/archive/en/* /en/archives/ 301",
+  "/archive/* /archives/ 301",
+  "/about/en/* /en/about/ 301",
+  "/books/:book/:chapter/ /books/:book/ 301",
+  "/books/:book/:chapter /books/:book/ 301",
+  "/sitemap-index.xml /sitemap.xml 301",
 ] as const;
 
 async function checkHeadersFile(errors: string[]): Promise<void> {
@@ -42,6 +55,25 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
   for (const rule of requiredRules) {
     if (!headers.includes(rule)) {
       errors.push(`_headers: missing required rule ${rule}.`);
+    }
+  }
+}
+
+async function checkRedirectsFile(errors: string[]): Promise<void> {
+  const redirects = await readFile(
+    path.join(outputDirectory, "_redirects"),
+    "utf8",
+  );
+  const rules = new Set(
+    redirects
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#")),
+  );
+
+  for (const rule of requiredLegacyRedirects) {
+    if (!rules.has(rule)) {
+      errors.push(`_redirects: missing required legacy rule ${rule}.`);
     }
   }
 }
@@ -363,6 +395,7 @@ async function main() {
     htmlFiles.map((filePath) => checkHtmlFile(filePath, errors)),
   );
   await checkHeadersFile(errors);
+  await checkRedirectsFile(errors);
   await Promise.all(
     (["rss.xml", "en/rss.xml", "sitemap.xml"] as const).map((relativePath) =>
       checkXmlUrls(relativePath, errors),

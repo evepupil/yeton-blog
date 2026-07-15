@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { ArticlePage } from "@/features/posts/article-page";
+import { decodePostSlug } from "@/features/posts/post-links";
 import {
   findArticleTranslation,
   findPublishedArticle,
@@ -34,7 +35,8 @@ export async function generateMetadata({
   params,
 }: ArticleRouteProps): Promise<Metadata> {
   const [{ slug }, articles] = await Promise.all([params, getAllArticles()]);
-  const article = findPublishedArticle(articles, "en", slug);
+  const decodedSlug = decodePostSlug(slug);
+  const article = findPublishedArticle(articles, "en", decodedSlug);
 
   return article
     ? buildArticleMetadata(
@@ -42,11 +44,11 @@ export async function generateMetadata({
         findArticleTranslation(articles, article, "zh-CN"),
       )
     : buildPageMetadata({
-        alternatePaths: { en: `/en/posts/${slug}/` },
+        alternatePaths: { en: `/en/posts/${decodedSlug}/` },
         description: "There is no post at this address.",
         locale: "en",
         noIndex: true,
-        pathname: `/en/posts/${slug}/`,
+        pathname: `/en/posts/${decodedSlug}/`,
         title: "Post not found",
       });
 }
@@ -55,7 +57,7 @@ export default async function EnglishArticlePage({
   params,
 }: ArticleRouteProps) {
   const [{ slug }, articles] = await Promise.all([params, getAllArticles()]);
-  const article = findPublishedArticle(articles, "en", slug);
+  const article = findPublishedArticle(articles, "en", decodePostSlug(slug));
 
   if (!article) {
     notFound();

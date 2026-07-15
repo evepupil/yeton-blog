@@ -26,7 +26,7 @@
 
 1. 参考实现来自 `D:\myproject\notion-fuwari`，保留它的数据库字段和每天北京时间 0 点同步习惯。
 2. Notion 内容先写入 Git。Cloudflare Pages 监听 `main` commit 自动构建，Action 不需要任何 Cloudflare 凭据。
-3. 文章 slug 必须满足本站英文 kebab-case 路由规则。Notion 可填写 `Slug`；未填写时使用标题中的 ASCII 单词加页面 ID 前 8 位，纯中文标题使用 `notion-<页面 ID>`。
+3. 文章 slug 使用不含空格的小写 kebab-case，可包含中文等 Unicode 字母。Notion 可填写 `Slug`；未填写时使用标题中的 ASCII 单词加页面 ID 前 8 位，纯中文标题使用 `notion-<页面 ID>`。
 4. 同步文章带 `source: "notion"` 与 `notionPageId`。覆盖和清理只处理这种文章，遇到同 slug 手写文件会停止同步。
 5. 正文图、封面和友链头像下载到 `public/`。只接受 HTTP/HTTPS 和 JPEG、PNG、GIF、WebP、AVIF，单张图片上限 10 MB，超时为 30 秒。
 6. 图片先写临时目录，整篇处理成功后替换正式目录。任意图片失败会让 Action 失败，仓库不会得到半成品 commit。
@@ -41,6 +41,7 @@
 - 增加 `overwrite`、`new-only`、`append` 模式和手写文章保护。
 - 增加每天北京时间 0 点与手动触发的 GitHub Action。
 - 增加同步映射、幂等写入、图片路径和异常边界单测。
+- 旧站迁移支持 Unicode Slug；在 Notion 填写旧文件名后，同步会持续写入同一文章 URL。
 
 ## 实现细节
 
@@ -60,6 +61,8 @@
 ### 数据库字段
 
 文章数据库必需字段为 `Title`、`Status`、`Published Date` 和 `Tags`，`Status` 类型为 Status。可选字段为 `Featured Image`、`Slug`、`Description`、`Locale` 和 `Translation Key`。`Locale` 支持 `zh-CN`、`Chinese`、`中文`、`en`、`English`、`英文`，缺省按中文处理。
+
+从 notion-fuwari 迁移时，应先把每篇页面的 `Slug` 填成旧 Markdown 文件名。手动迁移的文件还要写入对应 `notionPageId` 和 `source: "notion"`；两边 page ID 一致后，定时同步才能安全更新原文件。
 
 友链数据库沿用 `状态=已通过`、`网站名称`、`网站地址`、`网站描述`、`头像URL` 和 `提交时间`。名称与网址必须有效；头像存在时会下载为站内路径。
 

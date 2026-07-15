@@ -206,6 +206,9 @@ describe("Notion sync helpers", () => {
     expect(createNotionSlug("Ignored", pageId, "My First Post")).toBe(
       "my-first-post",
     );
+    expect(createNotionSlug("Ignored", pageId, "Cloudflare 配置教程")).toBe(
+      "cloudflare-配置教程",
+    );
     expect(parseSyncMode([])).toBe("overwrite");
     expect(parseSyncMode(["--mode=append"])).toBe("append");
     expect(() => parseSyncMode(["--mode=unsafe"])).toThrow("Invalid Notion");

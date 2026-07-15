@@ -294,6 +294,7 @@ docs/
 - 已增加部署后公网冒烟，覆盖中英文首页、真实文章、RSS、sitemap、robots、搜索索引、404 和安全响应头。
 - 已关联 Git remote，并使用 Wrangler 将提交 `49b13a9` 发布到生产环境；`https://blog1.chaosyn.com` 和 `yeton-blog.pages.dev` 公网冒烟通过。
 - 调整 Pages 构建命令后，Git 来源的提交 `ebb7a82` 完成 build 和 deploy，deployment 地址与正式域名公网冒烟通过。
+- 为旧 notion-fuwari 路径增加单跳 `301`、静态产物校验和生产冒烟；内容迁移完成后可将原域名绑定到当前项目。
 
 **发布关系**：完成后达到首个可公开版本。
 

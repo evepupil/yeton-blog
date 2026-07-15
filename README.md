@@ -93,12 +93,28 @@ comments: {
 
 - 中文文章放在 `content/posts/zh/`，英文文章放在 `content/posts/en/`。
 - 中文图书放在 `content/books/zh/`，英文图书放在 `content/books/en/`。
-- 文件名使用小写 kebab-case，并作为页面 slug，例如 `cloudflare-pages-nextjs.mdx`。
+- 文件名使用小写 kebab-case，并作为页面 slug；可以包含中文等 Unicode 字母，例如 `cloudflare-配置教程.mdx`。
 - 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书还需要 `status`、`progress` 和 `order`。
 - 有译文时，两种语言使用相同的 `translationKey`；没有译文时省略该字段。
 - 本地图片放在 `public/`，frontmatter 使用以 `/` 开头的站内路径。
 
 提交内容前运行 `pnpm content:check`。校验错误会指出具体文件和字段。
+
+## 旧站迁移
+
+`public/_redirects` 将 notion-fuwari 的旧英文文章、归档、标签、英文关于页、图书章节和 sitemap 地址永久跳转到当前规范路由。迁移旧文章时保留原文件名，中文 `/posts/<slug>/` 可以继续使用原地址；英文 `/posts/en/<slug>/` 会 `301` 到 `/en/posts/<slug>/`。
+
+旧 Markdown 不能原样覆盖后直接构建，需要先完成这些机械转换：
+
+- 将 frontmatter 的 `lang` 改为 `locale`
+- 删除当前 schema 没有声明的 `category` 等字段
+- 将 `published`、`updated` 统一写成引号包裹的 `YYYY-MM-DD`，空的 `image` 字段直接删除
+- 把图片迁入 `public/`，并将 Markdown 和 `image` 改为以 `/` 开头的站内路径
+- 需要继续由 Notion 管理时，补齐 `source: "notion"` 和对应的 `notionPageId`
+
+继续使用 Notion 自动同步时，需要先把每篇页面的 `Slug` 属性填写为旧文件名。同步器会保留中文等 Unicode 字符；缺少显式 Slug 时会根据标题和页面 ID 生成新地址。
+
+正式切换时，把 `blog.chaosyn.com` 关联到当前 Pages 项目，并将 `NEXT_PUBLIC_SITE_URL` 和 Pages 构建命令同步改回该域名。临时域名 `blog1.chaosyn.com` 到正式域名的跳转应通过 Cloudflare Redirect Rule 按 hostname 配置，避免 `_redirects` 在正式域名上形成循环。
 
 ## 项目门禁
 

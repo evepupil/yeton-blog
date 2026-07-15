@@ -71,6 +71,19 @@ describe("loadArticles", () => {
     });
   });
 
+  it("preserves a lowercase Unicode slug for legacy URLs", async () => {
+    const { publicRoot, root } = await createContentRoot();
+    await writeFile(
+      path.join(root, "zh", "cloudflare-配置教程.mdx"),
+      articleSource(),
+      "utf8",
+    );
+
+    const articles = await loadArticles({ root, publicRoot });
+
+    expect(articles[0]?.slug).toBe("cloudflare-配置教程");
+  });
+
   it("rejects invalid dates with the source file in the error", async () => {
     const { publicRoot, root } = await createContentRoot();
     await writeFile(

@@ -18,7 +18,10 @@ const tagsSchema = z
 const translationKeySchema = z
   .string()
   .trim()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+  .regex(/^[\p{Letter}\p{Number}]+(?:-[\p{Letter}\p{Number}]+)*$/u)
+  .refine((value) => value === value.toLowerCase(), {
+    message: "translationKey must be lowercase",
+  });
 const notionPageIdSchema = z
   .string()
   .trim()

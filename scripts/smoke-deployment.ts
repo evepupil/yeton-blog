@@ -18,6 +18,11 @@ interface SmokeCheck {
   readonly requireSecurityHeaders?: boolean;
 }
 
+interface RedirectSmokeCheck {
+  readonly from: string;
+  readonly to: string;
+}
+
 function isHtmlElement(node: HtmlNode): node is HtmlElement {
   return "tagName" in node;
 }
@@ -77,6 +82,42 @@ async function fetchWithRetry(
   }
 
   throw new Error(`${url.pathname}: ${lastError}.`);
+}
+
+async function validateRedirect(
+  baseUrl: URL,
+  check: RedirectSmokeCheck,
+): Promise<string> {
+  const url = new URL(check.from, baseUrl);
+  let lastError = "request did not run";
+
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { "User-Agent": "hero-ui-blog-deployment-smoke/1.0" },
+        redirect: "manual",
+      });
+      const location = response.headers.get("location");
+      const targetPath = location
+        ? new URL(location, url).pathname
+        : "missing location";
+
+      if (response.status === 301 && targetPath === check.to) {
+        return `${check.from} -> ${check.to} (301)`;
+      }
+
+      lastError = `received HTTP ${response.status} to ${targetPath}`;
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+
+    if (attempt < 6) {
+      await delay(Math.min(1000 * 2 ** (attempt - 1), 5000));
+    }
+  }
+
+  throw new Error(`${check.from}: ${lastError}.`);
 }
 
 function validateSecurityHeaders(response: Response, pathname: string) {
@@ -174,10 +215,14 @@ async function main() {
   const baseUrl = resolveProductionSiteUrl(
     process.argv[2] ?? process.env.NEXT_PUBLIC_SITE_URL,
   );
-  const articles = getPublishedArticles(await loadArticles(), "zh-CN");
-  const article = articles[0];
+  const allArticles = await loadArticles();
+  const article = getPublishedArticles(allArticles, "zh-CN")[0];
+  const englishArticle = getPublishedArticles(allArticles, "en")[0];
   if (!article) {
     throw new Error("Deployment smoke requires one published Chinese article.");
+  }
+  if (!englishArticle) {
+    throw new Error("Deployment smoke requires one published English article.");
   }
 
   const checks: readonly SmokeCheck[] = [
@@ -215,9 +260,22 @@ async function main() {
   const results = await Promise.all(
     checks.map((check) => runCheck(baseUrl, check)),
   );
+  const redirectResults = await Promise.all(
+    [
+      {
+        from: `/posts/en/${englishArticle.slug}/`,
+        to: `/en/posts/${englishArticle.slug}/`,
+      },
+      { from: "/archive/", to: "/archives/" },
+      { from: "/sitemap-index.xml", to: "/sitemap.xml" },
+    ].map((check) => validateRedirect(baseUrl, check)),
+  );
 
   console.log(
-    `Deployment smoke passed for ${baseUrl.origin}:\n${results.join("\n")}`,
+    `Deployment smoke passed for ${baseUrl.origin}:\n${[
+      ...results,
+      ...redirectResults,
+    ].join("\n")}`,
   );
 }
 

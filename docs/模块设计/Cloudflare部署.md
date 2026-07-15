@@ -14,6 +14,7 @@
 | `.node-version`、`.nvmrc`              | 锁定 Node.js 22.14.0                 |
 | `wrangler.jsonc`                       | Pages 输出目录与本地预览配置         |
 | `public/_headers`                      | 静态资源缓存和生产安全响应头         |
+| `public/_redirects`                    | 旧站路径到当前页面的永久重定向       |
 | `lib/deployment/config.ts`             | Pages 构建时的公开站点 URL 校验      |
 | `scripts/validate-cloudflare-build.ts` | 区分本地构建和 Cloudflare Pages 构建 |
 | `scripts/smoke-deployment.ts`          | 部署后手动执行的公网 HTTP 冒烟       |
@@ -28,6 +29,7 @@
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
+8. 旧站路径迁移使用 Pages `_redirects` 返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 
 ## 改动历史
 
@@ -45,6 +47,7 @@
 - 根据失败 deployment 的服务端配置和构建日志确认变量已保存但未进入构建进程，将正式域名加入 Pages 构建命令后重试成功。
 - 阶段 7 为 Giscus 增加 `https://giscus.app` 的 `script-src`、`connect-src` 和 `frame-src`，并将规则纳入静态产物检查。
 - 将 Giscus、AdSense 和访问统计的公开参数集中到 `site.config.ts`，Pages 环境变量只保留部署地址与服务端密钥。
+- 增加 notion-fuwari 旧路径重定向，并把规则检查和生产重定向冒烟加入发布流程。
 
 ## 实现细节
 
@@ -75,6 +78,14 @@
 5. Cloudflare 发布静态产物并保留 deployment 历史。
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
+
+### 旧域名切换
+
+1. 内容迁移和本地门禁完成后，将 `blog.chaosyn.com` 绑定到当前 Pages 项目。
+2. 将 Pages 构建命令与 `NEXT_PUBLIC_SITE_URL` 同步改为 `https://blog.chaosyn.com`。
+3. 在 Cloudflare Dashboard 创建只匹配 `blog1.chaosyn.com` hostname 的永久重定向，目标为 `https://blog.chaosyn.com/${path}`。
+4. 保留 `public/_redirects`，让旧站内部路径继续一跳到当前 canonical。
+5. 部署后运行公网冒烟，并向 Google Search Console 和 Bing Webmaster Tools 提交新的 sitemap。
 
 ### Notion 同步关系
 
@@ -115,4 +126,5 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - 仓库、Pages 项目、正式域名、Wrangler 直传和 Git 来源的生产构建已经打通。
 - Cloudflare Dashboard 变量与构建命令都保存了公开站点地址；正式域名变化时必须同步修改两处，避免 canonical、RSS 和 sitemap 继续使用旧地址。
 - Giscus 参数由 `site.config.ts` 随代码构建；仓库启用 Discussions 后补全分类 ID 并打开配置开关。
+- 旧友链和赞助页还没有当前站等价目标；这些页面暂不做不相关跳转，功能迁移后补充规则。
 - 任意未知 `/en/*` 地址仍使用根目录中文 `404.html`；显式英文 `/en/404/` 可访问。

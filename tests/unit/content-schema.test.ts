@@ -54,6 +54,15 @@ describe("article frontmatter source", () => {
     ).toBe(true);
   });
 
+  it("accepts a lowercase Unicode translation key", () => {
+    expect(
+      articleFrontmatterSchema.safeParse({
+        ...article,
+        translationKey: "cloudflare-配置教程",
+      }).success,
+    ).toBe(true);
+  });
+
   it("rejects incomplete Notion source markers", () => {
     expect(
       articleFrontmatterSchema.safeParse({ ...article, source: "notion" })

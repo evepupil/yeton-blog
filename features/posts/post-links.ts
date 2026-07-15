@@ -13,3 +13,7 @@ export function formatPostDate(date: string, locale: SiteLocale): string {
 export function getPostHref(locale: SiteLocale, slug: string): string {
   return getLocalizedPath(`/posts/${slug}/`, locale);
 }
+
+export function decodePostSlug(segment: string): string {
+  return decodeURIComponent(segment);
+}

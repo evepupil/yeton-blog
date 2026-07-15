@@ -15,7 +15,7 @@ import type { Article, Book } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
 
 const supportedExtensions = new Set([".md", ".mdx"]);
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const slugPattern = /^[\p{Letter}\p{Number}]+(?:-[\p{Letter}\p{Number}]+)*$/u;
 const localeDirectories = {
   "zh-CN": "zh",
   en: "en",
@@ -60,10 +60,10 @@ function parseFrontmatter<T>(
 function getSlug(filePath: string, sourcePath: string): string {
   const slug = path.basename(filePath, path.extname(filePath));
 
-  if (!slugPattern.test(slug)) {
+  if (!slugPattern.test(slug) || slug !== slug.toLowerCase()) {
     throw new ContentValidationError(
       sourcePath,
-      "file name must be a lowercase kebab-case slug",
+      "file name must be a lowercase kebab-case slug without spaces",
     );
   }
 

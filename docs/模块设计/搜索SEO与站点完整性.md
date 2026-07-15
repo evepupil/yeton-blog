@@ -18,6 +18,7 @@
 | `lib/seo/sitemap.ts`               | 静态页面、内容、标签与译文站点地图          |
 | `scripts/generate-search-index.ts` | 构建中英文序列化搜索索引                    |
 | `scripts/check-static-output.ts`   | 检查最终 `out` 目录                         |
+| `public/_redirects`                | 旧站 URL 到当前规范路由的永久跳转           |
 | `app/(zh)/rss.xml/route.ts`        | 中文 RSS 静态 Route Handler                 |
 | `app/(en)/en/rss.xml/route.ts`     | 英文 RSS 静态 Route Handler                 |
 | `app/sitemap.ts`、`app/robots.ts`  | 站点地图和抓取规则                          |
@@ -31,6 +32,7 @@
 5. 中文和英文使用两个根布局，构建出的 `<html lang>` 无需等待 hydration。Header 不再在浏览器里补写语言。
 6. 文章 JSON-LD 使用 `BlogPosting`，包含作者、发布日期、更新时间、语言、封面和规范地址。序列化时转义 `<`，防止内容结束 script 标签。
 7. `pnpm build` 的最后一步解析真实产物。HTML、XML 和 JSON 使用结构化解析器检查，坏链接、缺资源、错误语言或缺少 SEO 字段都会让构建失败。
+8. 当前路由继续作为 canonical。旧站路径使用一跳 `301` 合并到对应新页面，不让兼容路径进入 sitemap 或 hreflang。
 
 ## 改动历史
 
@@ -44,6 +46,7 @@
 - 生成中英文 RSS、sitemap、robots 和带 `noindex` 的自定义 404；增加显式英文 `/en/404/` 页面。
 - 删除图书标签指向不存在文章标签页的死链，图书标签保留为 HeroUI Chip。
 - 增加静态产物检查和 SEO 单测，并覆盖搜索、404、关键元数据和无 JavaScript 阅读流程。
+- 增加 notion-fuwari 旧文章、归档、标签、关于页、图书章节和 sitemap 的永久重定向，并把规则完整性接入构建检查。
 
 ## 实现细节
 
@@ -73,10 +76,26 @@
 - HTML、RSS 和 sitemap 中的站内地址都能映射到 `out` 中的文件或目录；
 - 图片、脚本、样式和站内链接没有缺失目标。
 
+### 旧站 URL 迁移
+
+| 旧路径                     | 当前路径            |
+| -------------------------- | ------------------- |
+| `/posts/en/<slug>/`        | `/en/posts/<slug>/` |
+| `/archive/`                | `/archives/`        |
+| `/archive/en/`             | `/en/archives/`     |
+| `/archive/tag/<tag>/`      | `/tags/<tag>/`      |
+| `/archive/en/tag/<tag>/`   | `/en/tags/<tag>/`   |
+| `/about/en/`               | `/en/about/`        |
+| `/books/<book>/<chapter>/` | `/books/<book>/`    |
+| `/sitemap-index.xml`       | `/sitemap.xml`      |
+
+中文文章 `/posts/<slug>/` 与当前规范相同，迁移时保留文件名即可保留 URL。友链和赞助页当前没有等价目标，暂不跳到无关页面；对应功能上线后再补精确规则。
+
 ## 测试方法
 
 - Vitest 覆盖分词、语言隔离、标题/标签/正文命中、RSS 草稿过滤、sitemap 译文关系、canonical 和 JSON-LD。
 - Playwright 覆盖中英文搜索、搜索结果导航、关键元数据、全局 404、英文 404 和关闭 JavaScript 后的阅读路径。
+- `pnpm build` 检查 `_redirects` 存在且包含全部必需迁移规则；部署后冒烟验证关键路径返回单跳 `301` 和正确目标。
 - 应用内浏览器检查搜索弹窗、结果状态、文章跳转和控制台错误。
 
 ## 当前限制
