@@ -10,11 +10,11 @@ import type { SiteLocale } from "@/lib/site-config";
 const feedMetadata = {
   "zh-CN": {
     path: "/rss.xml",
-    title: siteConfig.name,
+    title: siteConfig.brand.name["zh-CN"],
   },
   en: {
     path: "/en/rss.xml",
-    title: siteConfig.englishName,
+    title: siteConfig.brand.name.en,
   },
 } as const satisfies Record<SiteLocale, object>;
 

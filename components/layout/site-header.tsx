@@ -8,6 +8,7 @@ import { SiteLink } from "@/components/ui/site-link";
 import { getLocaleFromPath, getLocalizedPath } from "@/lib/i18n";
 import type { LocaleRouteMap } from "@/lib/i18n";
 import { getNavigationItems } from "@/lib/navigation";
+import { getLocalizedSiteConfig, siteConfig } from "@/lib/site-config";
 
 interface SiteHeaderProps {
   readonly contentRoutes: LocaleRouteMap;
@@ -17,6 +18,7 @@ export function SiteHeader({ contentRoutes }: SiteHeaderProps) {
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
   const items = getNavigationItems(locale);
+  const identity = getLocalizedSiteConfig(locale);
 
   return (
     <header className="site-header">
@@ -30,11 +32,11 @@ export function SiteHeader({ contentRoutes }: SiteHeaderProps) {
           href={getLocalizedPath("/", locale)}
         >
           <span aria-hidden="true" className="brand-mark">
-            L
+            {siteConfig.brand.mark}
           </span>
           <span className="brand-copy">
-            <strong>{locale === "en" ? "Linmo Notes" : "林墨手记"}</strong>
-            <small>LINMO NOTES</small>
+            <strong>{identity.name}</strong>
+            <small>{siteConfig.brand.wordmark}</small>
           </span>
         </SiteLink>
 

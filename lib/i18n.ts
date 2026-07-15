@@ -16,7 +16,6 @@ export const messages = {
     menuOpen: "打开菜单",
     menuClose: "关闭菜单",
     themeLabel: "切换主题",
-    footerLine: "持续写作，保持清醒。",
   },
   en: {
     nav: {
@@ -31,7 +30,6 @@ export const messages = {
     menuOpen: "Open menu",
     menuClose: "Close menu",
     themeLabel: "Toggle theme",
-    footerLine: "Write consistently. Think clearly.",
   },
 } as const satisfies Record<SiteLocale, object>;
 

@@ -29,6 +29,10 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(page.getByText("近期文章", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+    "href",
+    "https://github.com/evepupil",
+  );
 
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-theme", /^(dark|light)$/u);
@@ -47,6 +51,9 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
       name: "Notes on code, craft, and the questions worth revisiting.",
     }),
   ).toBeVisible();
+  await expect(
+    page.locator(".profile-socials").getByRole("link", { name: "RSS" }),
+  ).toHaveAttribute("href", "/en/rss.xml");
 
   await page.getByRole("link", { name: "Read writing" }).click();
   await expect(page).toHaveURL(/\/en\/posts\/$/u);

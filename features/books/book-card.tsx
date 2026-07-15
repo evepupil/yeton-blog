@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { SiteLink } from "@/components/ui/site-link";
 import { booksContent } from "@/features/books/book-content";
 import { getBookHref } from "@/features/books/book-links";
+import { siteConfig } from "@/lib/site-config";
 import { BookProgress } from "@/features/books/book-progress";
 import type { Book } from "@/lib/content/types";
 
@@ -21,7 +22,9 @@ export function BookCard({ book, index }: BookCardProps) {
   return (
     <article className="book-item">
       <SiteLink aria-label={book.title} className="book-cover" href={href}>
-        <span>LINMO BOOK / {String(index + 1).padStart(2, "0")}</span>
+        <span>
+          {siteConfig.brand.bookLabel} / {String(index + 1).padStart(2, "0")}
+        </span>
         <strong>{book.title}</strong>
       </SiteLink>
       <div className="book-card-content">

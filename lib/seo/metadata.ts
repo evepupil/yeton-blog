@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 
 import { getLocalizedPath, stripLocalePrefix } from "@/lib/i18n";
-import { resolveSiteUrl, siteConfig } from "@/lib/site-config";
+import {
+  getLocalizedSiteConfig,
+  resolveSiteUrl,
+  siteConfig,
+} from "@/lib/site-config";
 import type { SiteLocale } from "@/lib/site-config";
 
 export type LocalePathMap = Partial<Readonly<Record<SiteLocale, string>>>;
@@ -18,16 +22,16 @@ interface PageMetadataOptions {
 
 const localeMetadata = {
   "zh-CN": {
-    description: siteConfig.description,
-    name: siteConfig.name,
+    description: siteConfig.brand.description["zh-CN"],
+    name: siteConfig.brand.name["zh-CN"],
     openGraphLocale: "zh_CN",
-    rssTitle: `${siteConfig.name} RSS`,
+    rssTitle: `${siteConfig.brand.name["zh-CN"]} RSS`,
   },
   en: {
-    description: siteConfig.englishDescription,
-    name: siteConfig.englishName,
+    description: siteConfig.brand.description.en,
+    name: siteConfig.brand.name.en,
     openGraphLocale: "en_US",
-    rssTitle: `${siteConfig.englishName} RSS`,
+    rssTitle: `${siteConfig.brand.name.en} RSS`,
   },
 } as const satisfies Record<SiteLocale, object>;
 
@@ -101,22 +105,23 @@ function getSocialTitle(locale: SiteLocale, title?: string): string {
 
 export function buildRootMetadata(locale: SiteLocale): Metadata {
   const details = localeMetadata[locale];
+  const identity = getLocalizedSiteConfig(locale);
 
   return {
     applicationName: details.name,
-    authors: [{ name: siteConfig.author }],
-    creator: siteConfig.author,
+    authors: [{ name: identity.authorName }],
+    creator: identity.authorName,
     description: details.description,
     metadataBase: resolveSiteUrl(),
     openGraph: {
       description: details.description,
-      images: [{ url: getAbsoluteUrl(siteConfig.socialImage) }],
+      images: [{ url: getAbsoluteUrl(siteConfig.brand.socialImage) }],
       locale: details.openGraphLocale,
       siteName: details.name,
       title: details.name,
       type: "website",
     },
-    publisher: siteConfig.author,
+    publisher: identity.authorName,
     title: {
       default: details.name,
       template: `%s | ${details.name}`,
@@ -124,7 +129,7 @@ export function buildRootMetadata(locale: SiteLocale): Metadata {
     twitter: {
       card: "summary_large_image",
       description: details.description,
-      images: [getAbsoluteUrl(siteConfig.socialImage)],
+      images: [getAbsoluteUrl(siteConfig.brand.socialImage)],
       title: details.name,
     },
   };
@@ -133,7 +138,7 @@ export function buildRootMetadata(locale: SiteLocale): Metadata {
 export function buildPageMetadata({
   alternatePaths,
   description,
-  image = siteConfig.socialImage,
+  image = siteConfig.brand.socialImage,
   locale,
   noIndex = false,
   pathname,

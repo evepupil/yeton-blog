@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { HomePage } from "@/features/home/home-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { siteConfig } from "@/lib/site-config";
+import { getLocalizedSiteConfig } from "@/lib/site-config";
+
+const identity = getLocalizedSiteConfig("en");
 
 export const metadata: Metadata = buildPageMetadata({
-  description: siteConfig.englishDescription,
+  description: identity.description,
   locale: "en",
   pathname: "/en/",
 });

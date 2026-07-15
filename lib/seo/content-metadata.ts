@@ -9,7 +9,7 @@ import {
   getLocaleSiteName,
   type LocalePathMap,
 } from "@/lib/seo/metadata";
-import { siteConfig } from "@/lib/site-config";
+import { getLocalizedSiteConfig, siteConfig } from "@/lib/site-config";
 
 function getArticleLocalePaths(
   article: Article,
@@ -50,6 +50,7 @@ export function buildArticleMetadata(
   translation: Article | null,
 ): Metadata {
   const pathname = getPostHref(article.locale, article.slug);
+  const identity = getLocalizedSiteConfig(article.locale);
   const metadata = buildPageMetadata({
     alternatePaths: getArticleLocalePaths(article, translation),
     description: article.description,
@@ -63,7 +64,7 @@ export function buildArticleMetadata(
     ...metadata,
     openGraph: {
       ...metadata.openGraph,
-      authors: [siteConfig.author],
+      authors: [identity.authorName],
       modifiedTime: article.updated ?? article.published,
       publishedTime: article.published,
       section: article.tags[0],
@@ -87,11 +88,12 @@ export function buildBookMetadata(
 }
 
 export function buildArticleStructuredData(article: Article) {
+  const identity = getLocalizedSiteConfig(article.locale);
   const articleUrl = getAbsoluteUrl(
     getPostHref(article.locale, article.slug),
   ).toString();
   const imageUrl = getAbsoluteUrl(
-    article.image ?? siteConfig.socialImage,
+    article.image ?? siteConfig.brand.socialImage,
   ).toString();
 
   return {
@@ -99,7 +101,7 @@ export function buildArticleStructuredData(article: Article) {
     "@type": "BlogPosting",
     author: {
       "@type": "Person",
-      name: siteConfig.author,
+      name: identity.authorName,
     },
     dateModified: article.updated ?? article.published,
     datePublished: article.published,

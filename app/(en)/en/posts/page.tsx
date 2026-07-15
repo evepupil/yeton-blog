@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { PostsPage } from "@/features/posts/posts-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getLocalizedSiteConfig } from "@/lib/site-config";
+
+const identity = getLocalizedSiteConfig("en");
 
 export const metadata: Metadata = buildPageMetadata({
-  description:
-    "Browse all notes on frontend engineering, AI and independent building.",
+  description: identity.sectionDescriptions.posts,
   locale: "en",
   pathname: "/en/posts/",
   title: "Writing",

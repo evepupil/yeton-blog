@@ -4,18 +4,20 @@ import { usePathname } from "next/navigation";
 
 import { SiteLink } from "@/components/ui/site-link";
 import { getLocaleFromPath, getLocalizedPath, messages } from "@/lib/i18n";
+import { getLocalizedSiteConfig, siteConfig } from "@/lib/site-config";
 
 export function SiteFooter() {
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
   const copy = messages[locale];
+  const identity = getLocalizedSiteConfig(locale);
 
   return (
     <footer className="site-footer">
       <div className="shell footer-grid">
         <div>
-          <strong>{locale === "en" ? "Linmo Notes" : "林墨手记"}</strong>
-          <p>{copy.footerLine}</p>
+          <strong>{identity.name}</strong>
+          <p>{identity.footerLine}</p>
         </div>
         <nav
           aria-label={locale === "en" ? "Footer navigation" : "页脚导航"}
@@ -32,7 +34,9 @@ export function SiteFooter() {
           </SiteLink>
           <a href={getLocalizedPath("/rss.xml", locale)}>RSS</a>
         </nav>
-        <p className="copyright">© 2026 LINMO NOTES</p>
+        <p className="copyright">
+          © {siteConfig.copyrightYear} {siteConfig.brand.wordmark}
+        </p>
       </div>
     </footer>
   );

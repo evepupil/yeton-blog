@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 
 import { ArchivePage } from "@/features/archives/archive-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getLocalizedSiteConfig } from "@/lib/site-config";
+
+const identity = getLocalizedSiteConfig("en");
 
 export const metadata: Metadata = buildPageMetadata({
-  description: "Browse all published writing by year.",
+  description: identity.sectionDescriptions.archives,
   locale: "en",
   pathname: "/en/archives/",
   title: "Archive",

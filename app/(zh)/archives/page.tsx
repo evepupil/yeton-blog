@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 
 import { ArchivePage } from "@/features/archives/archive-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getLocalizedSiteConfig } from "@/lib/site-config";
+
+const identity = getLocalizedSiteConfig("zh-CN");
 
 export const metadata: Metadata = buildPageMetadata({
-  description: "按年份查看林墨手记已经发布的文章。",
+  description: identity.sectionDescriptions.archives,
   locale: "zh-CN",
   pathname: "/archives/",
   title: "文章归档",

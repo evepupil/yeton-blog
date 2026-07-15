@@ -7,6 +7,7 @@ import { BookProgress } from "@/features/books/book-progress";
 import { ArticleToc } from "@/features/posts/article-toc";
 import { MarkdownContent } from "@/features/posts/markdown-content";
 import type { Book } from "@/lib/content/types";
+import { siteConfig } from "@/lib/site-config";
 import { getLocalizedPath } from "@/lib/i18n";
 
 interface BookDetailPageProps {
@@ -28,7 +29,7 @@ export function BookDetailPage({ book }: BookDetailPageProps) {
         </SiteLink>
         <div className="book-detail-hero">
           <div aria-hidden="true" className="book-cover book-detail-cover">
-            <span>LINMO BOOK / LONGFORM</span>
+            <span>{siteConfig.brand.bookLabel} / LONGFORM</span>
             <strong>{book.title}</strong>
           </div>
           <div className="book-detail-copy">

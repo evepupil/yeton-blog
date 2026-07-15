@@ -13,7 +13,11 @@ import { SiteLink } from "@/components/ui/site-link";
 import { getTagHref } from "@/features/tags/tag-links";
 import { getLocalizedPath } from "@/lib/i18n";
 import type { TagSummary } from "@/lib/content/types";
-import type { SiteLocale } from "@/lib/site-config";
+import {
+  getLocalizedSiteConfig,
+  siteConfig,
+  type SiteLocale,
+} from "@/lib/site-config";
 
 import { homeContent } from "./home-data";
 
@@ -22,15 +26,21 @@ interface HomeHeroProps {
   readonly tags: readonly TagSummary[];
 }
 
+const socialIcons = {
+  github: GitFork,
+  zhihu: MessageCircle,
+} as const;
+
 export function HomeHero({ locale, tags }: HomeHeroProps) {
   const content = homeContent[locale];
+  const identity = getLocalizedSiteConfig(locale);
   const postsHref = getLocalizedPath("/posts/", locale);
 
   return (
     <section aria-labelledby="home-title" className="shell home-hero">
       <div className="hero-copy">
-        <h1 id="home-title">{content.title}</h1>
-        <p>{content.description}</p>
+        <h1 id="home-title">{identity.homeTitle}</h1>
+        <p>{identity.description}</p>
         <div className="hero-actions">
           <SiteLink className="primary-link" href={postsHref}>
             {content.readArticles}
@@ -53,27 +63,36 @@ export function HomeHero({ locale, tags }: HomeHeroProps) {
         <Card.Root className="profile-card">
           <Card.Content className="profile-card-content">
             <Image
-              alt={locale === "en" ? "Lin Mo avatar" : "林墨的头像"}
+              alt={identity.authorAvatarAlt}
               className="profile-avatar"
               height={82}
               priority
-              src="/images/profile-avatar.jpg"
+              referrerPolicy="no-referrer"
+              src={siteConfig.author.avatar.src}
               width={82}
             />
             <div className="profile-copy">
-              <Card.Title>{content.profileName}</Card.Title>
-              <Card.Description>{content.profileBio}</Card.Description>
+              <Card.Title>{identity.authorName}</Card.Title>
+              <Card.Description>{identity.authorBio}</Card.Description>
             </div>
           </Card.Content>
           <Card.Footer className="profile-socials">
-            <a href="https://github.com/" rel="noreferrer" target="_blank">
-              <GitFork aria-hidden="true" /> GitHub
-            </a>
-            <a href="https://www.zhihu.com/" rel="noreferrer" target="_blank">
-              <MessageCircle aria-hidden="true" />{" "}
-              {locale === "en" ? "Zhihu" : "知乎"}
-            </a>
-            <a href="/rss.xml">
+            {siteConfig.socialLinks
+              .filter((link) => link.enabled)
+              .map((link) => {
+                const Icon = socialIcons[link.platform];
+                return (
+                  <a
+                    href={link.href}
+                    key={link.platform}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <Icon aria-hidden="true" /> {link.label[locale]}
+                  </a>
+                );
+              })}
+            <a href={getLocalizedPath("/rss.xml", locale)}>
               <Rss aria-hidden="true" /> RSS
             </a>
           </Card.Footer>

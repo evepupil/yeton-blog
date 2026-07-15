@@ -1,18 +1,32 @@
-export const supportedLocales = ["zh-CN", "en"] as const;
+import { siteConfig } from "@/site.config";
+import type { SiteLocale } from "@/site.config";
 
-export type SiteLocale = (typeof supportedLocales)[number];
+export {
+  siteConfig,
+  supportedLocales,
+  type LocalizedText,
+  type SiteLocale,
+  type SocialPlatform,
+} from "@/site.config";
 
-export const siteConfig = {
-  name: "林墨手记",
-  englishName: "Linmo Notes",
-  author: "林墨",
-  description: "关于前端、AI 与独立开发，也记录一些慢下来的时刻。",
-  englishDescription:
-    "Frontend, AI and independent building, with room for slower observations.",
-  defaultLocale: "zh-CN" satisfies SiteLocale,
-  locales: supportedLocales,
-  socialImage: "/images/hero-workspace.jpg",
-} as const;
+export function getLocalizedSiteConfig(locale: SiteLocale) {
+  return {
+    about: siteConfig.author.about[locale],
+    aboutTitle: siteConfig.author.aboutTitle[locale],
+    authorAvatarAlt: siteConfig.author.avatar.alt[locale],
+    authorBio: siteConfig.author.bio[locale],
+    authorName: siteConfig.author.name[locale],
+    description: siteConfig.brand.description[locale],
+    footerLine: siteConfig.brand.footerLine[locale],
+    homeTitle: siteConfig.author.homeTitle[locale],
+    name: siteConfig.brand.name[locale],
+    sectionDescriptions: {
+      archives: siteConfig.sectionDescriptions.archives[locale],
+      books: siteConfig.sectionDescriptions.books[locale],
+      posts: siteConfig.sectionDescriptions.posts[locale],
+    },
+  } as const;
+}
 
 const localSiteUrl = "http://localhost:3000";
 

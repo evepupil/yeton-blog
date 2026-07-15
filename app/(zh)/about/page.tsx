@@ -2,20 +2,23 @@ import type { Metadata } from "next";
 
 import { StaticPage } from "@/features/static-page/static-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getLocalizedSiteConfig } from "@/lib/site-config";
+
+const identity = getLocalizedSiteConfig("zh-CN");
 
 export const metadata: Metadata = buildPageMetadata({
-  description: "独立开发者，也是一名长期写作者。",
+  description: identity.about,
   locale: "zh-CN",
   pathname: "/about/",
-  title: "关于林墨",
+  title: identity.aboutTitle,
 });
 
 export default function AboutPage() {
   return (
     <StaticPage
-      description="独立开发者，也是一名长期写作者。"
+      description={identity.about}
       index="05"
-      title="关于林墨"
+      title={identity.aboutTitle}
     />
   );
 }

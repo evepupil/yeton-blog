@@ -26,10 +26,7 @@ export default defineConfig({
   webServer: {
     command: `pnpm build && pnpm exec serve out --listen ${port} --no-clipboard --no-port-switching`,
     env: {
-      NEXT_PUBLIC_GISCUS_REPO: "example/blog",
-      NEXT_PUBLIC_GISCUS_REPO_ID: "R_test",
-      NEXT_PUBLIC_GISCUS_CATEGORY: "General",
-      NEXT_PUBLIC_GISCUS_CATEGORY_ID: "DIC_test",
+      PLAYWRIGHT_TEST_COMMENTS: "1",
     },
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,

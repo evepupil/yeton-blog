@@ -14,6 +14,7 @@
 - 原型设计：`docs/prototype-design.md`
 - 实现路线图：`docs/roadmap.md`
 - 工程基础：`docs/模块设计/工程基础.md`
+- 站点公共配置：`docs/模块设计/站点公共配置.md`
 - 设计系统与公共布局：`docs/模块设计/设计系统与公共布局.md`
 - 内容系统：`docs/模块设计/内容系统.md`
 - 文章阅读流程：`docs/模块设计/文章阅读流程.md`
@@ -45,6 +46,18 @@ pnpm smoke:deployment -- https://your-production-origin.example
 
 `pnpm content:check` 校验全部文章和图书。`pnpm search:build` 生成双语搜索索引。`pnpm site:check` 检查已有 `out` 产物。`pnpm build` 会依次完成内容校验、搜索索引、静态导出和站点完整性检查。`pnpm preview` 使用 Wrangler 预览 `out`，日常实现时按需手动执行。
 
+## 站点配置
+
+更换博客所有者或第三方服务时，统一编辑根目录的 `site.config.ts`：
+
+- `brand`：中英文博客名称、品牌缩写、字标、图书标识、简介、页脚短句和默认分享图
+- `author`：中英文作者名、签名、首页标题、关于页文案、头像来源和替代文字；`avatar.src` 可填写 `/images/...` 或公开 HTTPS URL
+- `sectionDescriptions`：文章、归档和图书栏目的中英文介绍
+- `socialLinks`：社交平台名称、链接和开关
+- `integrations`：Giscus、Google AdSense 和 Cloudflare Web Analytics 的公开配置与开关
+
+这个文件会进入构建产物，只能填写公开值。Notion Token 等私密信息继续放在环境变量中；`NEXT_PUBLIC_SITE_URL` 由部署环境提供，用于区分本地、预览和生产域名。
+
 ## Notion 同步
 
 在 `.env.local` 配置 `NOTION_TOKEN`、`NOTION_DATABASE_ID` 和可选的 `NOTION_FRIEND_LINK_DATABASE_ID`。文章数据库沿用参考项目的 `Title`、`Status`、`Published Date`、`Featured Image`、`Tags` 字段，并额外支持 `Slug`、`Description`、`Locale`、`Translation Key`。
@@ -61,16 +74,20 @@ pnpm sync-content
 
 ## Giscus 评论
 
-文章页支持点击后加载 Giscus、跟随站点主题和加载失败重试。需要先在 GitHub 为 `evepupil/yeton-blog` 开启 Discussions、安装 Giscus App 并选择分类，然后配置以下公开构建变量：
+文章页支持点击后加载 Giscus、跟随站点主题和加载失败重试。需要先在 GitHub 为目标仓库开启 Discussions、安装 Giscus App 并选择分类，然后编辑 `site.config.ts` 的 `integrations.comments`：
 
-```bash
-NEXT_PUBLIC_GISCUS_REPO=evepupil/yeton-blog
-NEXT_PUBLIC_GISCUS_REPO_ID=R_kgDOTY-rvQ
-NEXT_PUBLIC_GISCUS_CATEGORY=General
-NEXT_PUBLIC_GISCUS_CATEGORY_ID=<Giscus 生成的分类 ID>
+```ts
+comments: {
+  enabled: true,
+  provider: "giscus",
+  repo: "owner/repository",
+  repoId: "R_...",
+  category: "General",
+  categoryId: "DIC_...",
+}
 ```
 
-四项都缺少时评论区显示未开放状态；只配置一部分会让构建失败，避免发布一个无法工作的评论入口。
+`enabled` 为 `false` 时评论区显示未开放状态；开启后配置不完整会让构建失败，避免发布一个无法工作的评论入口。
 
 ## 内容编写
 

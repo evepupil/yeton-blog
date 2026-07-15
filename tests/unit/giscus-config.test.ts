@@ -1,36 +1,45 @@
 import { describe, expect, it } from "vitest";
 
-import { readGiscusConfig } from "@/lib/giscus/config";
+import { readGiscusConfig, resolveGiscusConfig } from "@/lib/giscus/config";
 
-const completeConfiguration = {
-  NEXT_PUBLIC_GISCUS_REPO: "evepupil/yeton-blog",
-  NEXT_PUBLIC_GISCUS_REPO_ID: "R_kgDOTY-rvQ",
-  NEXT_PUBLIC_GISCUS_CATEGORY: "General",
-  NEXT_PUBLIC_GISCUS_CATEGORY_ID: "DIC_example",
+const completeSettings = {
+  category: "General",
+  categoryId: "DIC_example",
+  repo: "evepupil/yeton-blog",
+  repoId: "R_kgDOTY-rvQ",
 } as const;
 
 describe("Giscus configuration", () => {
-  it("keeps comments disabled when every setting is absent", () => {
-    expect(readGiscusConfig({})).toBeNull();
+  it("uses the disabled central setting outside Playwright", () => {
+    expect(readGiscusConfig(false)).toBeNull();
   });
 
-  it("accepts a complete public configuration", () => {
-    expect(readGiscusConfig(completeConfiguration)).toEqual({
+  it("accepts an enabled central setting", () => {
+    expect(resolveGiscusConfig({ enabled: true, ...completeSettings })).toEqual(
+      {
+        category: "General",
+        categoryId: "DIC_example",
+        repo: "evepupil/yeton-blog",
+        repoId: "R_kgDOTY-rvQ",
+      },
+    );
+  });
+
+  it("provides a complete isolated Playwright fixture", () => {
+    expect(readGiscusConfig(true)).toEqual({
       category: "General",
-      categoryId: "DIC_example",
-      repo: "evepupil/yeton-blog",
-      repoId: "R_kgDOTY-rvQ",
+      categoryId: "DIC_test",
+      repo: "example/blog",
+      repoId: "R_test",
     });
   });
 
-  it("rejects partial or malformed configuration", () => {
+  it("rejects malformed enabled settings", () => {
     expect(() =>
-      readGiscusConfig({ NEXT_PUBLIC_GISCUS_REPO: "evepupil/yeton-blog" }),
-    ).toThrow("incomplete or invalid");
-    expect(() =>
-      readGiscusConfig({
-        ...completeConfiguration,
-        NEXT_PUBLIC_GISCUS_REPO: "missing-owner",
+      resolveGiscusConfig({
+        enabled: true,
+        ...completeSettings,
+        repo: "missing-owner",
       }),
     ).toThrow("incomplete or invalid");
   });

@@ -28,6 +28,7 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
   const requiredRules = [
     "Content-Security-Policy:",
     "frame-src https://giscus.app",
+    "img-src 'self' data: https:",
     "script-src 'self' 'unsafe-inline' https://giscus.app",
     "Permissions-Policy:",
     "Referrer-Policy:",

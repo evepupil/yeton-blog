@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { siteConfig } from "@/site.config";
+
 const giscusConfigSchema = z.strictObject({
   repo: z
     .string()
@@ -18,21 +20,29 @@ const giscusConfigSchema = z.strictObject({
 
 export type GiscusConfig = z.infer<typeof giscusConfigSchema>;
 
-type EnvironmentValues = Readonly<Record<string, string | undefined>>;
+export interface GiscusSettings extends GiscusConfig {
+  readonly enabled: boolean;
+}
 
-export function readGiscusConfig(
-  environment: EnvironmentValues = process.env,
+const playwrightGiscusSettings: GiscusSettings = {
+  category: "General",
+  categoryId: "DIC_test",
+  enabled: true,
+  repo: "example/blog",
+  repoId: "R_test",
+};
+
+export function resolveGiscusConfig(
+  settings: GiscusSettings,
 ): GiscusConfig | null {
-  const values = {
-    repo: environment.NEXT_PUBLIC_GISCUS_REPO?.trim() ?? "",
-    repoId: environment.NEXT_PUBLIC_GISCUS_REPO_ID?.trim() ?? "",
-    category: environment.NEXT_PUBLIC_GISCUS_CATEGORY?.trim() ?? "",
-    categoryId: environment.NEXT_PUBLIC_GISCUS_CATEGORY_ID?.trim() ?? "",
-  };
+  if (!settings.enabled) return null;
 
-  if (Object.values(values).every((value) => !value)) {
-    return null;
-  }
+  const values = {
+    category: settings.category,
+    categoryId: settings.categoryId,
+    repo: settings.repo,
+    repoId: settings.repoId,
+  };
 
   const result = giscusConfigSchema.safeParse(values);
   if (!result.success) {
@@ -45,4 +55,14 @@ export function readGiscusConfig(
     );
   }
   return result.data;
+}
+
+export function readGiscusConfig(
+  usePlaywrightFixture = process.env.PLAYWRIGHT_TEST_COMMENTS === "1",
+): GiscusConfig | null {
+  return resolveGiscusConfig(
+    usePlaywrightFixture
+      ? playwrightGiscusSettings
+      : siteConfig.integrations.comments,
+  );
 }
