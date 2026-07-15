@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  deployments: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -58,46 +57,3 @@ jobs:
 
       - name: Build static site
         run: pnpm build
-
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: production
-      url: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-    env:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'hero-ui-blog' }}
-      DEPLOY_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.21.0
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.14.0
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate production deployment
-        run: pnpm production:check
-
-      - name: Build and deploy to Cloudflare Pages
-        run: pnpm deploy
-
-      - name: Smoke test production
-        run: pnpm smoke:deployment -- "$NEXT_PUBLIC_SITE_URL"

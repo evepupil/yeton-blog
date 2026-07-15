@@ -35,8 +35,6 @@ pnpm search:build
 pnpm site:check
 pnpm build
 pnpm preview
-pnpm production:check
-pnpm deploy
 pnpm smoke:deployment -- https://your-production-origin.example
 ```
 
@@ -76,8 +74,6 @@ git diff --check
 - Wrangler 配置：`wrangler.jsonc`
 - Node.js：`22.14.0`
 - pnpm：`10.21.0`
-- Pages 项目变量：`CLOUDFLARE_PAGES_PROJECT`
-- 正式 URL 变量：`NEXT_PUBLIC_SITE_URL`
-- GitHub secrets：`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`
+- Cloudflare Pages 环境变量：`NEXT_PUBLIC_SITE_URL`
 
-Pull Request 只执行完整质量检查。`main` 质量门禁通过后，GitHub `production` 环境会重新构建、部署到 Cloudflare Pages，并对正式地址运行冒烟检查。首次配置和回滚步骤见 `docs/模块设计/Cloudflare部署.md`。
+Pull Request 和 `main` 由 GitHub Actions 执行完整质量检查。Cloudflare Pages 关联 Git 仓库后监听 `main`，仓库更新时自动运行 `pnpm build` 并发布 `out`。GitHub Action 不调用 Cloudflare 上传接口。首次配置和回滚步骤见 `docs/模块设计/Cloudflare部署.md`。

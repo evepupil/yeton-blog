@@ -288,10 +288,11 @@ docs/
 **当前结果，2026-07-15**
 
 - 已锁定 Node.js 22.14.0、pnpm 10.21.0、Wrangler 4.110.0 和 `out` 发布目录。
-- 已配置 `main` 质量门禁后的 production 部署 job；生产构建会校验真实 HTTPS 站点地址和 Cloudflare 变量。
+- GitHub Action 负责质量门禁；Cloudflare Pages 通过 Git 集成监听 `main`，仓库更新后自动构建和部署。
+- Pages 构建只要求 `NEXT_PUBLIC_SITE_URL`，并利用 Cloudflare 自动注入的 `CF_PAGES=1` 强制校验真实 HTTPS 站点地址。
 - 已增加 CSP、HSTS、权限策略、防嵌入、防 MIME 猜测，以及 HTML、哈希资源、图片、搜索索引和订阅文件的分层缓存。
 - 已增加部署后公网冒烟，覆盖中英文首页、真实文章、RSS、sitemap、robots、搜索索引、404 和安全响应头。
-- 当前机器 Wrangler 登录已过期，没有 Cloudflare 部署变量；仓库也没有 Git remote。Pages 项目、正式域名、GitHub production 环境和首次线上部署仍待外部配置，阶段六暂不标记完成。
+- 当前仓库没有 Git remote。Pages 项目、Git 仓库关联、正式域名和首次线上部署仍待外部配置，阶段六暂不标记完成。
 
 **发布关系**：完成后达到首个可公开版本。
 

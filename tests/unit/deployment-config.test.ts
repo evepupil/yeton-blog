@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  readDeploymentEnvironment,
+  resolveCloudflareBuildSiteUrl,
   resolveProductionSiteUrl,
 } from "@/lib/deployment/config";
 
@@ -22,15 +22,21 @@ describe("deployment configuration", () => {
     expect(() => resolveProductionSiteUrl(value)).toThrow();
   });
 
-  it("validates all Cloudflare deployment values without exposing secrets", () => {
-    const configuration = readDeploymentEnvironment({
-      CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
-      CLOUDFLARE_API_TOKEN: "secret-token-value-that-is-long-enough",
-      CLOUDFLARE_PAGES_PROJECT: "hero-ui-blog",
-      NEXT_PUBLIC_SITE_URL: "https://notes.linmo.dev",
-    });
-
-    expect(configuration.pagesProject).toBe("hero-ui-blog");
-    expect(configuration.siteUrl.origin).toBe("https://notes.linmo.dev");
+  it("requires the public URL only inside Cloudflare Pages builds", () => {
+    expect(resolveCloudflareBuildSiteUrl({})).toBeNull();
+    expect(
+      resolveCloudflareBuildSiteUrl({
+        CF_PAGES: "1",
+        NEXT_PUBLIC_SITE_URL: "https://notes.linmo.dev",
+      })?.origin,
+    ).toBe("https://notes.linmo.dev");
+    expect(() =>
+      resolveCloudflareBuildSiteUrl({
+        CF_PAGES: "1",
+        NEXT_PUBLIC_SITE_URL: "https://example.com",
+      }),
+    ).toThrow(
+      "NEXT_PUBLIC_SITE_URL must use the real public production hostname.",
+    );
   });
 });
