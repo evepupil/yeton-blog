@@ -1,0 +1,62 @@
+name: Sync Notion content
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-notion-content
+  cancel-in-progress: false
+
+jobs:
+  sync-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Synchronize Notion content
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NOTION_FRIEND_LINK_DATABASE_ID: ${{ secrets.NOTION_FRIEND_LINK_DATABASE_ID }}
+        run: pnpm sync-content
+
+      - name: Validate synchronized content
+        run: pnpm content:check
+
+      - name: Commit synchronized content
+        shell: bash
+        run: |
+          git add -A -- content/posts data/friends.json public/images
+          if git diff --cached --quiet; then
+            echo "No Notion content changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(content): sync notion content"
+          git pull --rebase origin main
+          git push origin HEAD:main

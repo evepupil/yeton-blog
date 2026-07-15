@@ -308,12 +308,21 @@ docs/
 
 **Notion 同步参考**
 
-- 参考项目：`D:\myproject\my-fuwari`
+- 参考项目：`D:\myproject\notion-fuwari`
 - 文章同步脚本：`scripts/sync-from-notion.js`
 - 友链同步脚本：`scripts/sync-friends-from-notion.js`
 - GitHub Action：`.github/workflows/sync-notion.yml`
 - 环境变量：`NOTION_TOKEN`、`NOTION_DATABASE_ID`、`NOTION_FRIEND_LINK_DATABASE_ID`
 - 参考 Action 支持手动触发，并在每天北京时间 0 点执行 `pnpm sync-notion && pnpm sync-friends`，内容变化后自动提交。
+
+**当前结果，2026-07-15**
+
+- 已实现严格类型的文章与友链字段映射，输出接入现有 `content/posts/{zh,en}` 和 `data/friends.json`。
+- 已实现正文图片、封面和友链头像下载，文件保存到 `public/images/notion` 与 `public/images/friends`。
+- 已实现 `overwrite`、`new-only`、`append` 三种模式；只更新带 `source: "notion"` 的文章，slug 冲突会保护手写文件并终止同步。
+- 已增加每天北京时间 0 点和手动触发的 `sync-notion.yml`。Action 只同步、校验、commit、push，后续部署由 Cloudflare Git 集成处理。
+- 已增加字段映射、幂等写入、手写文件保护、slug 和图片命名单测。
+- Giscus、访问统计、友链页面和图片展示回退仍待后续任务完成，阶段 7 暂不标记完成。
 
 **验收**
 

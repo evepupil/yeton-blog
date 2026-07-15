@@ -23,7 +23,7 @@
 
 1. Cloudflare Pages 关联 Git 仓库并监听目标分支。仓库更新后由 Cloudflare 拉取代码、执行配置的构建命令并发布 `out`。
 2. GitHub Action 不保存 Cloudflare API Token、Account ID 或 Pages 项目名，也不执行 `wrangler pages deploy`。
-3. Notion 同步沿用参考项目 `D:\myproject\my-fuwari` 的职责边界：Action 同步内容并推送 commit，Cloudflare 看到仓库更新后自动部署。
+3. Notion 同步沿用参考项目 `D:\myproject\notion-fuwari` 的职责边界：Action 同步内容并推送 commit，Cloudflare 看到仓库更新后自动部署。
 4. `NEXT_PUBLIC_SITE_URL` 用于 canonical、RSS、sitemap 和分享地址。Cloudflare 项目虽然保存了同名 Production/Preview 变量，Git 构建日志仍显示没有注入构建变量，因此正式域名同时写在 Pages 构建命令中，保证生产构建获得确定地址。
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
@@ -76,7 +76,7 @@
 
 ### Notion 同步关系
 
-未来的定时同步 Action 只执行：
+定时同步 Action 只执行：
 
 1. 从 Notion 生成仓库内容和本地图片。
 2. 有变化时由 `github-actions[bot]` 提交并推送。

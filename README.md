@@ -4,7 +4,8 @@
 
 ## 当前进度
 
-- 阶段 0 至阶段 5 已完成，当前已具备完整阅读、双语搜索、SEO、RSS、站点地图和静态产物检查
+- 阶段 0 至阶段 6 已完成，博客已通过 Cloudflare Pages 的 Git 集成上线
+- 阶段 7 已完成 Notion 文章与友链同步基础，评论、统计和友链页面继续按 roadmap 实现
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -19,6 +20,7 @@
 - 归档、图书与多语言：`docs/模块设计/归档图书与多语言.md`
 - 搜索、SEO 与站点完整性：`docs/模块设计/搜索SEO与站点完整性.md`
 - Cloudflare Pages 部署：`docs/模块设计/Cloudflare部署.md`
+- Notion 同步：`docs/模块设计/Notion同步.md`
 
 ## 环境要求
 
@@ -31,6 +33,8 @@
 pnpm install --frozen-lockfile
 pnpm dev
 pnpm content:check
+pnpm sync-notion
+pnpm sync-friends
 pnpm search:build
 pnpm site:check
 pnpm build
@@ -39,6 +43,20 @@ pnpm smoke:deployment -- https://your-production-origin.example
 ```
 
 `pnpm content:check` 校验全部文章和图书。`pnpm search:build` 生成双语搜索索引。`pnpm site:check` 检查已有 `out` 产物。`pnpm build` 会依次完成内容校验、搜索索引、静态导出和站点完整性检查。`pnpm preview` 使用 Wrangler 预览 `out`，日常实现时按需手动执行。
+
+## Notion 同步
+
+在 `.env.local` 配置 `NOTION_TOKEN`、`NOTION_DATABASE_ID` 和可选的 `NOTION_FRIEND_LINK_DATABASE_ID`。文章数据库沿用参考项目的 `Title`、`Status`、`Published Date`、`Featured Image`、`Tags` 字段，并额外支持 `Slug`、`Description`、`Locale`、`Translation Key`。
+
+```bash
+pnpm sync-notion
+pnpm sync-notion:new
+pnpm sync-notion:append
+pnpm sync-friends
+pnpm sync-content
+```
+
+默认模式会更新 Notion 管理的文章并清理已经不在发布列表中的同步文章。`new` 只添加新文章，`append` 添加并更新且不清理。手写文章发生 slug 冲突时同步会失败，原文件不会被覆盖。GitHub 的 `Sync Notion content` Action 每天北京时间 0 点运行，有变化时提交到 `main`，随后由 Cloudflare Pages 自动部署。
 
 ## 内容编写
 

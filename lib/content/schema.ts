@@ -19,6 +19,10 @@ const translationKeySchema = z
   .string()
   .trim()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+const notionPageIdSchema = z
+  .string()
+  .trim()
+  .regex(/^(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/iu);
 
 export const articleFrontmatterSchema = z
   .strictObject({
@@ -32,6 +36,8 @@ export const articleFrontmatterSchema = z
     pinned: z.boolean().default(false),
     image: z.string().trim().startsWith("/").optional(),
     translationKey: translationKeySchema.optional(),
+    source: z.literal("notion").optional(),
+    notionPageId: notionPageIdSchema.optional(),
   })
   .superRefine((article, context) => {
     if (article.updated && article.updated < article.published) {
@@ -39,6 +45,14 @@ export const articleFrontmatterSchema = z
         code: "custom",
         message: "updated cannot be earlier than published",
         path: ["updated"],
+      });
+    }
+
+    if ((article.source === "notion") !== Boolean(article.notionPageId)) {
+      context.addIssue({
+        code: "custom",
+        message: "source and notionPageId must be provided together",
+        path: [article.source ? "notionPageId" : "source"],
       });
     }
   });
