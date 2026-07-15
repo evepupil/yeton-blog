@@ -11,3 +11,9 @@ export function getArticleTocHeadings(
 
   return headings.filter((heading) => heading.depth === 2);
 }
+
+export function getBookChapterHeadings(
+  headings: readonly ContentHeading[],
+): readonly ContentHeading[] {
+  return headings.filter((heading) => heading.depth === 2);
+}

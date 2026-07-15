@@ -179,6 +179,16 @@
   line-height: 1.85;
 }
 
+.book-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: -4px 0 14px;
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .book-detail-tags {
   display: flex;
   flex-wrap: wrap;

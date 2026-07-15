@@ -326,6 +326,7 @@ docs/
 - 已增加点击后加载的 Giscus 评论区、明暗主题联动、配置缺失、脚本失败和重试状态；Playwright 使用本地伪 Giscus 验证主题消息与失败降级。
 - 已增加统一公共配置入口，集中管理品牌、作者、头像、社交链接、Giscus、AdSense 和访问统计公开参数。
 - 已将 notion-fuwari 的 33 篇真实文章与 31 张引用图片迁入新站，保留旧 slug、双语关系和 3 篇 Notion 来源信息，移除线上演示文章与封面。
+- 已将 notion-fuwari 的 3 本真实图书与 26 个章节迁入新站，保留作者、译者、日期和旧章节内容，移除 3 本演示图书。
 - 已复用旧站 Umami Cloud Website ID，延后加载统计脚本，恢复公开统计入口，并补齐 CSP、隐私说明和配置校验。
 - 公开 API 确认 `evepupil/yeton-blog` 尚未开启 Discussions，当前登录账号也没有仓库设置权限。仓库所有者启用 Discussions、安装 Giscus App 并配置分类 ID 后，线上评论才会开放。
 - 友链页面和图片展示回退仍待后续任务完成，阶段 7 暂不标记完成。

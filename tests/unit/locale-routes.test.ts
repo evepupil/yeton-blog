@@ -13,7 +13,7 @@ describe("content locale routes", () => {
     [articles, books] = await Promise.all([loadArticles(), loadBooks()]);
   });
 
-  it("maps translated articles and books in both directions", () => {
+  it("maps translated articles in both directions", () => {
     const routes = buildContentLocaleRoutes(articles, books);
 
     expect(routes["/posts/ai-agent-深度学习指南/"]).toBe(
@@ -29,7 +29,6 @@ describe("content locale routes", () => {
         routes,
       ),
     ).toBe("/en/posts/ai-agent-deep-learning-guide/");
-    expect(routes["/books/ai-engineering/"]).toBe("/en/books/ai-engineering/");
   });
 
   it("falls back to the target home when a translation is missing", () => {
@@ -38,7 +37,8 @@ describe("content locale routes", () => {
     expect(routes["/posts/从-prompt-到-subagent-ai-工程化学习路线/"]).toBe(
       "/en/",
     );
-    expect(routes["/books/indie-builder-notes/"]).toBe("/en/");
+    expect(routes["/books/ai-engineering/"]).toBe("/en/");
+    expect(routes["/books/tae-kim-japanese-grammar-guide/"]).toBe("/en/");
     expect(getLocaleSwitchPath("/tags/前端/", "en", routes)).toBe("/en/");
   });
 });

@@ -37,6 +37,23 @@ export function BookDetailPage({ book }: BookDetailPageProps) {
               {status}
             </Chip>
             <h1>{book.title}</h1>
+            {book.author || book.translator || book.published ? (
+              <div className="book-detail-meta">
+                {book.author ? (
+                  <span>
+                    {content.author} · {book.author}
+                  </span>
+                ) : null}
+                {book.translator ? (
+                  <span>
+                    {content.translator} · {book.translator}
+                  </span>
+                ) : null}
+                {book.published ? (
+                  <time dateTime={book.published}>{book.published}</time>
+                ) : null}
+              </div>
+            ) : null}
             <p>{book.description}</p>
             <div className="book-detail-tags">
               {book.tags.map((tag) => (

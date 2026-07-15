@@ -2,6 +2,7 @@ import type { SiteLocale } from "@/lib/site-config";
 
 export const booksContent = {
   "zh-CN": {
+    author: "作者",
     back: "返回图书列表",
     chapters: "章节目录",
     complete: "已完成",
@@ -10,8 +11,10 @@ export const booksContent = {
     progress: "阅读进度",
     serializing: "连载中",
     title: "图书与长文",
+    translator: "译者",
   },
   en: {
+    author: "Author",
     back: "Back to books",
     chapters: "Chapters",
     complete: "Complete",
@@ -21,5 +24,6 @@ export const booksContent = {
     progress: "Reading progress",
     serializing: "In progress",
     title: "Books and long reads",
+    translator: "Translator",
   },
 } as const satisfies Record<SiteLocale, object>;

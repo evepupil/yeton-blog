@@ -6,6 +6,7 @@ import { booksContent } from "@/features/books/book-content";
 import { getBookHref } from "@/features/books/book-links";
 import { siteConfig } from "@/lib/site-config";
 import { BookProgress } from "@/features/books/book-progress";
+import { getBookChapterHeadings } from "@/lib/content/toc";
 import type { Book } from "@/lib/content/types";
 
 interface BookCardProps {
@@ -39,7 +40,7 @@ export function BookCard({ book, index }: BookCardProps) {
         <p>{book.description}</p>
         <BookProgress label={content.progress} progress={book.progress} />
         <nav aria-label={content.chapters} className="book-chapters">
-          {book.headings.map((chapter) => (
+          {getBookChapterHeadings(book.headings).map((chapter) => (
             <SiteLink href={`${href}#${chapter.id}`} key={chapter.id}>
               {chapter.text}
             </SiteLink>

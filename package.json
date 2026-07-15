@@ -16,6 +16,7 @@
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.typecheck.json",
     "content:check": "tsx scripts/validate-content.ts",
     "content:migrate-legacy": "tsx scripts/migrate-legacy-content.ts",
+    "content:migrate-legacy-books": "tsx scripts/migrate-legacy-books.ts",
     "sync-notion": "tsx scripts/sync-notion.ts",
     "sync-notion:new": "tsx scripts/sync-notion.ts --mode=new-only",
     "sync-notion:append": "tsx scripts/sync-notion.ts --mode=append",

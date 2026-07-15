@@ -48,7 +48,7 @@ describe("content queries", () => {
     expect(aiTag?.count).toBe(5);
   });
 
-  it("finds an explicit translation and orders books", () => {
+  it("finds an explicit article translation and orders migrated books", () => {
     const source = articles.find(
       (article) => article.slug === "ai-agent-深度学习指南",
     );
@@ -58,7 +58,8 @@ describe("content queries", () => {
     expect(translation?.slug).toBe("ai-agent-deep-learning-guide");
     expect(getPublishedBooks(books, "zh-CN").map((book) => book.slug)).toEqual([
       "ai-engineering",
-      "indie-builder-notes",
+      "claude-code-advanced",
+      "tae-kim-japanese-grammar-guide",
     ]);
   });
 
@@ -81,13 +82,11 @@ describe("content queries", () => {
     expect(navigation.next?.slug).toBe("claude-code里面使用chatgpt的模型教程");
   });
 
-  it("filters tags and resolves book translations", () => {
+  it("filters tags and leaves single-language books unpaired", () => {
     expect(getPublishedArticlesByTag(articles, "zh-CN", "AI")).toHaveLength(5);
 
     const book = findPublishedBook(books, "zh-CN", "ai-engineering");
     expect(book).not.toBeNull();
-    expect(findBookTranslation(books, book!, "en")?.slug).toBe(
-      "ai-engineering",
-    );
+    expect(findBookTranslation(books, book!, "en")).toBeNull();
   });
 });

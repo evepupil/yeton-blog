@@ -96,7 +96,7 @@ comments: {
 - 中文文章放在 `content/posts/zh/`，英文文章放在 `content/posts/en/`。
 - 中文图书放在 `content/books/zh/`，英文图书放在 `content/books/en/`。
 - 文件名使用小写 kebab-case，并作为页面 slug；可以包含中文等 Unicode 字母，例如 `cloudflare-配置教程.mdx`。
-- 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书还需要 `status`、`progress` 和 `order`。
+- 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书还需要 `status`、`progress` 和 `order`，并可填写 `author`、`translator`、`published`、`updated`。
 - 有译文时，两种语言使用相同的 `translationKey`；没有译文时省略该字段。
 - 本地图片放在 `public/`，frontmatter 使用以 `/` 开头的站内路径。
 
@@ -110,6 +110,7 @@ comments: {
 
 ```bash
 pnpm content:migrate-legacy -- --source D:\myproject\notion-fuwari --replace
+pnpm content:migrate-legacy-books -- --source D:\myproject\notion-fuwari --replace
 pnpm content:check
 ```
 
@@ -120,6 +121,8 @@ pnpm content:check
 - 将 `published`、`updated` 统一写成引号包裹的 `YYYY-MM-DD`，空的 `image` 字段直接删除
 - 把图片迁入 `public/`，并将 Markdown 和 `image` 改为以 `/` 开头的站内路径
 - 需要继续由 Notion 管理时，补齐 `source: "notion"` 和对应的 `notionPageId`
+
+图书迁移命令会把旧站每个图书目录的 `index.md` 和编号章节合并为一个 Markdown 文件，将旧章节链接改为单页锚点，并删除当前演示图书。三个旧目录的 slug 和展示顺序在迁移脚本中显式配置，新增目录时需要先补充这两项。
 
 继续使用 Notion 自动同步时，需要先把每篇页面的 `Slug` 属性填写为旧文件名。同步器会保留中文等 Unicode 字符；缺少显式 Slug 时会根据标题和页面 ID 生成新地址。
 

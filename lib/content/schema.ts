@@ -60,17 +60,31 @@ export const articleFrontmatterSchema = z
     }
   });
 
-export const bookFrontmatterSchema = z.strictObject({
-  title: z.string().trim().min(1),
-  description: z.string().trim().min(1).max(240),
-  locale: localeSchema,
-  tags: tagsSchema,
-  status: z.enum(["serializing", "complete"]),
-  progress: z.number().int().min(0).max(100),
-  order: z.number().int().min(0),
-  draft: z.boolean().default(false),
-  translationKey: translationKeySchema.optional(),
-});
+export const bookFrontmatterSchema = z
+  .strictObject({
+    title: z.string().trim().min(1),
+    description: z.string().trim().min(1).max(240),
+    author: z.string().trim().min(1).optional(),
+    translator: z.string().trim().min(1).optional(),
+    published: dateSchema.optional(),
+    updated: dateSchema.optional(),
+    locale: localeSchema,
+    tags: tagsSchema,
+    status: z.enum(["serializing", "complete"]),
+    progress: z.number().int().min(0).max(100),
+    order: z.number().int().min(0),
+    draft: z.boolean().default(false),
+    translationKey: translationKeySchema.optional(),
+  })
+  .superRefine((book, context) => {
+    if (book.updated && book.published && book.updated < book.published) {
+      context.addIssue({
+        code: "custom",
+        message: "updated cannot be earlier than published",
+        path: ["updated"],
+      });
+    }
+  });
 
 export type ArticleFrontmatter = z.infer<typeof articleFrontmatterSchema>;
 export type BookFrontmatter = z.infer<typeof bookFrontmatterSchema>;

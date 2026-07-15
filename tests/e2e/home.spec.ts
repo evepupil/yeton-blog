@@ -284,7 +284,7 @@ test("shows archive counts and opens a tag detail page", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
-test("opens a book chapter and switches to its translation", async ({
+test("opens a migrated book chapter and falls back across languages", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -293,10 +293,10 @@ test("opens a book chapter and switches to its translation", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "图书与长文" }),
   ).toBeVisible();
-  await expect(page.locator(".book-item")).toHaveCount(2);
+  await expect(page.locator(".book-item")).toHaveCount(3);
   await expect(page.getByRole("progressbar").nth(0)).toHaveAttribute(
     "aria-valuenow",
-    "67",
+    "100",
   );
   await expect(page.getByRole("progressbar").nth(1)).toHaveAttribute(
     "aria-valuenow",
@@ -306,19 +306,19 @@ test("opens a book chapter and switches to its translation", async ({
   await page
     .locator(".book-item")
     .first()
-    .getByRole("link", { name: "Prompt 与上下文" })
+    .getByRole("link", { name: "Prompt：把需求表达清楚" })
     .click();
   await expect(page).toHaveURL(
-    /\/books\/ai-engineering\/#prompt-%E4%B8%8E%E4%B8%8A%E4%B8%8B%E6%96%87$/u,
+    /\/books\/ai-engineering\/#prompt%E6%8A%8A%E9%9C%80%E6%B1%82%E8%A1%A8%E8%BE%BE%E6%B8%85%E6%A5%9A$/u,
   );
-  await expect(page.locator("#prompt-与上下文")).toBeInViewport();
+  await expect(page.locator("#prompt把需求表达清楚")).toBeInViewport();
 
   await page.getByLabel("选择语言").selectOption("en");
-  await expect(page).toHaveURL(/\/en\/books\/ai-engineering\/$/u);
+  await expect(page).toHaveURL(/\/en\/$/u);
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "An engineering path for AI applications",
+      name: "Exploring technology and evolving ideas",
     }),
   ).toBeVisible();
   expect(browserErrors).toEqual([]);
@@ -333,7 +333,7 @@ test("returns to the target home when content has no translation", async ({
   await page.getByLabel("选择语言").selectOption("en");
   await expect(page).toHaveURL(/\/en\/$/u);
 
-  await page.goto("/books/indie-builder-notes/");
+  await page.goto("/books/tae-kim-japanese-grammar-guide/");
   await page.getByLabel("选择语言").selectOption("en");
   await expect(page).toHaveURL(/\/en\/$/u);
   expect(browserErrors).toEqual([]);
