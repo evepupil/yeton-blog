@@ -115,6 +115,81 @@ test("opens a real article with contents and adjacent navigation", async ({
   expect(browserErrors).toEqual([]);
 });
 
+test("loads comments on demand and follows the site theme", async ({
+  page,
+}) => {
+  await page.route("https://giscus.app/client.js", async (route) => {
+    await route.fulfill({
+      body: `
+        const frame = document.createElement("iframe");
+        frame.className = "giscus-frame";
+        frame.src = "https://giscus.app/test-frame";
+        document.currentScript.parentElement.append(frame);
+      `,
+      contentType: "application/javascript",
+    });
+  });
+  await page.route("https://giscus.app/test-frame", async (route) => {
+    await route.fulfill({
+      body: `
+        <!doctype html>
+        <html><body><script>
+          window.addEventListener("message", (event) => {
+            const theme = event.data?.giscus?.setConfig?.theme;
+            if (theme) document.body.dataset.theme = theme;
+          });
+        <\/script></body></html>
+      `,
+      contentType: "text/html",
+    });
+  });
+
+  await page.goto("/posts/cloudflare-pages-nextjs/");
+  const comments = page.getByTestId("article-comments");
+  await expect(
+    comments.getByRole("heading", { level: 2, name: "评论" }),
+  ).toBeVisible();
+  await comments.getByRole("button", { name: "加载评论" }).click();
+  const commentsFrame = page.frameLocator("iframe.giscus-frame");
+  const frameBody = commentsFrame.locator("body");
+  const html = page.locator("html");
+  const initialTheme = await html.getAttribute("data-theme");
+  await expect(frameBody).toHaveAttribute("data-theme", initialTheme!);
+
+  await page.getByRole("button", { name: "切换主题" }).click();
+  const nextTheme = initialTheme === "dark" ? "light" : "dark";
+  await expect(html).toHaveAttribute("data-theme", nextTheme);
+  await expect(frameBody).toHaveAttribute("data-theme", nextTheme);
+});
+
+test("keeps the article readable when comments fail to load", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("https://giscus.app/client.js", async (route) => {
+    await route.abort("failed");
+  });
+  await page.goto("/en/posts/pages-field-notes/");
+
+  const comments = page.getByTestId("article-comments");
+  await comments.getByRole("button", { name: "Load comments" }).click();
+  await expect(
+    comments.getByText(
+      "Comments could not load. The article remains available.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    comments.getByRole("button", { name: "Try again" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Field notes from moving a blog to Cloudflare Pages",
+    }),
+  ).toBeVisible();
+});
+
 test("filters and paginates the article list through the URL", async ({
   page,
 }) => {

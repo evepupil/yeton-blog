@@ -5,7 +5,7 @@
 ## 当前进度
 
 - 阶段 0 至阶段 6 已完成，博客已通过 Cloudflare Pages 的 Git 集成上线
-- 阶段 7 已完成 Notion 文章与友链同步基础，评论、统计和友链页面继续按 roadmap 实现
+- 阶段 7 已完成 Notion 同步和 Giscus 评论代码，统计与友链页面继续按 roadmap 实现
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -21,6 +21,7 @@
 - 搜索、SEO 与站点完整性：`docs/模块设计/搜索SEO与站点完整性.md`
 - Cloudflare Pages 部署：`docs/模块设计/Cloudflare部署.md`
 - Notion 同步：`docs/模块设计/Notion同步.md`
+- 评论系统：`docs/模块设计/评论系统.md`
 
 ## 环境要求
 
@@ -57,6 +58,19 @@ pnpm sync-content
 ```
 
 默认模式会更新 Notion 管理的文章并清理已经不在发布列表中的同步文章。`new` 只添加新文章，`append` 添加并更新且不清理。手写文章发生 slug 冲突时同步会失败，原文件不会被覆盖。GitHub 的 `Sync Notion content` Action 每天北京时间 0 点运行，有变化时提交到 `main`，随后由 Cloudflare Pages 自动部署。
+
+## Giscus 评论
+
+文章页支持点击后加载 Giscus、跟随站点主题和加载失败重试。需要先在 GitHub 为 `evepupil/yeton-blog` 开启 Discussions、安装 Giscus App 并选择分类，然后配置以下公开构建变量：
+
+```bash
+NEXT_PUBLIC_GISCUS_REPO=evepupil/yeton-blog
+NEXT_PUBLIC_GISCUS_REPO_ID=R_kgDOTY-rvQ
+NEXT_PUBLIC_GISCUS_CATEGORY=General
+NEXT_PUBLIC_GISCUS_CATEGORY_ID=<Giscus 生成的分类 ID>
+```
+
+四项都缺少时评论区显示未开放状态；只配置一部分会让构建失败，避免发布一个无法工作的评论入口。
 
 ## 内容编写
 

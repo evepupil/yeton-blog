@@ -27,7 +27,7 @@
 4. `NEXT_PUBLIC_SITE_URL` 用于 canonical、RSS、sitemap 和分享地址。Cloudflare 项目虽然保存了同名 Production/Preview 变量，Git 构建日志仍显示没有注入构建变量，因此正式域名同时写在 Pages 构建命令中，保证生产构建获得确定地址。
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
-7. CSP 只允许站内脚本、样式、字体、图片和请求。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入评论或统计时必须同步调整来源。
+7. CSP 允许站内资源和 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
 
 ## 改动历史
 
@@ -43,6 +43,7 @@
 - 将 Git remote 关联到 `evepupil/yeton-blog`，确认 Cloudflare Pages 项目 `yeton-blog` 已连接该仓库。
 - 使用正式地址 `https://blog1.chaosyn.com` 完成生产构建、Wrangler 首次发布和公网冒烟。
 - 根据失败 deployment 的服务端配置和构建日志确认变量已保存但未进入构建进程，将正式域名加入 Pages 构建命令后重试成功。
+- 阶段 7 为 Giscus 增加 `https://giscus.app` 的 `script-src`、`connect-src` 和 `frame-src`，并将规则纳入静态产物检查。
 
 ## 实现细节
 
@@ -112,4 +113,5 @@ pnpm smoke:deployment -- https://your-production-origin.example
 
 - 仓库、Pages 项目、正式域名、Wrangler 直传和 Git 来源的生产构建已经打通。
 - Cloudflare Dashboard 变量与构建命令都保存了公开站点地址；正式域名变化时必须同步修改两处，避免 canonical、RSS 和 sitemap 继续使用旧地址。
+- Giscus 四项公开配置需要在 Pages 构建进程中同时存在；仓库启用 Discussions 后应先检查构建日志确认这些变量已经注入。
 - 任意未知 `/en/*` 地址仍使用根目录中文 `404.html`；显式英文 `/en/404/` 可访问。

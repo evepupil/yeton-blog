@@ -503,6 +503,73 @@
   justify-content: flex-end;
 }
 
+.article-comments {
+  min-height: 150px;
+  margin-top: 64px;
+  padding-top: 34px;
+  border-top: 1px solid var(--line);
+}
+
+.article-comments-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.article-comments-header svg {
+  width: 19px;
+  height: 19px;
+  color: var(--accent);
+}
+
+.article-comments-header h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.article-comments > button svg,
+.article-comments-error button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.article-comments-message,
+.article-comments-error p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.article-comments-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.article-comments-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.article-comments-host:not(:empty) {
+  margin-top: 8px;
+}
+
+.article-comments-host iframe {
+  width: 100%;
+  min-height: 180px;
+  border: 0;
+}
+
 @media (max-width: 1020px) {
   .post-card-frame {
     grid-template-columns: 150px minmax(0, 1fr);
@@ -653,5 +720,16 @@
 
   .article-navigation-card.is-next span {
     justify-content: flex-start;
+  }
+
+  .article-comments {
+    min-height: 132px;
+    margin-top: 52px;
+    padding-top: 28px;
+  }
+
+  .article-comments-error {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

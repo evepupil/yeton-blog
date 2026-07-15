@@ -322,7 +322,9 @@ docs/
 - 已实现 `overwrite`、`new-only`、`append` 三种模式；只更新带 `source: "notion"` 的文章，slug 冲突会保护手写文件并终止同步。
 - 已增加每天北京时间 0 点和手动触发的 `sync-notion.yml`。Action 只同步、校验、commit、push，后续部署由 Cloudflare Git 集成处理。
 - 已增加字段映射、幂等写入、手写文件保护、slug 和图片命名单测。
-- Giscus、访问统计、友链页面和图片展示回退仍待后续任务完成，阶段 7 暂不标记完成。
+- 已增加点击后加载的 Giscus 评论区、明暗主题联动、配置缺失、脚本失败和重试状态；Playwright 使用本地伪 Giscus 验证主题消息与失败降级。
+- 公开 API 确认 `evepupil/yeton-blog` 尚未开启 Discussions，当前登录账号也没有仓库设置权限。仓库所有者启用 Discussions、安装 Giscus App 并配置分类 ID 后，线上评论才会开放。
+- 访问统计、友链页面和图片展示回退仍待后续任务完成，阶段 7 暂不标记完成。
 
 **验收**
 

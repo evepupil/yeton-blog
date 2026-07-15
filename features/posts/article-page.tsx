@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { GiscusComments } from "@/features/comments/giscus-comments";
 import { ArticleNavigation } from "@/features/posts/article-navigation";
 import { ArticleToc } from "@/features/posts/article-toc";
 import { MarkdownContent } from "@/features/posts/markdown-content";
@@ -13,6 +14,7 @@ import type {
   Article,
   ArticleNavigation as ArticleNavigationData,
 } from "@/lib/content/types";
+import { readGiscusConfig } from "@/lib/giscus/config";
 import { getLocalizedPath } from "@/lib/i18n";
 
 interface ArticlePageProps {
@@ -23,6 +25,7 @@ interface ArticlePageProps {
 export function ArticlePage({ article, navigation }: ArticlePageProps) {
   const content = articleContent[article.locale];
   const postsHref = getLocalizedPath("/posts/", article.locale);
+  const giscusConfig = readGiscusConfig();
 
   return (
     <main className="article-page">
@@ -73,6 +76,7 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
             labels={{ next: content.next, previous: content.previous }}
             navigation={navigation}
           />
+          <GiscusComments config={giscusConfig} locale={article.locale} />
         </article>
         <ArticleToc headings={article.headings} title={content.contents} />
       </div>
