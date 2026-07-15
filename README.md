@@ -69,11 +69,11 @@ git diff --check
 
 ## Cloudflare Pages
 
-- 构建命令：`pnpm build`
+- 构建命令：`NEXT_PUBLIC_SITE_URL=https://blog1.chaosyn.com pnpm build`
 - 输出目录：`out`
 - Wrangler 配置：`wrangler.jsonc`
 - Node.js：`22.14.0`
 - pnpm：`10.21.0`
 - Cloudflare Pages 环境变量：`NEXT_PUBLIC_SITE_URL`
 
-Pull Request 和 `main` 由 GitHub Actions 执行完整质量检查。Cloudflare Pages 关联 Git 仓库后监听 `main`，仓库更新时自动运行 `pnpm build` 并发布 `out`。GitHub Action 不调用 Cloudflare 上传接口。首次配置和回滚步骤见 `docs/模块设计/Cloudflare部署.md`。
+Pull Request 和 `main` 由 GitHub Actions 执行完整质量检查。Cloudflare Pages 关联 Git 仓库后监听 `main`，仓库更新时自动执行上面的构建命令并发布 `out`。GitHub Action 不调用 Cloudflare 上传接口。首次配置和回滚步骤见 `docs/模块设计/Cloudflare部署.md`。

@@ -21,10 +21,10 @@
 
 ### 关键决策
 
-1. Cloudflare Pages 关联 Git 仓库并监听目标分支。仓库更新后由 Cloudflare 拉取代码、执行 `pnpm build` 并发布 `out`。
+1. Cloudflare Pages 关联 Git 仓库并监听目标分支。仓库更新后由 Cloudflare 拉取代码、执行配置的构建命令并发布 `out`。
 2. GitHub Action 不保存 Cloudflare API Token、Account ID 或 Pages 项目名，也不执行 `wrangler pages deploy`。
 3. Notion 同步沿用参考项目 `D:\myproject\my-fuwari` 的职责边界：Action 同步内容并推送 commit，Cloudflare 看到仓库更新后自动部署。
-4. `NEXT_PUBLIC_SITE_URL` 是 Pages 中唯一必需的本站构建变量，用于 canonical、RSS、sitemap 和分享地址。Cloudflare 自动注入 `CF_PAGES=1` 时，缺少或误用示例地址会让构建失败。
+4. `NEXT_PUBLIC_SITE_URL` 用于 canonical、RSS、sitemap 和分享地址。Cloudflare 项目虽然保存了同名 Production/Preview 变量，Git 构建日志仍显示没有注入构建变量，因此正式域名同时写在 Pages 构建命令中，保证生产构建获得确定地址。
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 只允许站内脚本、样式、字体、图片和请求。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入评论或统计时必须同步调整来源。
@@ -42,6 +42,7 @@
 - 根据参考项目确认部署模型后，删除主动上传所需的 Cloudflare secrets、variables 和部署脚本。
 - 将 Git remote 关联到 `evepupil/yeton-blog`，确认 Cloudflare Pages 项目 `yeton-blog` 已连接该仓库。
 - 使用正式地址 `https://blog1.chaosyn.com` 完成生产构建、Wrangler 首次发布和公网冒烟。
+- 根据失败 deployment 的服务端配置和构建日志确认变量已保存但未进入构建进程，将正式域名加入 Pages 构建命令后重试成功。
 
 ## 实现细节
 
@@ -49,17 +50,17 @@
 
 在 Cloudflare Dashboard 创建 Pages 项目并关联 Git 仓库，配置：
 
-| 配置项               | 值                          |
-| -------------------- | --------------------------- |
-| Pages project        | `yeton-blog`                |
-| Production branch    | `main`                      |
-| Production origin    | `https://blog1.chaosyn.com` |
-| Build command        | `pnpm build`                |
-| Build output         | `out`                       |
-| Root directory       | `/`                         |
-| Node.js              | `22.14.0`                   |
-| pnpm                 | `10.21.0`                   |
-| Environment variable | `NEXT_PUBLIC_SITE_URL`      |
+| 配置项               | 值                                                          |
+| -------------------- | ----------------------------------------------------------- |
+| Pages project        | `yeton-blog`                                                |
+| Production branch    | `main`                                                      |
+| Production origin    | `https://blog1.chaosyn.com`                                 |
+| Build command        | `NEXT_PUBLIC_SITE_URL=https://blog1.chaosyn.com pnpm build` |
+| Build output         | `out`                                                       |
+| Root directory       | `/`                                                         |
+| Node.js              | `22.14.0`                                                   |
+| pnpm                 | `10.21.0`                                                   |
+| Environment variable | `NEXT_PUBLIC_SITE_URL`                                      |
 
 `NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog1.chaosyn.com`。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 
@@ -67,8 +68,8 @@
 
 1. Pull Request 通过 GitHub `Quality` 检查。
 2. 合并到 `main` 后，Cloudflare Pages 的 Git 集成检测到新 commit。
-3. Cloudflare 安装锁定依赖并运行 `pnpm build`。
-4. 构建脚本检测到 `CF_PAGES=1`，校验 `NEXT_PUBLIC_SITE_URL`，随后生成并检查 `out`。
+3. Cloudflare 安装锁定依赖并运行配置的构建命令；命令先把正式域名传给 `pnpm build`。
+4. 构建脚本检测到 `CF_PAGES=1`，校验传入的 `NEXT_PUBLIC_SITE_URL`，随后生成并检查 `out`。
 5. Cloudflare 发布静态产物并保留 deployment 历史。
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
@@ -109,6 +110,6 @@ pnpm smoke:deployment -- https://your-production-origin.example
 
 ## 当前限制
 
-- 仓库、Pages 项目、正式域名和首次生产发布已经打通；当前生产提交为 `49b13a9`。
-- Git 集成触发的首次构建没有读到 Dashboard 中的 `NEXT_PUBLIC_SITE_URL`。Wrangler 直传已经恢复线上发布，Git 自动构建仍需重新触发并确认变量作用于 Production 构建环境。
+- 仓库、Pages 项目、正式域名、Wrangler 直传和 Git 来源的生产构建已经打通。
+- Cloudflare Dashboard 变量与构建命令都保存了公开站点地址；正式域名变化时必须同步修改两处，避免 canonical、RSS 和 sitemap 继续使用旧地址。
 - 任意未知 `/en/*` 地址仍使用根目录中文 `404.html`；显式英文 `/en/404/` 可访问。
