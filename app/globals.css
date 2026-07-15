@@ -5,6 +5,7 @@
 @import "../features/archives/archives.css";
 @import "../features/books/books.css";
 @import "../features/posts/posts.css";
+@import "../features/search/search.css";
 @import "../features/tags/tags.css";
 
 :root {

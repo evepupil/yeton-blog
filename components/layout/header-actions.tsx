@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { NavigationLinks } from "@/components/layout/navigation-links";
 import { LocaleSwitcher } from "@/features/locale/locale-switcher";
+import { SearchDialog } from "@/features/search/search-dialog";
 import { ThemeToggle } from "@/features/theme/theme-toggle";
 import { messages } from "@/lib/i18n";
 import type { LocaleRouteMap } from "@/lib/i18n";
@@ -30,6 +31,7 @@ export function HeaderActions({
 
   return (
     <div className="header-actions">
+      <SearchDialog label={copy.searchLabel} locale={locale} />
       <LocaleSwitcher
         contentRoutes={contentRoutes}
         label={copy.localeLabel}

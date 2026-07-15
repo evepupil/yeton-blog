@@ -5,6 +5,7 @@ node_modules/
 .next/
 out/
 tsconfig.tsbuildinfo
+public/search-index/
 
 # tests
 coverage/

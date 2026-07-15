@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 4173;
+const port = 44_173;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm build && pnpm exec serve out --listen ${port} --no-clipboard`,
+    command: `pnpm build && pnpm exec serve out --listen ${port} --no-clipboard --no-port-switching`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,

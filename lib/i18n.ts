@@ -12,6 +12,7 @@ export const messages = {
       about: "关于",
     },
     localeLabel: "选择语言",
+    searchLabel: "搜索文章",
     menuOpen: "打开菜单",
     menuClose: "关闭菜单",
     themeLabel: "切换主题",
@@ -26,6 +27,7 @@ export const messages = {
       about: "About",
     },
     localeLabel: "Choose language",
+    searchLabel: "Search writing",
     menuOpen: "Open menu",
     menuClose: "Close menu",
     themeLabel: "Toggle theme",
@@ -34,7 +36,7 @@ export const messages = {
 } as const satisfies Record<SiteLocale, object>;
 
 function withTrailingSlash(pathname: string): string {
-  if (pathname === "/") {
+  if (pathname === "/" || /\.[a-z0-9]+$/iu.test(pathname)) {
     return pathname;
   }
 

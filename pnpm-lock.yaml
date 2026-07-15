@@ -28,6 +28,9 @@ importers:
       mdast-util-to-string:
         specifier: 4.0.0
         version: 4.0.0
+      minisearch:
+        specifier: 7.2.0
+        version: 7.2.0
       next:
         specifier: 16.2.10
         version: 16.2.10(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -4311,6 +4314,12 @@ packages:
         integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==,
       }
 
+  minisearch@7.2.0:
+    resolution:
+      {
+        integrity: sha512-dqT2XBYUOZOiC5t2HRnwADjhNS2cecp9u+TJRiJ1Qp/f5qjkeT5APcGPjHw+bz89Ms8Jp+cG4AlE+QZ/QnDglg==,
+      }
+
   ms@2.0.0:
     resolution:
       {
@@ -8398,6 +8407,8 @@ snapshots:
       brace-expansion: 1.1.16
 
   minimist@1.2.8: {}
+
+  minisearch@7.2.0: {}
 
   ms@2.0.0: {}
 
