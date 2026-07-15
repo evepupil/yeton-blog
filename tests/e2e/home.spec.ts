@@ -258,6 +258,46 @@ test("filters and paginates the article list through the URL", async ({
   expect(browserErrors).toEqual([]);
 });
 
+test("uses compact whole-card article links with optional covers", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/posts/");
+
+  const firstCard = page.locator(".post-card").first();
+  const firstLink = firstCard.locator(".post-card-link");
+  await expect(firstLink).toHaveCount(1);
+  await expect(firstCard.locator(".post-card-media")).toHaveCount(0);
+  await expect(firstLink.locator("a")).toHaveCount(0);
+  const firstHref = await firstLink.getAttribute("href");
+  const firstHeight = (await firstCard.boundingBox())?.height;
+  expect(firstHeight).toBeLessThanOrEqual(220);
+
+  const descriptionClamp = await firstCard
+    .locator(".post-card-body > p")
+    .evaluate((element) => getComputedStyle(element).webkitLineClamp);
+  expect(descriptionClamp).toBe("2");
+
+  await firstLink.click({ position: { x: 8, y: 8 } });
+  await page.waitForURL(
+    (url) => decodeURIComponent(url.pathname) === firstHref,
+  );
+
+  await page.goto("/posts/?page=4");
+  const coveredCard = page
+    .locator(".post-card:has(.post-card-frame.has-media)")
+    .first();
+  await expect(coveredCard.locator(".post-card-media img")).toHaveCount(1);
+  const mediaRatio = await coveredCard
+    .locator(".post-card-media")
+    .evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.width / bounds.height;
+    });
+  expect(mediaRatio).toBeGreaterThan(1.5);
+  expect(browserErrors).toEqual([]);
+});
+
 test("shows archive counts and opens a tag detail page", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/archives/");
