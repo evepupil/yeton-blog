@@ -14,20 +14,20 @@ describe("site configuration", () => {
 
   it("provides complete localized identity values", () => {
     expect(getLocalizedSiteConfig("zh-CN")).toMatchObject({
-      authorName: "林墨",
+      authorName: "叶桐",
       description: siteConfig.brand.description["zh-CN"],
-      name: "林墨手记",
+      name: "潮思Chaosyn",
     });
     expect(getLocalizedSiteConfig("en")).toMatchObject({
-      authorName: "Lin Mo",
+      authorName: "Yeton",
       description: siteConfig.brand.description.en,
-      name: "Linmo Notes",
+      name: "Chaosyn",
     });
   });
 
-  it("keeps unfinished third-party services disabled", () => {
+  it("enables only integrations that have been completed", () => {
     expect(siteConfig.integrations.adsense.enabled).toBe(false);
-    expect(siteConfig.integrations.analytics.enabled).toBe(false);
+    expect(siteConfig.integrations.analytics.enabled).toBe(true);
     expect(siteConfig.integrations.comments.enabled).toBe(false);
   });
 

@@ -5,6 +5,14 @@ export type SiteLocale = (typeof supportedLocales)[number];
 export type LocalizedText = Readonly<Record<SiteLocale, string>>;
 export type SocialPlatform = "github" | "zhihu";
 
+export interface UmamiAnalyticsConfig {
+  readonly baseUrl: string;
+  readonly enabled: boolean;
+  readonly provider: "umami";
+  readonly shareId: string;
+  readonly websiteId: string;
+}
+
 interface PublicSiteConfig {
   readonly author: {
     readonly about: LocalizedText;
@@ -33,11 +41,7 @@ interface PublicSiteConfig {
       readonly clientId: string;
       readonly enabled: boolean;
     };
-    readonly analytics: {
-      readonly enabled: boolean;
-      readonly provider: "cloudflare-web-analytics";
-      readonly token: string;
-    };
+    readonly analytics: UmamiAnalyticsConfig;
     readonly comments: {
       readonly category: string;
       readonly categoryId: string;
@@ -64,62 +68,66 @@ interface PublicSiteConfig {
 export const siteConfig = {
   author: {
     about: {
-      "zh-CN": "独立开发者，也是一名长期写作者。",
-      en: "Independent builder and long-time writer.",
+      "zh-CN":
+        "这里记录 Serverless、AI 应用、前后端开发与独立项目实践。本站使用 Umami 做匿名访问统计，不使用 Cookie。",
+      en: "Notes on serverless systems, AI applications, web development and independent projects. This site uses cookie-free Umami analytics.",
     },
     aboutTitle: {
-      "zh-CN": "关于林墨",
-      en: "About Lin Mo",
+      "zh-CN": "关于叶桐",
+      en: "About Yeton",
     },
     avatar: {
       alt: {
-        "zh-CN": "林墨的头像",
-        en: "Lin Mo avatar",
+        "zh-CN": "叶桐的头像",
+        en: "Yeton avatar",
       },
       src: "/images/profile-avatar.jpg",
     },
     bio: {
-      "zh-CN": "保持好奇，持续交付。",
-      en: "Stay curious. Keep shipping.",
+      "zh-CN": "無くした日々にさよなら",
+      en: "Saying goodbye to the days gone by.",
     },
     homeTitle: {
-      "zh-CN": "写下代码之外，仍值得反复想的事。",
-      en: "Notes on code, craft, and the questions worth revisiting.",
+      "zh-CN": "技术探索与思维进化",
+      en: "Exploring technology and evolving ideas",
     },
     name: {
-      "zh-CN": "林墨",
-      en: "Lin Mo",
+      "zh-CN": "叶桐",
+      en: "Yeton",
     },
   },
   brand: {
-    bookLabel: "LINMO BOOK",
+    bookLabel: "CHAOSYN BOOK",
     description: {
-      "zh-CN": "关于前端、AI 与独立开发，也记录一些慢下来的时刻。",
-      en: "Frontend, AI and independent building, with room for slower observations.",
+      "zh-CN":
+        "分享 Serverless 架构、AI 应用开发、认知科学、学习方法与前后端技术实践。",
+      en: "Serverless architecture, AI applications, cognitive science, learning methods and web engineering.",
     },
     footerLine: {
-      "zh-CN": "持续写作，保持清醒。",
-      en: "Write consistently. Think clearly.",
+      "zh-CN": "技术探索与思维进化",
+      en: "Exploring technology and evolving ideas",
     },
-    mark: "L",
+    mark: "C",
     name: {
-      "zh-CN": "林墨手记",
-      en: "Linmo Notes",
+      "zh-CN": "潮思Chaosyn",
+      en: "Chaosyn",
     },
-    socialImage: "/images/hero-workspace.jpg",
-    wordmark: "LINMO NOTES",
+    socialImage: "/images/social-cover.jpg",
+    wordmark: "CHAOSYN",
   },
   copyrightYear: 2026,
   defaultLocale: "zh-CN",
   integrations: {
     adsense: {
-      clientId: "",
+      clientId: "ca-pub-1149581082118045",
       enabled: false,
     },
     analytics: {
-      enabled: false,
-      provider: "cloudflare-web-analytics",
-      token: "",
+      baseUrl: "https://cloud.umami.is",
+      enabled: true,
+      provider: "umami",
+      shareId: "VOIhBeLJ4qp3otfX",
+      websiteId: "526149f7-e7d5-40ac-ae75-50a0c2515abf",
     },
     comments: {
       category: "General",
@@ -133,16 +141,16 @@ export const siteConfig = {
   locales: supportedLocales,
   sectionDescriptions: {
     archives: {
-      "zh-CN": "按年份查看林墨手记已经发布的文章。",
+      "zh-CN": "按年份查看潮思Chaosyn已经发布的文章。",
       en: "Browse all published writing by year.",
     },
     books: {
-      "zh-CN": "查看林墨正在连载或已经完成的图书与长文。",
+      "zh-CN": "查看叶桐正在连载或已经完成的图书与长文。",
       en: "Books and long-form guides in progress or complete.",
     },
     posts: {
-      "zh-CN": "按发布时间浏览林墨关于前端、AI 与独立开发的全部文章。",
-      en: "Browse all notes on frontend engineering, AI and independent building.",
+      "zh-CN": "按发布时间浏览 Serverless、Cloudflare、AI 与独立开发文章。",
+      en: "Browse all writing on serverless systems, Cloudflare, AI and independent building.",
     },
   },
   socialLinks: [
@@ -153,8 +161,8 @@ export const siteConfig = {
       platform: "github",
     },
     {
-      enabled: false,
-      href: "",
+      enabled: true,
+      href: "https://www.zhihu.com/people/ye-tong-95-79",
       label: { "zh-CN": "知乎", en: "Zhihu" },
       platform: "zhihu",
     },

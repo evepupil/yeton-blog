@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { resolveUmamiConfig } from "@/lib/analytics/config";
 import { getLocaleFromPath, getLocalizedPath, messages } from "@/lib/i18n";
 import { getLocalizedSiteConfig, siteConfig } from "@/lib/site-config";
 
@@ -11,6 +12,7 @@ export function SiteFooter() {
   const locale = getLocaleFromPath(pathname);
   const copy = messages[locale];
   const identity = getLocalizedSiteConfig(locale);
+  const analytics = resolveUmamiConfig();
 
   return (
     <footer className="site-footer">
@@ -33,6 +35,11 @@ export function SiteFooter() {
             {copy.nav.about}
           </SiteLink>
           <a href={getLocalizedPath("/rss.xml", locale)}>RSS</a>
+          {analytics?.shareUrl ? (
+            <a href={analytics.shareUrl} rel="noreferrer" target="_blank">
+              {locale === "en" ? "Stats" : "统计"}
+            </a>
+          ) : null}
         </nav>
         <p className="copyright">
           © {siteConfig.copyrightYear} {siteConfig.brand.wordmark}

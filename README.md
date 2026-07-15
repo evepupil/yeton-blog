@@ -5,7 +5,8 @@
 ## 当前进度
 
 - 阶段 0 至阶段 6 已完成，博客已通过 Cloudflare Pages 的 Git 集成上线
-- 阶段 7 已完成 Notion 同步和 Giscus 评论代码，统计与友链页面继续按 roadmap 实现
+- 阶段 7 已完成 Notion 同步、Giscus 评论代码和 Umami 统计，友链页面继续按 roadmap 实现
+- 旧站 33 篇真实文章和引用图片已迁入，线上内容目录不再使用演示文章
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -23,6 +24,7 @@
 - Cloudflare Pages 部署：`docs/模块设计/Cloudflare部署.md`
 - Notion 同步：`docs/模块设计/Notion同步.md`
 - 评论系统：`docs/模块设计/评论系统.md`
+- 访问统计：`docs/模块设计/访问统计.md`
 
 ## 环境要求
 
@@ -54,7 +56,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - `author`：中英文作者名、签名、首页标题、关于页文案、头像来源和替代文字；`avatar.src` 可填写 `/images/...` 或公开 HTTPS URL
 - `sectionDescriptions`：文章、归档和图书栏目的中英文介绍
 - `socialLinks`：社交平台名称、链接和开关
-- `integrations`：Giscus、Google AdSense 和 Cloudflare Web Analytics 的公开配置与开关
+- `integrations`：Giscus、Google AdSense 和 Umami 的公开配置与开关
 
 这个文件会进入构建产物，只能填写公开值。Notion Token 等私密信息继续放在环境变量中；`NEXT_PUBLIC_SITE_URL` 由部署环境提供，用于区分本地、预览和生产域名。
 
@@ -104,6 +106,13 @@ comments: {
 
 `public/_redirects` 将 notion-fuwari 的旧英文文章、归档、标签、英文关于页、图书章节和 sitemap 地址永久跳转到当前规范路由。迁移旧文章时保留原文件名，中文 `/posts/<slug>/` 可以继续使用原地址；英文 `/posts/en/<slug>/` 会 `301` 到 `/en/posts/<slug>/`。
 
+当前仓库已经完成一次真实迁移。需要从旧仓库重新生成时执行：
+
+```bash
+pnpm content:migrate-legacy -- --source D:\myproject\notion-fuwari --replace
+pnpm content:check
+```
+
 旧 Markdown 不能原样覆盖后直接构建，需要先完成这些机械转换：
 
 - 将 frontmatter 的 `lang` 改为 `locale`
@@ -113,6 +122,10 @@ comments: {
 - 需要继续由 Notion 管理时，补齐 `source: "notion"` 和对应的 `notionPageId`
 
 继续使用 Notion 自动同步时，需要先把每篇页面的 `Slug` 属性填写为旧文件名。同步器会保留中文等 Unicode 字符；缺少显式 Slug 时会根据标题和页面 ID 生成新地址。
+
+## 访问统计
+
+站点复用旧博客的 Umami Cloud Website ID，保留历史访问数据。统计脚本在页面加载完成后的空闲阶段请求，不使用 Cookie；脚本被广告拦截器阻止时不会影响阅读。服务地址、Website ID、公开分享 ID 和开关都在 `site.config.ts` 的 `integrations.analytics` 中配置。
 
 正式切换时，把 `blog.chaosyn.com` 关联到当前 Pages 项目，并将 `NEXT_PUBLIC_SITE_URL` 和 Pages 构建命令同步改回该域名。临时域名 `blog1.chaosyn.com` 到正式域名的跳转应通过 Cloudflare Redirect Rule 按 hostname 配置，避免 `_redirects` 在正式域名上形成循环。
 

@@ -46,6 +46,7 @@
 - 使用正式地址 `https://blog1.chaosyn.com` 完成生产构建、Wrangler 首次发布和公网冒烟。
 - 根据失败 deployment 的服务端配置和构建日志确认变量已保存但未进入构建进程，将正式域名加入 Pages 构建命令后重试成功。
 - 阶段 7 为 Giscus 增加 `https://giscus.app` 的 `script-src`、`connect-src` 和 `frame-src`，并将规则纳入静态产物检查。
+- 阶段 7 为 Umami Cloud 增加 `https://cloud.umami.is` 的 `script-src` 与 `connect-src`，统计服务失败不影响静态站点。
 - 将 Giscus、AdSense 和访问统计的公开参数集中到 `site.config.ts`，Pages 环境变量只保留部署地址与服务端密钥。
 - 增加 notion-fuwari 旧路径重定向，并把规则检查和生产重定向冒烟加入发布流程。
 

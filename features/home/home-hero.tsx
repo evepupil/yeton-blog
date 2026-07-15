@@ -2,6 +2,7 @@ import { Card } from "@heroui/react/card";
 import {
   ArrowRight,
   ArrowUpRight,
+  ChartNoAxesCombined,
   GitFork,
   MessageCircle,
   Rss,
@@ -11,6 +12,7 @@ import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
 import { getTagHref } from "@/features/tags/tag-links";
+import { resolveUmamiConfig } from "@/lib/analytics/config";
 import { getLocalizedPath } from "@/lib/i18n";
 import type { TagSummary } from "@/lib/content/types";
 import {
@@ -35,6 +37,7 @@ export function HomeHero({ locale, tags }: HomeHeroProps) {
   const content = homeContent[locale];
   const identity = getLocalizedSiteConfig(locale);
   const postsHref = getLocalizedPath("/posts/", locale);
+  const analytics = resolveUmamiConfig();
 
   return (
     <section aria-labelledby="home-title" className="shell home-hero">
@@ -95,6 +98,12 @@ export function HomeHero({ locale, tags }: HomeHeroProps) {
             <a href={getLocalizedPath("/rss.xml", locale)}>
               <Rss aria-hidden="true" /> RSS
             </a>
+            {analytics?.shareUrl ? (
+              <a href={analytics.shareUrl} rel="noreferrer" target="_blank">
+                <ChartNoAxesCombined aria-hidden="true" />
+                {locale === "en" ? "Stats" : "统计"}
+              </a>
+            ) : null}
           </Card.Footer>
         </Card.Root>
 

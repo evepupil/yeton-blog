@@ -12,7 +12,7 @@ import type { ArticlePreview, TagSummary } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
 
 const articlesPerPage = 4;
-const locationChangeEvent = "linmo:location-change";
+const locationChangeEvent = "blog:location-change";
 
 function subscribeToLocation(onStoreChange: () => void) {
   const listener = () => onStoreChange();

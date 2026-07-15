@@ -7,6 +7,7 @@ export {
   type LocalizedText,
   type SiteLocale,
   type SocialPlatform,
+  type UmamiAnalyticsConfig,
 } from "@/site.config";
 
 export function getLocalizedSiteConfig(locale: SiteLocale) {

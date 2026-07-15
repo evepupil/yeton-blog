@@ -5,9 +5,11 @@ import { XMLParser } from "fast-xml-parser";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { resolveSiteUrl } from "@/lib/site-config";
+import { resolveUmamiConfig } from "@/lib/analytics/config";
 
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
+const analytics = resolveUmamiConfig();
 const requiredFiles = [
   "_headers",
   "_redirects",
@@ -42,7 +44,8 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
     "Content-Security-Policy:",
     "frame-src https://giscus.app",
     "img-src 'self' data: https:",
-    "script-src 'self' 'unsafe-inline' https://giscus.app",
+    "https://cloud.umami.is",
+    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is",
     "Permissions-Policy:",
     "Referrer-Policy:",
     "X-Content-Type-Options: nosniff",
@@ -214,7 +217,8 @@ async function checkHtmlFile(
   }
 
   const routePath = getRoutePath(relativePath);
-  const document = parse(await readFile(filePath, "utf8"));
+  const htmlSource = await readFile(filePath, "utf8");
+  const document = parse(htmlSource);
   const elements = findHtmlElements(document, () => true);
   const html = elements.find((element) => element.tagName === "html");
   const expectedLocale = getExpectedLocale(relativePath);
@@ -222,6 +226,15 @@ async function checkHtmlFile(
     relativePath === "404.html" ||
     relativePath === "404/index.html" ||
     relativePath === "en/404/index.html";
+
+  if (
+    analytics &&
+    !isNotFoundPage &&
+    (!htmlSource.includes(analytics.websiteId) ||
+      !htmlSource.includes(analytics.scriptUrl))
+  ) {
+    errors.push(`${relativePath}: missing configured Umami analytics script.`);
+  }
 
   if (!html || getHtmlAttribute(html, "lang") !== expectedLocale) {
     errors.push(`${relativePath}: expected html lang ${expectedLocale}.`);

@@ -13,7 +13,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       attribute="data-theme"
       defaultTheme="system"
       enableSystem
-      storageKey="linmo-theme"
+      storageKey="blog-theme"
     >
       {children}
     </NextThemesProvider>

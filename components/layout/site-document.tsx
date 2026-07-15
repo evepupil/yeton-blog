@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AnalyticsScript } from "@/components/integrations/analytics-script";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
@@ -31,6 +32,7 @@ export async function SiteDocument({ children, locale }: SiteDocumentProps) {
           </div>
           <SiteFooter />
         </ThemeProvider>
+        <AnalyticsScript />
       </body>
     </html>
   );
