@@ -411,6 +411,50 @@
   color: inherit;
 }
 
+.article-prose img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 30px auto;
+  border-radius: 6px;
+}
+
+.article-prose table {
+  display: block;
+  width: 100%;
+  margin: 0 0 26px;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.article-prose th,
+.article-prose td {
+  min-width: 140px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.article-prose th {
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.article-prose hr {
+  margin: 42px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.article-prose input[type="checkbox"] {
+  margin: 0 8px 0 0;
+  accent-color: var(--accent);
+}
+
 .article-toc {
   position: sticky;
   top: 112px;

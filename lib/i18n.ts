@@ -41,6 +41,14 @@ function withTrailingSlash(pathname: string): string {
   return pathname.endsWith("/") ? pathname : `${pathname}/`;
 }
 
+function decodePathname(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
+
 export function getLocaleFromPath(pathname: string): SiteLocale {
   return pathname === "/en" || pathname.startsWith("/en/") ? "en" : "zh-CN";
 }
@@ -79,7 +87,9 @@ export function getLocaleSwitchPath(
   const normalizedPath = withTrailingSlash(
     pathname.split(/[?#]/u, 1)[0] || "/",
   );
-  const contentRoute = contentRoutes[normalizedPath];
+  const contentRoute =
+    contentRoutes[normalizedPath] ??
+    contentRoutes[withTrailingSlash(decodePathname(normalizedPath))];
 
   if (contentRoute) {
     return contentRoute;

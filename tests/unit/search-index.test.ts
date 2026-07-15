@@ -26,8 +26,8 @@ describe("search index", () => {
     const chineseDocuments = buildSearchDocuments(articles, "zh-CN");
     const englishDocuments = buildSearchDocuments(articles, "en");
 
-    expect(chineseDocuments).toHaveLength(5);
-    expect(englishDocuments).toHaveLength(2);
+    expect(chineseDocuments).toHaveLength(19);
+    expect(englishDocuments).toHaveLength(14);
     expect(
       chineseDocuments.every((document) => document.locale === "zh-CN"),
     ).toBe(true);
@@ -40,14 +40,14 @@ describe("search index", () => {
     const documents = buildSearchDocuments(articles, "zh-CN");
     const index = createSearchIndex(documents);
 
-    expect(index.search("Cloudflare", searchQueryOptions)[0]?.href).toBe(
-      "/posts/cloudflare-pages-nextjs/",
+    expect(
+      index.search("Workers AI 免费额度", searchQueryOptions)[0]?.href,
+    ).toBe("/posts/cloudflare-workers-ai-免费额度值多少钱/");
+    expect(index.search("Audio Wash Player", searchQueryOptions)[0]?.href).toBe(
+      "/posts/我做了一个把-anki-听力和-ai-阅读串起来的小插件-audio-wash-player/",
     );
-    expect(index.search("产品设计", searchQueryOptions)[0]?.href).toBe(
-      "/posts/blog-search-design/",
-    );
-    expect(index.search("移动网络", searchQueryOptions)[0]?.href).toBe(
-      "/posts/cloudflare-pages-nextjs/",
+    expect(index.search("crawl4ai", searchQueryOptions)[0]?.href).toBe(
+      "/posts/chromium-1187对应版本的playwright版本/",
     );
   });
 });

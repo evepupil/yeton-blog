@@ -27,8 +27,10 @@ describe("content queries", () => {
   it("returns pinned and recent published articles first", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
-    expect(chineseArticles).toHaveLength(5);
-    expect(chineseArticles[0]?.slug).toBe("cloudflare-pages-nextjs");
+    expect(chineseArticles).toHaveLength(19);
+    expect(chineseArticles[0]?.slug).toBe(
+      "从-prompt-到-subagent-ai-工程化学习路线",
+    );
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
   });
 
@@ -36,24 +38,24 @@ describe("content queries", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
     const groups = groupArticlesByYear(chineseArticles);
     const groupedCount = Array.from(groups.values()).flat().length;
-    const frontendTag = getTagSummaries(chineseArticles).find(
-      (tag) => tag.name === "前端",
+    const aiTag = getTagSummaries(chineseArticles).find(
+      (tag) => tag.name === "AI",
     );
 
     expect(groupedCount).toBe(chineseArticles.length);
     expect(groups.has("2026")).toBe(true);
     expect(groups.has("2025")).toBe(true);
-    expect(frontendTag?.count).toBe(2);
+    expect(aiTag?.count).toBe(5);
   });
 
   it("finds an explicit translation and orders books", () => {
     const source = articles.find(
-      (article) => article.slug === "cloudflare-pages-nextjs",
+      (article) => article.slug === "ai-agent-深度学习指南",
     );
     expect(source).toBeDefined();
 
     const translation = findArticleTranslation(articles, source!, "en");
-    expect(translation?.slug).toBe("pages-field-notes");
+    expect(translation?.slug).toBe("ai-agent-deep-learning-guide");
     expect(getPublishedBooks(books, "zh-CN").map((book) => book.slug)).toEqual([
       "ai-engineering",
       "indie-builder-notes",
@@ -64,23 +66,23 @@ describe("content queries", () => {
     const article = findPublishedArticle(
       articles,
       "zh-CN",
-      "blog-search-design",
+      "cloudflare-workers-ai-免费额度值多少钱",
     );
     expect(article).not.toBeNull();
 
     const previews = getPublishedArticlePreviews(articles, "zh-CN");
     const navigation = getArticleNavigation(articles, article!);
 
-    expect(previews).toHaveLength(5);
+    expect(previews).toHaveLength(19);
     expect(previews[0]).not.toHaveProperty("body");
-    expect(navigation.previous?.slug).toBe("cloudflare-pages-nextjs");
-    expect(navigation.next?.slug).toBe("ai-writing-workflow");
+    expect(navigation.previous?.slug).toBe(
+      "从-prompt-到-subagent-ai-工程化学习路线",
+    );
+    expect(navigation.next?.slug).toBe("claude-code里面使用chatgpt的模型教程");
   });
 
   it("filters tags and resolves book translations", () => {
-    expect(getPublishedArticlesByTag(articles, "zh-CN", "前端")).toHaveLength(
-      2,
-    );
+    expect(getPublishedArticlesByTag(articles, "zh-CN", "AI")).toHaveLength(5);
 
     const book = findPublishedBook(books, "zh-CN", "ai-engineering");
     expect(book).not.toBeNull();
