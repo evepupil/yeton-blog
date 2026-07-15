@@ -38,12 +38,7 @@ export async function TagPage({ locale, tag }: TagPageProps) {
       />
       <div className="post-grid tag-post-grid">
         {previews.map((article) => (
-          <ArticleCard
-            article={article}
-            key={article.slug}
-            locale={locale}
-            readLabel={content.readPost}
-          />
+          <ArticleCard article={article} key={article.slug} locale={locale} />
         ))}
       </div>
     </main>

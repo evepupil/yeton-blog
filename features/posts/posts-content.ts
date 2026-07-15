@@ -9,7 +9,6 @@ export const postsContent = {
     emptyTitle: "这个主题还没有文章",
     nextPage: "下一页",
     previousPage: "上一页",
-    readPost: "阅读全文",
     title: "所有文章",
   },
   en: {
@@ -21,7 +20,6 @@ export const postsContent = {
     emptyTitle: "No writing here yet",
     nextPage: "Next",
     previousPage: "Previous",
-    readPost: "Read post",
     title: "All writing",
   },
 } as const satisfies Record<SiteLocale, object>;

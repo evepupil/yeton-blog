@@ -106,6 +106,27 @@ test("opens and closes the mobile navigation", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("opens recent writing from whole home cards while keeping read labels", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+
+  const primaryLink = page.locator(".featured-primary-link");
+  await expect(primaryLink).toHaveCount(1);
+  await expect(primaryLink.locator(".featured-media")).toHaveCount(0);
+  await expect(primaryLink.locator(".article-link")).toHaveText("阅读全文");
+  await expect(primaryLink.locator("a")).toHaveCount(0);
+  await expect(
+    page.locator(".featured-secondary .featured-card-link"),
+  ).toHaveCount(2);
+  const href = await primaryLink.getAttribute("href");
+
+  await primaryLink.click({ position: { x: 12, y: 12 } });
+  await page.waitForURL((url) => decodeURIComponent(url.pathname) === href);
+  expect(browserErrors).toEqual([]);
+});
+
 test("opens a migrated article with contents, navigation and translation", async ({
   page,
 }) => {
@@ -269,6 +290,8 @@ test("uses compact whole-card article links with optional covers", async ({
   await expect(firstLink).toHaveCount(1);
   await expect(firstCard.locator(".post-card-media")).toHaveCount(0);
   await expect(firstLink.locator("a")).toHaveCount(0);
+  await expect(firstCard.locator(".article-link")).toHaveCount(0);
+  await expect(firstCard.locator(".post-card-tags")).toBeVisible();
   const firstHref = await firstLink.getAttribute("href");
   const firstHeight = (await firstCard.boundingBox())?.height;
   expect(firstHeight).toBeLessThanOrEqual(220);
@@ -277,6 +300,36 @@ test("uses compact whole-card article links with optional covers", async ({
     .locator(".post-card-body > p")
     .evaluate((element) => getComputedStyle(element).webkitLineClamp);
   expect(descriptionClamp).toBe("2");
+  const verticalPadding = await firstCard
+    .locator(".post-card-body")
+    .evaluate((element) => {
+      const meta = element.querySelector(".article-meta");
+      const tags = element.querySelector(".post-card-tags");
+      if (!meta || !tags) {
+        return null;
+      }
+      const bodyRect = element.getBoundingClientRect();
+      const metaRect = meta.getBoundingClientRect();
+      const tagsRect = tags.getBoundingClientRect();
+      return {
+        bottom: bodyRect.bottom - tagsRect.bottom,
+        top: metaRect.top - bodyRect.top,
+      };
+    });
+  expect(verticalPadding).not.toBeNull();
+  expect(
+    Math.abs(verticalPadding!.top - verticalPadding!.bottom),
+  ).toBeLessThanOrEqual(1);
+
+  const longCard = page
+    .locator(".post-card")
+    .filter({ hasText: "Cloudflare Worker 反代网站为什么有的网站能用" });
+  await expect(longCard.locator(".post-card-tags")).toBeVisible();
+  expect(
+    await longCard
+      .locator(".post-card-body")
+      .evaluate((element) => element.scrollHeight <= element.clientHeight),
+  ).toBe(true);
 
   await firstLink.click({ position: { x: 8, y: 8 } });
   await page.waitForURL(
@@ -300,11 +353,39 @@ test("uses compact whole-card article links with optional covers", async ({
   await page.goto("/posts/");
   const mobileCard = page.locator(".post-card").first();
   expect((await mobileCard.boundingBox())?.height).toBeLessThanOrEqual(200);
-  await expect(mobileCard.locator(".article-link")).toBeHidden();
-  const mobileContentFits = await mobileCard
-    .locator(".post-card-body")
-    .evaluate((element) => element.scrollHeight <= element.clientHeight);
-  expect(mobileContentFits).toBe(true);
+  await expect(mobileCard.locator(".article-link")).toHaveCount(0);
+  await expect(mobileCard.locator(".post-card-tags")).toBeVisible();
+  await expect(
+    mobileCard.locator('.post-card-tags [data-slot="chip"]').first(),
+  ).toBeVisible();
+  const mobileLayout = await mobileCard.evaluate((element) => {
+    const frame = element.querySelector(".post-card-frame");
+    const body = element.querySelector(".post-card-body");
+    const meta = element.querySelector(".article-meta");
+    const tags = element.querySelector(".post-card-tags");
+    if (!frame || !body || !meta || !tags) {
+      return null;
+    }
+    const frameRect = frame.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const metaRect = meta.getBoundingClientRect();
+    const tagsRect = tags.getBoundingClientRect();
+    return {
+      bottomPadding: bodyRect.bottom - tagsRect.bottom,
+      metaLines: Math.round(
+        metaRect.height / parseFloat(getComputedStyle(meta).lineHeight),
+      ),
+      tagsInsideFrame:
+        tagsRect.top >= frameRect.top && tagsRect.bottom <= frameRect.bottom,
+      topPadding: metaRect.top - bodyRect.top,
+    };
+  });
+  expect(mobileLayout).not.toBeNull();
+  expect(mobileLayout!.metaLines).toBe(1);
+  expect(mobileLayout!.tagsInsideFrame).toBe(true);
+  expect(
+    Math.abs(mobileLayout!.topPadding - mobileLayout!.bottomPadding),
+  ).toBeLessThanOrEqual(1);
   expect(browserErrors).toEqual([]);
 });
 
@@ -405,6 +486,7 @@ test("searches the current language index and opens a result", async ({
   await searchInput.fill("神经元");
   await expect(page.getByText("1 条结果", { exact: true })).toBeVisible();
   await page
+    .getByRole("dialog")
     .getByRole("link", {
       name: /Cloudflare Workers AI 免费额度值多少钱/u,
     })
@@ -419,7 +501,7 @@ test("searches the current language index and opens a result", async ({
     .getByRole("searchbox", { name: "Search writing" })
     .fill("custom provider");
   await expect(
-    page.getByRole("link", {
+    page.getByRole("dialog").getByRole("link", {
       name: /Cloudflare AI Gateway: Custom Provider Setup and Pitfalls/u,
     }),
   ).toBeVisible();

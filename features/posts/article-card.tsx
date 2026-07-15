@@ -1,6 +1,5 @@
 import { Card } from "@heroui/react/card";
 import { Chip } from "@heroui/react/chip";
-import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
@@ -11,10 +10,9 @@ import type { SiteLocale } from "@/lib/site-config";
 interface ArticleCardProps {
   readonly article: ArticlePreview;
   readonly locale: SiteLocale;
-  readonly readLabel: string;
 }
 
-export function ArticleCard({ article, locale, readLabel }: ArticleCardProps) {
+export function ArticleCard({ article, locale }: ArticleCardProps) {
   const href = getPostHref(article.locale, article.slug);
 
   return (
@@ -56,10 +54,6 @@ export function ArticleCard({ article, locale, readLabel }: ArticleCardProps) {
                 </Chip>
               ))}
             </div>
-            <span className="article-link">
-              {readLabel}
-              <ArrowUpRight aria-hidden="true" />
-            </span>
           </Card.Content>
         </Card.Root>
       </SiteLink>

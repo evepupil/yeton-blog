@@ -140,12 +140,7 @@ export function ArticleBrowser({
       <div className="post-grid" id="article-results">
         {visibleArticles.length > 0 ? (
           visibleArticles.map((article) => (
-            <ArticleCard
-              article={article}
-              key={article.slug}
-              locale={locale}
-              readLabel={content.readPost}
-            />
+            <ArticleCard article={article} key={article.slug} locale={locale} />
           ))
         ) : (
           <EmptyState className="posts-empty-state">
