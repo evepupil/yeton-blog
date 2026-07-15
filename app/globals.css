@@ -2,7 +2,10 @@
 @import "@fontsource-variable/noto-serif-sc";
 @import "tailwindcss";
 @import "@heroui/styles";
+@import "../features/archives/archives.css";
+@import "../features/books/books.css";
 @import "../features/posts/posts.css";
+@import "../features/tags/tags.css";
 
 :root {
   color-scheme: light;

@@ -8,22 +8,33 @@ import { NavigationLinks } from "@/components/layout/navigation-links";
 import { LocaleSwitcher } from "@/features/locale/locale-switcher";
 import { ThemeToggle } from "@/features/theme/theme-toggle";
 import { messages } from "@/lib/i18n";
+import type { LocaleRouteMap } from "@/lib/i18n";
 import type { NavigationItem } from "@/lib/navigation";
 import type { SiteLocale } from "@/lib/site-config";
 
 interface HeaderActionsProps {
+  readonly contentRoutes: LocaleRouteMap;
   readonly items: readonly NavigationItem[];
   readonly locale: SiteLocale;
   readonly pathname: string;
 }
 
-export function HeaderActions({ items, locale, pathname }: HeaderActionsProps) {
+export function HeaderActions({
+  contentRoutes,
+  items,
+  locale,
+  pathname,
+}: HeaderActionsProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const copy = messages[locale];
 
   return (
     <div className="header-actions">
-      <LocaleSwitcher label={copy.localeLabel} locale={locale} />
+      <LocaleSwitcher
+        contentRoutes={contentRoutes}
+        label={copy.localeLabel}
+        locale={locale}
+      />
       <ThemeToggle label={copy.themeLabel} />
       <Button
         aria-controls="mobile-navigation"

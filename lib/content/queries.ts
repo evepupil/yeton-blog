@@ -47,6 +47,16 @@ export function getPublishedArticlePreviews(
   return getPublishedArticles(articles, locale).map(toArticlePreview);
 }
 
+export function getPublishedArticlesByTag(
+  articles: readonly Article[],
+  locale: SiteLocale,
+  tag: string,
+): Article[] {
+  return getPublishedArticles(articles, locale).filter((article) =>
+    article.tags.includes(tag),
+  );
+}
+
 export function findPublishedArticle(
   articles: readonly Article[],
   locale: SiteLocale,
@@ -121,6 +131,18 @@ export function getPublishedBooks(
     .toSorted((left, right) => left.order - right.order);
 }
 
+export function findPublishedBook(
+  books: readonly Book[],
+  locale: SiteLocale,
+  slug: string,
+): Book | null {
+  return (
+    books.find(
+      (book) => book.locale === locale && !book.draft && book.slug === slug,
+    ) ?? null
+  );
+}
+
 export function findArticleTranslation(
   articles: readonly Article[],
   article: Article,
@@ -134,6 +156,25 @@ export function findArticleTranslation(
     articles.find(
       (candidate) =>
         candidate.translationKey === article.translationKey &&
+        candidate.locale === targetLocale &&
+        !candidate.draft,
+    ) ?? null
+  );
+}
+
+export function findBookTranslation(
+  books: readonly Book[],
+  book: Book,
+  targetLocale: SiteLocale,
+): Book | null {
+  if (!book.translationKey) {
+    return null;
+  }
+
+  return (
+    books.find(
+      (candidate) =>
+        candidate.translationKey === book.translationKey &&
         candidate.locale === targetLocale &&
         !candidate.draft,
     ) ?? null

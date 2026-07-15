@@ -7,9 +7,14 @@ import { HeaderActions } from "@/components/layout/header-actions";
 import { NavigationLinks } from "@/components/layout/navigation-links";
 import { SiteLink } from "@/components/ui/site-link";
 import { getLocaleFromPath, getLocalizedPath } from "@/lib/i18n";
+import type { LocaleRouteMap } from "@/lib/i18n";
 import { getNavigationItems } from "@/lib/navigation";
 
-export function SiteHeader() {
+interface SiteHeaderProps {
+  readonly contentRoutes: LocaleRouteMap;
+}
+
+export function SiteHeader({ contentRoutes }: SiteHeaderProps) {
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
   const items = getNavigationItems(locale);
@@ -42,7 +47,12 @@ export function SiteHeader() {
           <NavigationLinks items={items} pathname={pathname} />
         </div>
 
-        <HeaderActions items={items} locale={locale} pathname={pathname} />
+        <HeaderActions
+          contentRoutes={contentRoutes}
+          items={items}
+          locale={locale}
+          pathname={pathname}
+        />
       </nav>
     </header>
   );

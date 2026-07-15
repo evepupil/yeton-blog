@@ -1,5 +1,7 @@
 import type { SiteLocale } from "@/lib/site-config";
 
+export type LocaleRouteMap = Readonly<Record<string, string>>;
+
 export const messages = {
   "zh-CN": {
     nav: {
@@ -72,11 +74,21 @@ export function getLocalizedPath(pathname: string, locale: SiteLocale): string {
 export function getLocaleSwitchPath(
   pathname: string,
   locale: SiteLocale,
+  contentRoutes: LocaleRouteMap = {},
 ): string {
+  const normalizedPath = withTrailingSlash(
+    pathname.split(/[?#]/u, 1)[0] || "/",
+  );
+  const contentRoute = contentRoutes[normalizedPath];
+
+  if (contentRoute) {
+    return contentRoute;
+  }
+
   const basePath = stripLocalePrefix(pathname);
 
-  if (/^\/posts\/[^/]+\/$/u.test(basePath)) {
-    return getLocalizedPath("/posts/", locale);
+  if (/^\/(?:books|posts|tags)\/[^/]+\/$/u.test(basePath)) {
+    return getLocalizedPath("/", locale);
   }
 
   return getLocalizedPath(basePath, locale);

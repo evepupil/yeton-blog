@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { decodeTagSegment, getTagHref } from "@/features/tags/tag-links";
 import {
   getLocalizedPath,
   getLocaleSwitchPath,
@@ -23,9 +24,16 @@ describe("localized navigation", () => {
     expect(stripLocalePrefix("/en/")).toBe("/");
   });
 
-  it("falls back to the writing list when switching a dynamic article", () => {
-    expect(getLocaleSwitchPath("/posts/a-post/", "en")).toBe("/en/posts/");
-    expect(getLocaleSwitchPath("/en/posts/a-post/", "zh-CN")).toBe("/posts/");
+  it("falls back to home when switching unknown dynamic content", () => {
+    expect(getLocaleSwitchPath("/posts/a-post/", "en")).toBe("/en/");
+    expect(getLocaleSwitchPath("/en/books/a-book/", "zh-CN")).toBe("/");
+  });
+
+  it("keeps tag names readable until the router encodes the URL", () => {
+    expect(getTagHref("zh-CN", "前端")).toBe("/tags/前端/");
+    expect(getTagHref("en", "Product Design")).toBe("/en/tags/Product Design/");
+    expect(decodeTagSegment("%E5%89%8D%E7%AB%AF")).toBe("前端");
+    expect(decodeTagSegment("Product%20Design")).toBe("Product Design");
   });
 
   it("marks only the matching navigation section active", () => {

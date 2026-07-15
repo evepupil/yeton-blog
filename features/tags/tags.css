@@ -1,0 +1,28 @@
+.tag-page {
+  min-height: calc(100vh - 76px);
+  padding-block: 86px 120px;
+}
+
+.tag-page .page-intro {
+  margin-bottom: 58px;
+}
+
+.tag-page .page-intro h1 {
+  overflow-wrap: anywhere;
+}
+
+.tag-post-grid {
+  min-height: 0;
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .tag-page {
+    min-height: calc(100vh - 64px);
+    padding-block: 64px 80px;
+  }
+
+  .tag-page .page-intro {
+    margin-bottom: 42px;
+  }
+}

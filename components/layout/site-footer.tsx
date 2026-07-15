@@ -30,7 +30,7 @@ export function SiteFooter() {
           <SiteLink href={getLocalizedPath("/about/", locale)}>
             {copy.nav.about}
           </SiteLink>
-          <a href="/rss.xml">RSS</a>
+          <a href={getLocalizedPath("/rss.xml", locale)}>RSS</a>
         </nav>
         <p className="copyright">© 2026 LINMO NOTES</p>
       </div>

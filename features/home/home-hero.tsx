@@ -10,6 +10,7 @@ import {
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { getTagHref } from "@/features/tags/tag-links";
 import { getLocalizedPath } from "@/lib/i18n";
 import type { TagSummary } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
@@ -85,10 +86,7 @@ export function HomeHero({ locale, tags }: HomeHeroProps) {
           </Card.Header>
           <Card.Content className="topic-list">
             {tags.map((tag) => (
-              <SiteLink
-                href={`${postsHref}?tag=${encodeURIComponent(tag.name)}`}
-                key={tag.name}
-              >
+              <SiteLink href={getTagHref(locale, tag.name)} key={tag.name}>
                 <span>#{tag.name}</span>
                 <span>{tag.count}</span>
               </SiteLink>

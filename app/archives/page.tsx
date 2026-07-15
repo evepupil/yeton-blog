@@ -1,13 +1,7 @@
-import { StaticPage } from "@/features/static-page/static-page";
+import { ArchivePage } from "@/features/archives/archive-page";
 
 export const metadata = { title: "文章归档" };
 
 export default function ArchivesPage() {
-  return (
-    <StaticPage
-      description="按时间回看写过的主题与长期关注的问题。"
-      index="03"
-      title="文章归档"
-    />
-  );
+  return <ArchivePage locale="zh-CN" />;
 }

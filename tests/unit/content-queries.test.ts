@@ -1,11 +1,14 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
+  findBookTranslation,
+  findPublishedBook,
   findPublishedArticle,
   findArticleTranslation,
   getArticleNavigation,
   getPublishedArticlePreviews,
   getPublishedArticles,
+  getPublishedArticlesByTag,
   getPublishedBooks,
   getTagSummaries,
   groupArticlesByYear,
@@ -72,5 +75,17 @@ describe("content queries", () => {
     expect(previews[0]).not.toHaveProperty("body");
     expect(navigation.previous?.slug).toBe("cloudflare-pages-nextjs");
     expect(navigation.next?.slug).toBe("ai-writing-workflow");
+  });
+
+  it("filters tags and resolves book translations", () => {
+    expect(getPublishedArticlesByTag(articles, "zh-CN", "前端")).toHaveLength(
+      2,
+    );
+
+    const book = findPublishedBook(books, "zh-CN", "ai-engineering");
+    expect(book).not.toBeNull();
+    expect(findBookTranslation(books, book!, "en")?.slug).toBe(
+      "ai-engineering",
+    );
   });
 });

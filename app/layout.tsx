@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SkipLink } from "@/components/layout/skip-link";
 import { ThemeProvider } from "@/features/theme/theme-provider";
+import { buildContentLocaleRoutes } from "@/lib/content/locale-routes";
+import { getAllArticles, getAllBooks } from "@/lib/content/repository";
 import { resolveSiteUrl, siteConfig } from "@/lib/site-config";
 
 import "./globals.css";
@@ -29,15 +32,19 @@ interface RootLayoutProps {
   readonly children: ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const [articles, books] = await Promise.all([
+    getAllArticles(),
+    getAllBooks(),
+  ]);
+  const contentRoutes = buildContentLocaleRoutes(articles, books);
+
   return (
     <html lang={siteConfig.defaultLocale} suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <a className="skip-link" href="#main-content">
-            跳到正文
-          </a>
-          <SiteHeader />
+          <SkipLink />
+          <SiteHeader contentRoutes={contentRoutes} />
           <div className="site-content" id="main-content">
             {children}
           </div>

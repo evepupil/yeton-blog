@@ -8,6 +8,7 @@ import { ArticleToc } from "@/features/posts/article-toc";
 import { MarkdownContent } from "@/features/posts/markdown-content";
 import { formatPostDate } from "@/features/posts/post-links";
 import { articleContent } from "@/features/posts/posts-content";
+import { getTagHref } from "@/features/tags/tag-links";
 import type {
   Article,
   ArticleNavigation as ArticleNavigationData,
@@ -46,9 +47,7 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
         <div className="article-header-tags">
           {article.tags.map((tag) => (
             <Chip key={tag} size="sm" variant="soft">
-              <SiteLink href={`${postsHref}?tag=${encodeURIComponent(tag)}`}>
-                {tag}
-              </SiteLink>
+              <SiteLink href={getTagHref(article.locale, tag)}>{tag}</SiteLink>
             </Chip>
           ))}
         </div>

@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
 import { formatPostDate, getPostHref } from "@/features/posts/post-links";
+import { getTagHref } from "@/features/tags/tag-links";
 import type { ArticlePreview } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
 
@@ -46,7 +47,9 @@ export function ArticleCard({ article, locale, readLabel }: ArticleCardProps) {
           <div className="post-card-tags" aria-label={article.tags.join(", ")}>
             {article.tags.slice(0, 3).map((tag) => (
               <Chip key={tag} size="sm" variant="soft">
-                {tag}
+                <SiteLink href={getTagHref(article.locale, tag)}>
+                  {tag}
+                </SiteLink>
               </Chip>
             ))}
           </div>
