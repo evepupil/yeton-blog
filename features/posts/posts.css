@@ -459,6 +459,9 @@
   position: sticky;
   top: 112px;
   align-self: start;
+  max-height: calc(100vh - 144px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-left: 20px;
   border-left: 1px solid var(--line);
 }
@@ -732,6 +735,8 @@
   .article-toc {
     position: static;
     grid-row: 1;
+    max-height: none;
+    overflow: visible;
     padding: 18px 20px;
     background: var(--surface);
     border: 1px solid var(--line);

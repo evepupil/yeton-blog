@@ -103,6 +103,12 @@ describe("legacy content migration", () => {
     );
   });
 
+  it("demotes body h1 headings and removes trailing whitespace", () => {
+    const migrated = migrateLegacyMarkdown("# Section  \n\nBody  ");
+
+    expect(migrated.markdown).toBe("## Section\n\nBody");
+  });
+
   it("serializes dates as strings accepted by the strict schema", () => {
     const frontmatter = migrateLegacyFrontmatter(
       {

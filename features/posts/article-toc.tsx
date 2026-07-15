@@ -1,4 +1,5 @@
 import type { ContentHeading } from "@/lib/content/types";
+import { getArticleTocHeadings } from "@/lib/content/toc";
 
 interface ArticleTocProps {
   readonly headings: readonly ContentHeading[];
@@ -6,7 +7,8 @@ interface ArticleTocProps {
 }
 
 export function ArticleToc({ headings, title }: ArticleTocProps) {
-  if (headings.length === 0) {
+  const visibleHeadings = getArticleTocHeadings(headings);
+  if (visibleHeadings.length === 0) {
     return null;
   }
 
@@ -14,7 +16,7 @@ export function ArticleToc({ headings, title }: ArticleTocProps) {
     <aside aria-label={title} className="article-toc">
       <strong>{title}</strong>
       <ol>
-        {headings.map((heading) => (
+        {visibleHeadings.map((heading) => (
           <li
             className={heading.depth === 3 ? "is-nested" : undefined}
             key={heading.id}

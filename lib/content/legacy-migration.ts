@@ -105,6 +105,14 @@ export function migrateLegacyMarkdown(markdown: string): MarkdownMigration {
   const assetPaths = new Set<string>();
 
   visit(tree, (node) => {
+    if (node.type === "heading" && node.depth === 1) {
+      const startOffset = node.position?.start.offset;
+      if (startOffset === undefined) {
+        throw new Error("Cannot locate a level-one Markdown heading.");
+      }
+      replacements.push({ end: startOffset, start: startOffset, value: "#" });
+    }
+
     if (
       (node.type !== "image" &&
         node.type !== "link" &&
@@ -158,7 +166,7 @@ export function migrateLegacyMarkdown(markdown: string): MarkdownMigration {
 
   return {
     assetPaths: Array.from(assetPaths).toSorted(),
-    markdown: migrated.trim(),
+    markdown: migrated.trim().replace(/[ \t]+$/gmu, ""),
   };
 }
 

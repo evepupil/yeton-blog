@@ -12,7 +12,7 @@ notionPageId: "34a4342e-b403-8095-928c-d890fd41b915"
 
 现在的cc switch已经支持在本地中转chatgpt模型到claude code中使用。
 
-# 前置步骤
+## 前置步骤
 
 1、准备好cc-switch [下载](https://github.com/farion1231/cc-switch/releases/download/v3.11.1/CC-Switch-v3.11.1-Windows.msi)
 
@@ -20,7 +20,7 @@ notionPageId: "34a4342e-b403-8095-928c-d890fd41b915"
 
 3、有chatgpt供应商key和url
 
-# 操作步骤
+## 操作步骤
 
 1、打开cc-switch 新建claude code配置如下，正常填入chatgpt的url和key，然后api格式选responses
 
