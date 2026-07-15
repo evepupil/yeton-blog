@@ -4,13 +4,13 @@
   "private": true,
   "packageManager": "pnpm@10.21.0",
   "engines": {
-    "node": ">=22.14.0"
+    "node": "22.14.x"
   },
   "scripts": {
     "dev": "next dev",
     "build": "pnpm content:check && pnpm search:build && tsx scripts/prepare-next-build.ts && next build && pnpm site:check",
     "preview": "wrangler pages dev out",
-    "deploy": "pnpm build && wrangler pages deploy out",
+    "deploy": "tsx scripts/deploy-pages.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
@@ -18,6 +18,8 @@
     "content:check": "tsx scripts/validate-content.ts",
     "search:build": "tsx scripts/generate-search-index.ts",
     "site:check": "tsx scripts/check-static-output.ts",
+    "production:check": "tsx scripts/validate-production-env.ts",
+    "smoke:deployment": "tsx scripts/smoke-deployment.ts",
     "test": "pnpm test:unit && pnpm test:prototype",
     "test:unit": "vitest run",
     "test:prototype": "node --test tests/content.test.cjs",

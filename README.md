@@ -18,6 +18,7 @@
 - 文章阅读流程：`docs/模块设计/文章阅读流程.md`
 - 归档、图书与多语言：`docs/模块设计/归档图书与多语言.md`
 - 搜索、SEO 与站点完整性：`docs/模块设计/搜索SEO与站点完整性.md`
+- Cloudflare Pages 部署：`docs/模块设计/Cloudflare部署.md`
 
 ## 环境要求
 
@@ -34,6 +35,9 @@ pnpm search:build
 pnpm site:check
 pnpm build
 pnpm preview
+pnpm production:check
+pnpm deploy
+pnpm smoke:deployment -- https://your-production-origin.example
 ```
 
 `pnpm content:check` 校验全部文章和图书。`pnpm search:build` 生成双语搜索索引。`pnpm site:check` 检查已有 `out` 产物。`pnpm build` 会依次完成内容校验、搜索索引、静态导出和站点完整性检查。`pnpm preview` 使用 Wrangler 预览 `out`，日常实现时按需手动执行。
@@ -70,6 +74,10 @@ git diff --check
 - 构建命令：`pnpm build`
 - 输出目录：`out`
 - Wrangler 配置：`wrangler.jsonc`
-- 正式部署前在 Cloudflare Pages 配置 `NEXT_PUBLIC_SITE_URL` 为站点域名
+- Node.js：`22.14.0`
+- pnpm：`10.21.0`
+- Pages 项目变量：`CLOUDFLARE_PAGES_PROJECT`
+- 正式 URL 变量：`NEXT_PUBLIC_SITE_URL`
+- GitHub secrets：`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`
 
-`main` 分支和 Pull Request 会通过 GitHub Actions 执行完整质量检查。生产发布与回滚流程将在路线图阶段 6 接入。
+Pull Request 只执行完整质量检查。`main` 质量门禁通过后，GitHub `production` 环境会重新构建、部署到 Cloudflare Pages，并对正式地址运行冒烟检查。首次配置和回滚步骤见 `docs/模块设计/Cloudflare部署.md`。

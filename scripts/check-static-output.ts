@@ -9,6 +9,7 @@ import { resolveSiteUrl } from "@/lib/site-config";
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
 const requiredFiles = [
+  "_headers",
   "404.html",
   "en/404/index.html",
   "en/rss.xml",
@@ -18,6 +19,29 @@ const requiredFiles = [
   "search-index/zh-CN.json",
   "sitemap.xml",
 ] as const;
+
+async function checkHeadersFile(errors: string[]): Promise<void> {
+  const headers = await readFile(
+    path.join(outputDirectory, "_headers"),
+    "utf8",
+  );
+  const requiredRules = [
+    "Content-Security-Policy:",
+    "Permissions-Policy:",
+    "Referrer-Policy:",
+    "X-Content-Type-Options: nosniff",
+    "X-Frame-Options: DENY",
+    "/_next/static/*",
+    "max-age=31536000, immutable",
+    "/search-index/*",
+  ];
+
+  for (const rule of requiredRules) {
+    if (!headers.includes(rule)) {
+      errors.push(`_headers: missing required rule ${rule}.`);
+    }
+  }
+}
 
 type HtmlNode = DefaultTreeAdapterMap["node"];
 type HtmlElement = DefaultTreeAdapterMap["element"];
@@ -335,6 +359,7 @@ async function main() {
   await Promise.all(
     htmlFiles.map((filePath) => checkHtmlFile(filePath, errors)),
   );
+  await checkHeadersFile(errors);
   await Promise.all(
     (["rss.xml", "en/rss.xml", "sitemap.xml"] as const).map((relativePath) =>
       checkXmlUrls(relativePath, errors),
