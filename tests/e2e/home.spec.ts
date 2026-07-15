@@ -295,6 +295,16 @@ test("uses compact whole-card article links with optional covers", async ({
       return bounds.width / bounds.height;
     });
   expect(mediaRatio).toBeGreaterThan(1.5);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/posts/");
+  const mobileCard = page.locator(".post-card").first();
+  expect((await mobileCard.boundingBox())?.height).toBeLessThanOrEqual(200);
+  await expect(mobileCard.locator(".article-link")).toBeHidden();
+  const mobileContentFits = await mobileCard
+    .locator(".post-card-body")
+    .evaluate((element) => element.scrollHeight <= element.clientHeight);
+  expect(mobileContentFits).toBe(true);
   expect(browserErrors).toEqual([]);
 });
 

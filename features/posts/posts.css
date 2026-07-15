@@ -705,6 +705,10 @@
     display: none;
   }
 
+  .post-card-body .article-link {
+    display: none;
+  }
+
   .posts-pagination button span {
     display: none;
   }
