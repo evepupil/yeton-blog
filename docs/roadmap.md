@@ -288,11 +288,12 @@ docs/
 **当前结果，2026-07-15**
 
 - 已锁定 Node.js 22.14.0、pnpm 10.21.0、Wrangler 4.110.0 和 `out` 发布目录。
-- GitHub Action 负责质量门禁；Cloudflare Pages 通过 Git 集成监听 `main`，仓库更新后自动构建和部署。
+- GitHub Action 负责质量门禁；Cloudflare Pages 项目 `yeton-blog` 已关联 GitHub 仓库并监听 `main`。
 - Pages 构建只要求 `NEXT_PUBLIC_SITE_URL`，并利用 Cloudflare 自动注入的 `CF_PAGES=1` 强制校验真实 HTTPS 站点地址。
 - 已增加 CSP、HSTS、权限策略、防嵌入、防 MIME 猜测，以及 HTML、哈希资源、图片、搜索索引和订阅文件的分层缓存。
 - 已增加部署后公网冒烟，覆盖中英文首页、真实文章、RSS、sitemap、robots、搜索索引、404 和安全响应头。
-- 当前仓库没有 Git remote。Pages 项目、Git 仓库关联、正式域名和首次线上部署仍待外部配置，阶段六暂不标记完成。
+- 已关联 Git remote，并使用 Wrangler 将提交 `49b13a9` 发布到生产环境；`https://blog1.chaosyn.com` 和 `yeton-blog.pages.dev` 公网冒烟通过。
+- Git 集成的首次构建没有读到 Dashboard 中的 `NEXT_PUBLIC_SITE_URL`。自动构建链路仍需重新触发验证，阶段六暂不标记完成。
 
 **发布关系**：完成后达到首个可公开版本。
 
@@ -410,7 +411,7 @@ git diff --check
 | 原型确认   | 当前     | 已完成 | 页面结构和视觉方向确定                 |
 | 开发预览版 | 0-3      | 已完成 | 可用真实内容完成首页到文章的阅读流程   |
 | 功能候选版 | 4-5      | 已完成 | 多语言、搜索、SEO 与静态完整性门禁完成 |
-| 首个正式版 | 6        | 进行中 | 部署工程完成，等待 Cloudflare 外部配置 |
+| 首个正式版 | 6        | 进行中 | 生产站已发布，等待 Git 自动构建复验    |
 | 增强版     | 7        | 未开始 | 评论、同步、统计和友链上线             |
 | AI 版      | 8        | 未开始 | 带引用和成本保护的 AI 搜索上线         |
 

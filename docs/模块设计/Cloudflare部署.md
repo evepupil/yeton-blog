@@ -40,6 +40,8 @@
 - 增加首页、英文首页、文章、RSS、sitemap、robots、搜索索引和 404 的公网冒烟脚本。
 - 将 `_headers` 纳入静态产物完整性检查，并为 Pages 构建配置增加单测。
 - 根据参考项目确认部署模型后，删除主动上传所需的 Cloudflare secrets、variables 和部署脚本。
+- 将 Git remote 关联到 `evepupil/yeton-blog`，确认 Cloudflare Pages 项目 `yeton-blog` 已连接该仓库。
+- 使用正式地址 `https://blog1.chaosyn.com` 完成生产构建、Wrangler 首次发布和公网冒烟。
 
 ## 实现细节
 
@@ -47,17 +49,19 @@
 
 在 Cloudflare Dashboard 创建 Pages 项目并关联 Git 仓库，配置：
 
-| 配置项               | 值                     |
-| -------------------- | ---------------------- |
-| Production branch    | `main`                 |
-| Build command        | `pnpm build`           |
-| Build output         | `out`                  |
-| Root directory       | `/`                    |
-| Node.js              | `22.14.0`              |
-| pnpm                 | `10.21.0`              |
-| Environment variable | `NEXT_PUBLIC_SITE_URL` |
+| 配置项               | 值                          |
+| -------------------- | --------------------------- |
+| Pages project        | `yeton-blog`                |
+| Production branch    | `main`                      |
+| Production origin    | `https://blog1.chaosyn.com` |
+| Build command        | `pnpm build`                |
+| Build output         | `out`                       |
+| Root directory       | `/`                         |
+| Node.js              | `22.14.0`                   |
+| pnpm                 | `10.21.0`                   |
+| Environment variable | `NEXT_PUBLIC_SITE_URL`      |
 
-`NEXT_PUBLIC_SITE_URL` 填正式 HTTPS origin。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
+`NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog1.chaosyn.com`。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 
 ### 自动部署流程
 
@@ -101,10 +105,10 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - 单测覆盖正式 URL、本地构建跳过和 Pages 构建强制校验。
 - `pnpm build` 检查 `_headers` 已复制到 `out` 且包含必需规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
-- 公网冒烟需要 Pages 项目完成关联并产生可访问 deployment 后执行。
+- 公网冒烟已对 deployment 地址、`yeton-blog.pages.dev` 和 `blog1.chaosyn.com` 执行通过。
 
 ## 当前限制
 
-- 当前仓库没有 Git remote，Cloudflare 关联仓库和首次自动部署尚未验证。
-- 正式域名或 `pages.dev` 地址尚未提供，公网冒烟暂时无法执行。
+- 仓库、Pages 项目、正式域名和首次生产发布已经打通；当前生产提交为 `49b13a9`。
+- Git 集成触发的首次构建没有读到 Dashboard 中的 `NEXT_PUBLIC_SITE_URL`。Wrangler 直传已经恢复线上发布，Git 自动构建仍需重新触发并确认变量作用于 Production 构建环境。
 - 任意未知 `/en/*` 地址仍使用根目录中文 `404.html`；显式英文 `/en/404/` 可访问。
