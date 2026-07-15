@@ -225,3 +225,114 @@ test("returns to the target home when content has no translation", async ({
   await expect(page).toHaveURL(/\/en\/$/u);
   expect(browserErrors).toEqual([]);
 });
+
+test("searches the current language index and opens a result", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "搜索文章" }).click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "搜索文章" }),
+  ).toBeVisible();
+  await expect(page.getByText("最近发布", { exact: true })).toBeVisible();
+
+  const searchInput = page.getByRole("searchbox", { name: "搜索文章" });
+  await searchInput.fill("移动网络");
+  await expect(page.getByText("1 条结果", { exact: true })).toBeVisible();
+  await page
+    .getByRole("link", {
+      name: /把 Next\.js 博客稳稳部署到 Cloudflare Pages/u,
+    })
+    .click();
+  await expect(page).toHaveURL(/\/posts\/cloudflare-pages-nextjs\/$/u);
+
+  await page.goto("/en/");
+  await page.getByRole("button", { name: "Search writing" }).click();
+  await page.getByRole("searchbox", { name: "Search writing" }).fill("search");
+  await expect(
+    page.getByRole("link", {
+      name: /Search design for a small personal knowledge base/u,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("把 Next.js 博客稳稳部署到 Cloudflare Pages"),
+  ).toHaveCount(0);
+  expect(browserErrors).toEqual([]);
+});
+
+test("serves localized metadata and the custom not-found page", async ({
+  page,
+}) => {
+  const browserErrors = collectBrowserErrors(page);
+
+  await page.goto("/en/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  const englishCanonical = await page
+    .locator('link[rel="canonical"]')
+    .getAttribute("href");
+  expect(new URL(englishCanonical!).pathname).toBe("/en/");
+  await expect(
+    page.locator('link[rel="alternate"][hreflang="zh-CN"]'),
+  ).toHaveAttribute("href", /\/$/u);
+
+  await page.goto("/posts/cloudflare-pages-nextjs/");
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+    "content",
+    "article",
+  );
+  const jsonLd = await page
+    .locator('script[type="application/ld+json"]')
+    .textContent();
+  expect(JSON.parse(jsonLd!)).toMatchObject({
+    "@type": "BlogPosting",
+    dateModified: "2026-07-12",
+    inLanguage: "zh-CN",
+  });
+  expect(browserErrors).toEqual([]);
+
+  const notFoundResponse = await page.goto("/missing-page/");
+  expect(notFoundResponse?.status()).toBe(404);
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "这里还没有内容。" }),
+  ).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    /noindex/u,
+  );
+
+  await page.goto("/en/404/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "This page is missing." }),
+  ).toBeVisible();
+  expect(
+    browserErrors.filter(
+      (message) =>
+        !message.includes(
+          "Failed to load resource: the server responded with a status of 404",
+        ),
+    ),
+  ).toEqual([]);
+});
+
+test("keeps the core reading path available without JavaScript", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+
+  await page.goto("/");
+  await page.locator('a[href="/posts/cloudflare-pages-nextjs/"]').click();
+  await expect(page).toHaveURL(/\/posts\/cloudflare-pages-nextjs\/$/u);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "把 Next.js 博客稳稳部署到 Cloudflare Pages",
+    }),
+  ).toBeVisible();
+
+  await context.close();
+});

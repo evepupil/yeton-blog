@@ -7,8 +7,11 @@ export const siteConfig = {
   englishName: "Linmo Notes",
   author: "林墨",
   description: "关于前端、AI 与独立开发，也记录一些慢下来的时刻。",
+  englishDescription:
+    "Frontend, AI and independent building, with room for slower observations.",
   defaultLocale: "zh-CN" satisfies SiteLocale,
   locales: supportedLocales,
+  socialImage: "/images/hero-workspace.jpg",
 } as const;
 
 const localSiteUrl = "http://localhost:3000";

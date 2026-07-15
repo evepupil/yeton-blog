@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 
 import { HeaderActions } from "@/components/layout/header-actions";
 import { NavigationLinks } from "@/components/layout/navigation-links";
@@ -18,10 +17,6 @@ export function SiteHeader({ contentRoutes }: SiteHeaderProps) {
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
   const items = getNavigationItems(locale);
-
-  useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
 
   return (
     <header className="site-header">

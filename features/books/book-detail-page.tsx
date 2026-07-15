@@ -6,7 +6,6 @@ import { booksContent } from "@/features/books/book-content";
 import { BookProgress } from "@/features/books/book-progress";
 import { ArticleToc } from "@/features/posts/article-toc";
 import { MarkdownContent } from "@/features/posts/markdown-content";
-import { getTagHref } from "@/features/tags/tag-links";
 import type { Book } from "@/lib/content/types";
 import { getLocalizedPath } from "@/lib/i18n";
 
@@ -40,9 +39,9 @@ export function BookDetailPage({ book }: BookDetailPageProps) {
             <p>{book.description}</p>
             <div className="book-detail-tags">
               {book.tags.map((tag) => (
-                <SiteLink href={getTagHref(book.locale, tag)} key={tag}>
+                <Chip className="book-detail-tag" key={tag} size="sm">
                   #{tag}
-                </SiteLink>
+                </Chip>
               ))}
             </div>
             <BookProgress label={content.progress} progress={book.progress} />

@@ -21,6 +21,7 @@ describe("localized navigation", () => {
   it("switches locale without losing the current section", () => {
     expect(getLocalizedPath("/posts/", "en")).toBe("/en/posts/");
     expect(getLocalizedPath("/en/books/", "zh-CN")).toBe("/books/");
+    expect(getLocalizedPath("/rss.xml", "en")).toBe("/en/rss.xml");
     expect(stripLocalePrefix("/en/")).toBe("/");
   });
 

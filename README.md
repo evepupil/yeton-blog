@@ -4,7 +4,7 @@
 
 ## 当前进度
 
-- 阶段 0 工程骨架、阶段 1 公共布局、阶段 2 内容管线、阶段 3 核心阅读流程和阶段 4 归档图书与多语言已完成
+- 阶段 0 至阶段 5 已完成，当前已具备完整阅读、双语搜索、SEO、RSS、站点地图和静态产物检查
 - HTML 原型保留在 `prototype/index.html`
 - Next.js 页面正在按 `docs/roadmap.md` 逐步实现
 
@@ -17,6 +17,7 @@
 - 内容系统：`docs/模块设计/内容系统.md`
 - 文章阅读流程：`docs/模块设计/文章阅读流程.md`
 - 归档、图书与多语言：`docs/模块设计/归档图书与多语言.md`
+- 搜索、SEO 与站点完整性：`docs/模块设计/搜索SEO与站点完整性.md`
 
 ## 环境要求
 
@@ -29,11 +30,13 @@
 pnpm install --frozen-lockfile
 pnpm dev
 pnpm content:check
+pnpm search:build
+pnpm site:check
 pnpm build
 pnpm preview
 ```
 
-`pnpm content:check` 校验全部文章和图书。`pnpm build` 会先执行内容校验，再把静态站点输出到 `out`。`pnpm preview` 使用 Wrangler 预览该目录，日常实现时按需手动执行。
+`pnpm content:check` 校验全部文章和图书。`pnpm search:build` 生成双语搜索索引。`pnpm site:check` 检查已有 `out` 产物。`pnpm build` 会依次完成内容校验、搜索索引、静态导出和站点完整性检查。`pnpm preview` 使用 Wrangler 预览 `out`，日常实现时按需手动执行。
 
 ## 内容编写
 
