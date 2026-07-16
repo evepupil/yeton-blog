@@ -14,7 +14,9 @@
 | `.node-version`、`.nvmrc`              | 锁定 Node.js 22.14.0                 |
 | `wrangler.jsonc`                       | Pages 输出目录与本地预览配置         |
 | `public/_headers`                      | 静态资源缓存和生产安全响应头         |
-| `public/_redirects`                    | 旧站路径到当前页面的永久重定向       |
+| `redirects.config.ts`                  | 旧站路径和文章 slug 的集中映射       |
+| `scripts/generate-redirects.ts`        | 生成 Pages 永久重定向文件            |
+| `public/_redirects`                    | 构建生成的 Pages 永久重定向规则      |
 | `lib/deployment/config.ts`             | Pages 构建时的公开站点 URL 校验      |
 | `scripts/validate-cloudflare-build.ts` | 区分本地构建和 Cloudflare Pages 构建 |
 | `scripts/smoke-deployment.ts`          | 部署后手动执行的公网 HTTP 冒烟       |
@@ -29,9 +31,14 @@
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
-8. 旧站路径迁移使用 Pages `_redirects` 返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
+8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 
 ## 改动历史
+
+### 2026-07-16
+
+- 将 `_redirects` 改为集中配置生成，增加 18 篇旧文章 slug 到新 slug 的永久映射，并为带尾斜杠和不带尾斜杠的请求分别生成规则。
+- 公网冒烟从配置读取文章迁移清单，逐条确认 Cloudflare 返回单跳 `301` 和正确目标。
 
 ### 2026-07-15
 
@@ -75,7 +82,7 @@
 1. Pull Request 通过 GitHub `Quality` 检查。
 2. 合并到 `main` 后，Cloudflare Pages 的 Git 集成检测到新 commit。
 3. Cloudflare 安装锁定依赖并运行配置的构建命令；命令先把正式域名传给 `pnpm build`。
-4. 构建脚本检测到 `CF_PAGES=1`，校验传入的 `NEXT_PUBLIC_SITE_URL`，随后生成并检查 `out`。
+4. 构建脚本先从 `redirects.config.ts` 生成 `_redirects`，再检测 `CF_PAGES=1`、校验传入的 `NEXT_PUBLIC_SITE_URL`，随后生成并检查 `out`。
 5. Cloudflare 发布静态产物并保留 deployment 历史。
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
@@ -85,7 +92,7 @@
 1. 内容迁移和本地门禁完成后，将 `blog.chaosyn.com` 绑定到当前 Pages 项目。
 2. 将 Pages 构建命令与 `NEXT_PUBLIC_SITE_URL` 同步改为 `https://blog.chaosyn.com`。
 3. 在 Cloudflare Dashboard 创建只匹配 `blog1.chaosyn.com` hostname 的永久重定向，目标为 `https://blog.chaosyn.com/${path}`。
-4. 保留 `public/_redirects`，让旧站内部路径继续一跳到当前 canonical。
+4. 保留 `redirects.config.ts` 中的迁移映射，让生成的 `_redirects` 继续把旧站内部路径一跳到当前 canonical。
 5. 部署后运行公网冒烟，并向 Google Search Console 和 Bing Webmaster Tools 提交新的 sitemap。
 
 ### Notion 同步关系
@@ -118,7 +125,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 ## 测试方法
 
 - 单测覆盖正式 URL、本地构建跳过和 Pages 构建强制校验。
-- `pnpm build` 检查 `_headers` 已复制到 `out` 且包含必需规则。
+- `pnpm build` 检查 `_headers` 已复制到 `out`，并确认生成的 `_redirects` 包含集中配置中的全部规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
 - 公网冒烟已对 deployment 地址、`yeton-blog.pages.dev` 和 `blog1.chaosyn.com` 执行通过。
 

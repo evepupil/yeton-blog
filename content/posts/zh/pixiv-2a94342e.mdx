@@ -11,15 +11,14 @@ tags:
   - "好玩"
 draft: false
 pinned: false
+translationKey: "pixiv爬虫-下载-代理-无需服务器即可一键部署"
 source: "notion"
 notionPageId: "2a94342e-b403-80aa-aaf0-e395f1aa4211"
 ---
 
 ## 项目简介
 
-
 把去年用python写的pixiv爬虫项目用AI和serverless架构重写了一下，支持定时任务，支持下载，支持代理访问。
-
 
 ### ✨ 核心特性
 
@@ -31,7 +30,6 @@ notionPageId: "2a94342e-b403-80aa-aaf0-e395f1aa4211"
 - ⏰ **定时任务**：自动爬取排行榜，无需人工干预
 
 ### ️ 系统架构
-
 
 ```plain text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -46,15 +44,11 @@ notionPageId: "2a94342e-b403-80aa-aaf0-e395f1aa4211"
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-
 ### 核心功能实现
-
 
 ### 1. 智能爬虫引擎
 
-
 我们的爬虫不仅能获取基础信息，还能智能分析内容质量：
-
 
 ```plain text
 /**
@@ -128,12 +122,9 @@ export class PixivCrawler {
 }
 ```
 
-
 ### 2. 图片代理服务
 
-
 解决跨域问题，提供高速图片访问：
-
 
 ```plain text
 /**
@@ -213,12 +204,9 @@ export class PixivProxy {
 }
 ```
 
-
 ### 3. API 接口设计
 
-
 提供完整的 RESTful API：
-
 
 ```plain text
 /**
@@ -292,12 +280,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 ```
 
-
 ### 4. 定时任务调度
 
-
 使用 Cloudflare Cron Worker 实现自动化：
-
 
 ```plain text
 /**
@@ -355,12 +340,9 @@ async function triggerRankingCrawl(type: 'daily' | 'weekly' | 'monthly', env: En
 }
 ```
 
-
 ### 3分钟快速部署
 
-
 ### 步骤1：克隆项目
-
 
 ```plain text
 git clone https://github.com/your-username/serverless_pixiv_crawler.git
@@ -368,12 +350,9 @@ cd serverless_pixiv_crawler
 npm install
 ```
 
-
 ### 步骤2：配置环境变量
 
-
 复制 .env.example 为 .env：
-
 
 ```plain text
 # Supabase 数据库配置
@@ -390,9 +369,7 @@ CLOUDFLARE_SECRET_ACCESS_KEY=your_secret_key
 CLOUDFLARE_BUCKET_NAME=your_bucket_name
 ```
 
-
 ### 步骤3：部署到 Vercel
-
 
 ```plain text
 # 安装 Vercel CLI
@@ -403,9 +380,7 @@ vercel login
 vercel --prod
 ```
 
-
 ### 步骤4：部署定时任务（可选）
-
 
 ```plain text
 cd cron_worker
@@ -416,12 +391,9 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-
 ### 功能演示
 
-
 ### 1. Web 管理界面
-
 
 部署完成后，访问你的 Vercel 域名，你将看到一个现代化的管理界面：
 
@@ -431,7 +403,6 @@ npx wrangler deploy
 - **数据搜索**：快速查找和筛选爬取的内容
 
 ### 2. API 接口使用
-
 
 ```plain text
 // 获取图片信息
@@ -455,12 +426,9 @@ fetch('https://your-domain.vercel.app/api/', {
 });
 ```
 
-
 ### 3. 数据分析
 
-
 系统自动收集和分析数据，提供丰富的统计信息：
-
 
 ```plain text
 -- 热门标签统计
@@ -484,15 +452,11 @@ FROM illustrations
 GROUP BY level;
 ```
 
-
 ### 高级特性
-
 
 ### 1. 智能推荐算法
 
-
-系统内置智能推荐算法，能够： -   **内容发现**：基于已有数据发现相似优质内容 -   **热度预测**：预测内容未来的热度趋势 -   **风格分析**：识别和分类不同的艺术风格
-
+系统内置智能推荐算法，能够： - **内容发现**：基于已有数据发现相似优质内容 - **热度预测**：预测内容未来的热度趋势 - **风格分析**：识别和分类不同的艺术风格
 
 ### 2. 防封机制
 
@@ -508,20 +472,16 @@ GROUP BY level;
 
 ### 成本分析
 
-
 这个项目的最大优势是**完全免费**：
 
-
-| 服务                 | 免费额度       | 足够支撑    |
-| ------------------ | ---------- | ------- |
-| Vercel             | 100GB 带宽/月 | 中小型项目   |
-| Supabase           | 500MB 数据库  | 50万条记录  |
-| Cloudflare Workers | 10万请求/天    | 大部分使用场景 |
-| Cloudflare R2      | 10GB 存储    | 数万张图片   |
-
+| 服务               | 免费额度      | 足够支撑       |
+| ------------------ | ------------- | -------------- |
+| Vercel             | 100GB 带宽/月 | 中小型项目     |
+| Supabase           | 500MB 数据库  | 50万条记录     |
+| Cloudflare Workers | 10万请求/天   | 大部分使用场景 |
+| Cloudflare R2      | 10GB 存储     | 数万张图片     |
 
 ### 故障排除
-
 
 ### 常见问题
 
@@ -543,7 +503,6 @@ GROUP BY level;
 
 ### 总结
 
-
 这个 Serverless Pixiv 爬虫项目展示了现代化 Web 开发的强大能力：
 
 - ✅ **零运维成本**：完全基于云服务，无需管理服务器
@@ -552,7 +511,6 @@ GROUP BY level;
 - ✅ **部署简单**：3分钟即可完成部署
 
 无论你是想学习 Serverless 架构，还是需要一个实用的数据收集工具，这个项目都是一个很好的起点。
-
 
 ### 相关资源
 
@@ -563,11 +521,8 @@ GROUP BY level;
 
 ---
 
-
 **免责声明**：本项目仅供学习和研究使用，请遵守相关网站的服务条款，合理控制爬取频率。
 
-
 **如果这篇文章对你有帮助，请给项目点个 ⭐ Star！**
-
 
 ![v2-a211000410c25bbc31bbac49312d1020_1440w.png](/images/notion/pixiv-2a94342e/image-1.png)

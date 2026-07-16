@@ -10,36 +10,28 @@ tags:
   - "好玩"
 draft: false
 pinned: false
+translationKey: "pixiv爬虫常用api的文档汇总"
 source: "notion"
 notionPageId: "2a94342e-b403-8017-b197-ef0b8ee07268"
 ---
 
 ## 前言
 
-
 开发 Pixiv 爬虫的过程中，我深入研究了 Pixiv 的各种 API 接口。本文将基于实际的爬虫实现，详细介绍 Pixiv 的主要 API 接口、请求格式以及返回数据结构，希望能为其他开发者提供参考。
-
 
 前阵子开发了一个serverless的pixiv爬虫：
 
-
-[Pixiv爬虫/下载/代理，无需服务器即可一键部署！]([https://blog.chaosyn.com/posts/pixiv爬虫-下载-代理-无需服务器即可一键部署/](https://blog.chaosyn.com/posts/pixiv%E7%88%AC%E8%99%AB-%E4%B8%8B%E8%BD%BD-%E4%BB%A3%E7%90%86-%E6%97%A0%E9%9C%80%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%8D%B3%E5%8F%AF%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2/))
-
+[Pixiv爬虫/下载/代理，无需服务器即可一键部署！](<[https://blog.chaosyn.com/posts/pixiv爬虫-下载-代理-无需服务器即可一键部署/](https://blog.chaosyn.com/posts/pixiv%E7%88%AC%E8%99%AB-%E4%B8%8B%E8%BD%BD-%E4%BB%A3%E7%90%86-%E6%97%A0%E9%9C%80%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%8D%B3%E5%8F%AF%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2/)>)
 
 使用示例项目地址：
 
-
 https://github.com/evepupil/serverless_pixiv_crawlergithub.com/evepupil/serverless_pixiv_crawler
-
 
 ## 基础配置
 
-
 ### 请求头设置
 
-
 所有 API 请求都需要正确的请求头，特别是 Cookie 和 User-Agent：
-
 
 ```plain text
 interface PixivHeaders {
@@ -50,12 +42,9 @@ interface PixivHeaders {
 }
 ```
 
-
 ### 通用响应格式
 
-
 Pixiv API 的响应通常遵循以下格式：
-
 
 ```plain text
 {
@@ -66,25 +55,19 @@ Pixiv API 的响应通常遵循以下格式：
 }
 ```
 
-
 ## 核心 API 接口详解
-
 
 ### 1. 获取插画详细信息
 
-
 **接口地址：** https://www.pixiv.net/ajax/illust/{pid}
 
-
 **请求方式：** GET
-
 
 **参数说明：**
 
 - pid: 插画ID（必需）
 
 **返回数据结构：**
-
 
 ```plain text
 interface PixivIllustInfo {
@@ -113,9 +96,7 @@ interface PixivIllustInfo {
 }
 ```
 
-
 **使用示例：**
-
 
 ```plain text
 const response = await axios.get(
@@ -125,15 +106,11 @@ const response = await axios.get(
 const illustInfo: PixivIllustInfo = response.data;
 ```
 
-
 ### 2. 获取插画页面信息（图片链接）
-
 
 **接口地址：** https://www.pixiv.net/ajax/illust/{pid}/pages?lang=zh
 
-
 **请求方式：** GET
-
 
 **参数说明：**
 
@@ -141,7 +118,6 @@ const illustInfo: PixivIllustInfo = response.data;
 - lang: 语言设置，默认为 zh
 
 **返回数据结构：**
-
 
 ```plain text
 interface PixivIllustPagesResponse {
@@ -157,9 +133,7 @@ interface PixivIllustPagesResponse {
 }
 ```
 
-
 **使用示例：**
-
 
 ```plain text
 const response = await axios.get(
@@ -169,15 +143,11 @@ const response = await axios.get(
 const pagesInfo: PixivIllustPagesResponse = response.data;
 ```
 
-
 ### 3. 获取插画推荐列表
-
 
 **接口地址：** https://www.pixiv.net/ajax/illust/{pid}/recommend/init?limit=30&lang=zh
 
-
 **请求方式：** GET
-
 
 **参数说明：**
 
@@ -186,7 +156,6 @@ const pagesInfo: PixivIllustPagesResponse = response.data;
 - lang: 语言设置，默认为 zh
 
 **返回数据结构：**
-
 
 ```plain text
 interface PixivRecommendResponse {
@@ -197,9 +166,7 @@ interface PixivRecommendResponse {
 }
 ```
 
-
 **使用示例：**
-
 
 ```plain text
 const response = await axios.get(
@@ -209,15 +176,11 @@ const response = await axios.get(
 const recommendInfo: PixivRecommendResponse = response.data;
 ```
 
-
 ### 4. 获取用户推荐
-
 
 **接口地址：** https://www.pixiv.net/ajax/user/{userId}/recommends?userNum=30&workNum=5&isR18=false&lang=zh
 
-
 **请求方式：** GET
-
 
 **参数说明：**
 
@@ -228,7 +191,6 @@ const recommendInfo: PixivRecommendResponse = response.data;
 - lang: 语言设置，默认为 zh
 
 **返回数据结构：**
-
 
 ```plain text
 interface PixivUserRecommendResponse {
@@ -242,9 +204,7 @@ interface PixivUserRecommendResponse {
 }
 ```
 
-
 **使用示例：**
-
 
 ```plain text
 const response = await axios.get(
@@ -254,18 +214,13 @@ const response = await axios.get(
 const userRecommendInfo: PixivUserRecommendResponse = response.data;
 ```
 
-
 ## 排行榜接口
-
 
 ### 获取排行榜数据
 
-
 **接口地址：** https://www.pixiv.net/ranking.php?mode={mode}&content=illust
 
-
 **请求方式：** GET
-
 
 **参数说明：**
 
@@ -277,9 +232,7 @@ const userRecommendInfo: PixivUserRecommendResponse = response.data;
 
 **注意：** 这个接口返回的是 HTML 页面，需要通过正则表达式解析获取插画ID。
 
-
 **解析示例：**
-
 
 ```plain text
 // 提取插画ID的正则表达式
@@ -292,24 +245,17 @@ while ((match = pidRegex.exec(html)) !== null) {
 }
 ```
 
-
 ## 首页推荐接口
-
 
 ### 获取首页推荐内容
 
-
 **接口地址：** https://www.pixiv.net/
-
 
 **请求方式：** GET
 
-
 **说明：** 首页推荐也是通过解析 HTML 页面获取，需要查找包含 data-gtm-work-id 属性的元素。
 
-
 **解析示例：**
-
 
 ```plain text
 // 提取推荐插画ID的正则表达式
@@ -322,9 +268,7 @@ while ((match = pidRegex.exec(html)) !== null) {
 }
 ```
 
-
 ## 错误处理
-
 
 ### 常见错误类型
 
@@ -333,7 +277,6 @@ while ((match = pidRegex.exec(html)) !== null) {
 3. **429 错误**：请求过于频繁，需要限流
 
 ### 错误处理示例
-
 
 ```plain text
 try {
@@ -348,12 +291,9 @@ try {
 }
 ```
 
-
 ## 最佳实践
 
-
 ### 1. 请求频率控制
-
 
 ```plain text
 // 添加随机延迟避免被封
@@ -361,9 +301,7 @@ const delay = Math.random() * 2000 + 1000; // 1-3秒随机延迟
 await new Promise(resolve => setTimeout(resolve, delay));
 ```
 
-
 ### 2. 请求头轮换
-
 
 ```plain text
 // 使用多个不同的请求头轮换使用
@@ -378,9 +316,7 @@ const currentHeaders = headersList[headerIndex % headersList.length];
 headerIndex++;
 ```
 
-
 ### 3. 重试机制
-
 
 ```plain text
 async function requestWithRetry(url: string, maxRetries: number = 3) {
@@ -396,9 +332,7 @@ async function requestWithRetry(url: string, maxRetries: number = 3) {
 }
 ```
 
-
 ## 总结
-
 
 本文基于实际的爬虫项目，详细介绍了 Pixiv 的主要 API 接口。这些接口涵盖了：
 
@@ -416,11 +350,8 @@ async function requestWithRetry(url: string, maxRetries: number = 3) {
 
 希望这份文档能够帮助到需要了解 Pixiv API 的开发者们！
 
-
 ---
 
-
 _注：本文仅供学习交流使用，请遵守相关法律法规和网站使用条款。_
-
 
 ![v2-3052331952cbe0c11d5404c6d4b7ff26_r.jpg](/images/notion/pixiv-api-2a94342e/image-1.jpg)

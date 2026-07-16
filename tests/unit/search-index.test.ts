@@ -42,12 +42,12 @@ describe("search index", () => {
 
     expect(
       index.search("Workers AI 免费额度", searchQueryOptions)[0]?.href,
-    ).toBe("/posts/cloudflare-workers-ai-免费额度值多少钱/");
+    ).toBe("/posts/cloudflare-workers-ai-3594342e/");
     expect(index.search("Audio Wash Player", searchQueryOptions)[0]?.href).toBe(
-      "/posts/我做了一个把-anki-听力和-ai-阅读串起来的小插件-audio-wash-player/",
+      "/posts/anki-ai-audio-wash-player-32c4342e/",
     );
     expect(index.search("crawl4ai", searchQueryOptions)[0]?.href).toBe(
-      "/posts/chromium-1187对应版本的playwright版本/",
+      "/posts/chromium-1187-playwright-2b54342e/",
     );
   });
 });

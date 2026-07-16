@@ -5,6 +5,7 @@ import { getPostHref } from "@/features/posts/post-links";
 import { getPublishedArticles } from "@/lib/content/queries";
 import { loadArticles } from "@/lib/content/reader";
 import { resolveProductionSiteUrl } from "@/lib/deployment/config";
+import { redirectsConfig } from "@/redirects.config";
 
 type HtmlNode = DefaultTreeAdapterMap["node"];
 type HtmlElement = DefaultTreeAdapterMap["element"];
@@ -269,6 +270,10 @@ async function main() {
       },
       { from: "/archive/", to: "/archives/" },
       { from: "/sitemap-index.xml", to: "/sitemap.xml" },
+      ...redirectsConfig.postSlugs.map((mapping) => ({
+        from: `/posts/${mapping.from}/`,
+        to: `/posts/${mapping.to}/`,
+      })),
     ].map((check) => validateRedirect(baseUrl, check)),
   );
 

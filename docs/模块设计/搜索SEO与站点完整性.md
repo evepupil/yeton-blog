@@ -17,8 +17,11 @@
 | `lib/seo/rss.ts`                   | 中英文 RSS 数据与 XML 生成                  |
 | `lib/seo/sitemap.ts`               | 静态页面、内容、标签与译文站点地图          |
 | `scripts/generate-search-index.ts` | 构建中英文序列化搜索索引                    |
+| `redirects.config.ts`              | 旧路径与旧文章 slug 的集中映射              |
+| `lib/redirects/`                   | 映射校验、规则展开和 `_redirects` 序列化    |
+| `scripts/generate-redirects.ts`    | 构建 Cloudflare Pages 永久跳转文件          |
 | `scripts/check-static-output.ts`   | 检查最终 `out` 目录                         |
-| `public/_redirects`                | 旧站 URL 到当前规范路由的永久跳转           |
+| `public/_redirects`                | 从集中配置生成的永久跳转文件                |
 | `app/(zh)/rss.xml/route.ts`        | 中文 RSS 静态 Route Handler                 |
 | `app/(en)/en/rss.xml/route.ts`     | 英文 RSS 静态 Route Handler                 |
 | `app/sitemap.ts`、`app/robots.ts`  | 站点地图和抓取规则                          |
@@ -33,8 +36,15 @@
 6. 文章 JSON-LD 使用 `BlogPosting`，包含作者、发布日期、更新时间、语言、封面和规范地址。序列化时转义 `<`，防止内容结束 script 标签。
 7. `pnpm build` 的最后一步解析真实产物。HTML、XML 和 JSON 使用结构化解析器检查，坏链接、缺资源、错误语言或缺少 SEO 字段都会让构建失败。
 8. 当前路由继续作为 canonical。旧站路径使用一跳 `301` 合并到对应新页面，不让兼容路径进入 sitemap 或 hreflang。
+9. `redirects.config.ts` 是重定向的唯一配置入口。文章换 slug 时删除旧正文、保留新正文，并把旧、新 slug 加入映射；构建会同时生成带尾斜杠和不带尾斜杠的旧地址规则。
 
 ## 改动历史
+
+### 2026-07-16
+
+- 新增集中式 URL 映射和生成器，把原有固定规则与 18 篇文章的旧 slug 迁移统一生成到 `public/_redirects`。
+- 清理 Notion 首次同步产生的 15 份重复正文，旧地址通过单跳 `301` 合并到新 slug，canonical、RSS 和 sitemap 只保留新文章。
+- 内容校验确认每个文章重定向目标真实存在、旧 slug 已退出内容目录；静态产物检查覆盖配置中的全部规则，生产冒烟覆盖全部文章迁移。
 
 ### 2026-07-15
 
@@ -89,13 +99,14 @@
 | `/books/<book>/<chapter>/` | `/books/<book>/`    |
 | `/sitemap-index.xml`       | `/sitemap.xml`      |
 
-中文文章 `/posts/<slug>/` 与当前规范相同，迁移时保留文件名即可保留 URL。友链和赞助页当前没有等价目标，暂不跳到无关页面；对应功能上线后再补精确规则。
+中文文章改用 Notion 当前生成的新 slug。18 个旧 `/posts/<slug>/` 地址集中配置在 `redirects.config.ts`，并永久跳到对应新地址。友链和赞助页当前没有等价目标，暂不跳到无关页面；对应功能上线后再补精确规则。
 
 ## 测试方法
 
 - Vitest 覆盖分词、语言隔离、标题/标签/正文命中、RSS 草稿过滤、sitemap 译文关系、canonical 和 JSON-LD。
 - Playwright 覆盖中英文搜索、搜索结果导航、关键元数据、全局 404、英文 404 和关闭 JavaScript 后的阅读路径。
-- `pnpm build` 检查 `_redirects` 存在且包含全部必需迁移规则；部署后冒烟验证关键路径返回单跳 `301` 和正确目标。
+- Vitest 覆盖映射展开、重复来源、重定向链和相同源目标校验。
+- `pnpm build` 重新生成 `_redirects` 并检查全部配置规则；部署后冒烟验证 18 个旧文章地址返回单跳 `301` 和正确目标。
 - 应用内浏览器检查搜索弹窗、结果状态、文章跳转和控制台错误。
 
 ## 当前限制

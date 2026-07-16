@@ -6,6 +6,11 @@ import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { resolveSiteUrl } from "@/lib/site-config";
 import { resolveUmamiConfig } from "@/lib/analytics/config";
+import {
+  createRedirectRules,
+  serializeRedirectRule,
+} from "@/lib/redirects/generator";
+import { redirectsConfig } from "@/redirects.config";
 
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
@@ -25,17 +30,9 @@ const requiredFiles = [
   "sitemap.xml",
 ] as const;
 
-const requiredLegacyRedirects = [
-  "/posts/en/* /en/posts/:splat 301",
-  "/archive/en/tag/* /en/tags/:splat 301",
-  "/archive/tag/* /tags/:splat 301",
-  "/archive/en/* /en/archives/ 301",
-  "/archive/* /archives/ 301",
-  "/about/en/* /en/about/ 301",
-  "/books/:book/:chapter/ /books/:book/ 301",
-  "/books/:book/:chapter /books/:book/ 301",
-  "/sitemap-index.xml /sitemap.xml 301",
-] as const;
+const requiredLegacyRedirects = createRedirectRules(redirectsConfig).map(
+  serializeRedirectRule,
+);
 
 async function checkHeadersFile(errors: string[]): Promise<void> {
   const headers = await readFile(

@@ -28,9 +28,7 @@ describe("content queries", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
     expect(chineseArticles).toHaveLength(19);
-    expect(chineseArticles[0]?.slug).toBe(
-      "从-prompt-到-subagent-ai-工程化学习路线",
-    );
+    expect(chineseArticles[0]?.slug).toBe("prompt-subagent-ai-36c4342e");
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
   });
 
@@ -50,7 +48,7 @@ describe("content queries", () => {
 
   it("finds an explicit article translation and orders migrated books", () => {
     const source = articles.find(
-      (article) => article.slug === "ai-agent-深度学习指南",
+      (article) => article.slug === "ai-agent-3114342e",
     );
     expect(source).toBeDefined();
 
@@ -67,7 +65,7 @@ describe("content queries", () => {
     const article = findPublishedArticle(
       articles,
       "zh-CN",
-      "cloudflare-workers-ai-免费额度值多少钱",
+      "cloudflare-workers-ai-3594342e",
     );
     expect(article).not.toBeNull();
 
@@ -76,10 +74,8 @@ describe("content queries", () => {
 
     expect(previews).toHaveLength(19);
     expect(previews[0]).not.toHaveProperty("body");
-    expect(navigation.previous?.slug).toBe(
-      "从-prompt-到-subagent-ai-工程化学习路线",
-    );
-    expect(navigation.next?.slug).toBe("claude-code里面使用chatgpt的模型教程");
+    expect(navigation.previous?.slug).toBe("prompt-subagent-ai-36c4342e");
+    expect(navigation.next?.slug).toBe("claude-code-chatgpt-34a4342e");
   });
 
   it("filters tags and leaves single-language books unpaired", () => {

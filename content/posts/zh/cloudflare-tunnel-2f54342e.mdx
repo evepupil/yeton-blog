@@ -7,15 +7,14 @@ tags:
   - "Cloudflare"
 draft: false
 pinned: false
+translationKey: "cloudflare-tunnel-实现国内未备案服务器通过域名访问"
 source: "notion"
 notionPageId: "2f54342e-b403-8044-b644-f7c77c439e94"
 ---
 
 ### 1. 核心原理
 
-
 Cloudflare Tunnel 通过本地 `cloudflared` 进程建立 **出站（Outbound）** 连接。由于不占用服务器入站端口（80/443），可以有效绕过国内运营商对未备案域名的 SNI 拦截。
-
 
 ### 2. 准备工作
 
@@ -25,39 +24,27 @@ Cloudflare Tunnel 通过本地 `cloudflared` 进程建立 **出站（Outbound）
 
 ![image.png](/images/notion/cloudflare-tunnel-2f54342e/image-1.png)
 
-
 ### 3. 部署步骤
-
 
 ### A. 获取 Token
 
-
 在 Cloudflare Zero Trust 控制台依次点击 `网络` -> `连接器` -> `创建隧道`。
-
 
 ![image.png](/images/notion/cloudflare-tunnel-2f54342e/image-2.png)
 
-
 选择claudeflared类型
-
 
 ![image.png](/images/notion/cloudflare-tunnel-2f54342e/image-3.png)
 
-
 在安装和部署页面选择 Docker，复制环境变量 `TUNNEL_TOKEN` 后面的长字符串（需要先复制出来手动提取这个token）。
-
 
 ![image.png](/images/notion/cloudflare-tunnel-2f54342e/image-4.png)
 
-
 ### B. 容器化部署
-
 
 利用 Docker 将隧道接入应用所在的内部网络（以 Dify 常用网络名为例）这里的`<YOUR_TOKEN>` 填你的token：
 
-
 Bash
-
 
 `docker run -d \
   --name cf-tunnel \
@@ -66,9 +53,7 @@ Bash
   cloudflare/cloudflared:latest \
   tunnel --no-autoupdate run --token <YOUR_TOKEN>`
 
-
 ### C. 后台映射配置
-
 
 在控制台 **`已发布应用程序路由`** 页面添加记录：
 
@@ -78,9 +63,7 @@ Bash
 
 ![image.png](/images/notion/cloudflare-tunnel-2f54342e/image-5.png)
 
-
 然后可以通过域名访问你的服务了！
-
 
 ### 4. 优化与安全策略
 

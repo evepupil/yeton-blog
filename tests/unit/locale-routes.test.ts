@@ -16,27 +16,21 @@ describe("content locale routes", () => {
   it("maps translated articles in both directions", () => {
     const routes = buildContentLocaleRoutes(articles, books);
 
-    expect(routes["/posts/ai-agent-深度学习指南/"]).toBe(
+    expect(routes["/posts/ai-agent-3114342e/"]).toBe(
       "/en/posts/ai-agent-deep-learning-guide/",
     );
     expect(routes["/en/posts/ai-agent-deep-learning-guide/"]).toBe(
-      "/posts/ai-agent-深度学习指南/",
+      "/posts/ai-agent-3114342e/",
     );
-    expect(
-      getLocaleSwitchPath(
-        "/posts/ai-agent-%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97/",
-        "en",
-        routes,
-      ),
-    ).toBe("/en/posts/ai-agent-deep-learning-guide/");
+    expect(getLocaleSwitchPath("/posts/ai-agent-3114342e/", "en", routes)).toBe(
+      "/en/posts/ai-agent-deep-learning-guide/",
+    );
   });
 
   it("falls back to the target home when a translation is missing", () => {
     const routes = buildContentLocaleRoutes(articles, books);
 
-    expect(routes["/posts/从-prompt-到-subagent-ai-工程化学习路线/"]).toBe(
-      "/en/",
-    );
+    expect(routes["/posts/prompt-subagent-ai-36c4342e/"]).toBe("/en/");
     expect(routes["/books/ai-engineering/"]).toBe("/en/");
     expect(routes["/books/tae-kim-japanese-grammar-guide/"]).toBe("/en/");
     expect(getLocaleSwitchPath("/tags/前端/", "en", routes)).toBe("/en/");

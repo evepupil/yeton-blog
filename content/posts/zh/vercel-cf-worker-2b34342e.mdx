@@ -8,12 +8,12 @@ tags:
   - "Cloudflare"
 draft: false
 pinned: false
+translationKey: "vercel项目国内访问慢-cf-worker反代-优选节点-无备案零成本极速访问"
 source: "notion"
 notionPageId: "2b34342e-b403-809e-a6a0-fa0e744a71f4"
 ---
 
 Vercel部署的项目在国内有些网络确实访问很慢，有时也和Vercel抽风有关。但是我们可以使用CF反代+优选节点，来达到国内访问加速的目的。
-
 
 准备：
 
@@ -22,12 +22,9 @@ Vercel部署的项目在国内有些网络确实访问很慢，有时也和Verce
 
 注意：**后续假设要加速访问（用户要访问的）的域名为B.xxx.com，Vercel当前绑定域名为A.xxx.com（此域名是未加速的）**
 
-
 ## Cloud flare反代
 
-
 之前已经有文章讲过怎么做了：[Cloudflare Worker反向代理网站教程 - 潮思Chaosyn](https://blog.chaosyn.com/posts/cloudflare-worker%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B/)
-
 
 最简单的操作步骤：
 
@@ -45,12 +42,9 @@ Vercel部署的项目在国内有些网络确实访问很慢，有时也和Verce
 
 ![image.png](/images/notion/vercel-cf-worker-2b34342e/image-3.png)
 
-
 ## Cloud flare优选节点
 
-
 之前已经有文章讲过怎么做了：[https://blog.chaosyn.com/posts/cloud-flare配置优选节点教程/](https://blog.chaosyn.com/posts/cloud-flare%E9%85%8D%E7%BD%AE%E4%BC%98%E9%80%89%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B/)
-
 
 最简单的操作步骤：
 

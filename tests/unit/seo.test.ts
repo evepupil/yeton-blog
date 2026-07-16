@@ -51,9 +51,7 @@ describe("SEO output", () => {
     const draft = { ...source!, draft: true, slug: "hidden-draft" };
     const sitemap = buildSitemap({ articles: [...articles, draft], books });
     const translatedEntry = sitemap.find(({ url }) =>
-      url.endsWith(
-        "/posts/ai-agent-%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97/",
-      ),
+      url.endsWith("/posts/ai-agent-3114342e/"),
     );
 
     expect(sitemap.some(({ url }) => url.includes("hidden-draft"))).toBe(false);
@@ -70,7 +68,7 @@ describe("SEO output", () => {
     const article = findPublishedArticle(
       articles,
       "zh-CN",
-      "ai-agent-深度学习指南",
+      "ai-agent-3114342e",
     );
     expect(article).not.toBeNull();
     const translation = findArticleTranslation(articles, article!, "en");
@@ -79,9 +77,7 @@ describe("SEO output", () => {
     const unsafeJson = serializeJsonLd({ title: "</script>" });
 
     expect(metadata.alternates?.canonical).toEqual(
-      new URL(
-        "http://localhost:3000/posts/ai-agent-%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97/",
-      ),
+      new URL("http://localhost:3000/posts/ai-agent-3114342e/"),
     );
     expect(metadata.openGraph).toMatchObject({ type: "article" });
     expect(structuredData.dateModified).toBe("2026-02-24");

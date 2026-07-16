@@ -109,9 +109,12 @@ test("opens and closes the mobile navigation", async ({ page }) => {
 test("shows synchronized friend links with an avatar fallback", async ({
   page,
 }) => {
-  await page.route("**/images/friends/betsy-blog.webp", async (route) => {
-    await route.abort("failed");
-  });
+  await page.route(
+    "**/images/friends/friend-f8545507dba1.webp",
+    async (route) => {
+      await route.abort("failed");
+    },
+  );
   await page.goto("/links/");
 
   await expect(
@@ -158,9 +161,7 @@ test("opens a migrated article with contents, navigation and translation", async
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
-  await page.goto(
-    "/posts/nextdevtpl-一个面向独立开发者的-next-js-全栈-saas-模板/",
-  );
+  await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
   await expect(
     page.getByRole("heading", {
       level: 1,
@@ -181,9 +182,7 @@ test("opens a migrated article with contents, navigation and translation", async
       name: "Cloudflare AI Gateway 自定义供应商配置与踩坑记录",
     })
     .click();
-  await expect(page).toHaveURL(
-    /\/posts\/cloudflare-ai-gateway-%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BE%9B%E5%BA%94%E5%95%86%E9%85%8D%E7%BD%AE%E4%B8%8E%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95\/$/u,
-  );
+  await expect(page).toHaveURL(/\/posts\/cloudflare-ai-gateway-3024342e\/$/u);
 
   await page.getByLabel("选择语言").selectOption("en");
   await expect(page).toHaveURL(
@@ -227,9 +226,7 @@ test("loads comments on demand and follows the site theme", async ({
     });
   });
 
-  await page.goto(
-    "/posts/nextdevtpl-一个面向独立开发者的-next-js-全栈-saas-模板/",
-  );
+  await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
   const comments = page.getByTestId("article-comments");
   await expect(
     comments.getByRole("heading", { level: 2, name: "评论" }),
@@ -487,7 +484,7 @@ test("returns to the target home when content has no translation", async ({
 }) => {
   const browserErrors = collectBrowserErrors(page);
 
-  await page.goto("/posts/从-prompt-到-subagent-ai-工程化学习路线/");
+  await page.goto("/posts/prompt-subagent-ai-36c4342e/");
   await page.getByLabel("选择语言").selectOption("en");
   await expect(page).toHaveURL(/\/en\/$/u);
 
@@ -518,9 +515,7 @@ test("searches the current language index and opens a result", async ({
       name: /Cloudflare Workers AI 免费额度值多少钱/u,
     })
     .click();
-  await expect(page).toHaveURL(
-    /\/posts\/cloudflare-workers-ai-%E5%85%8D%E8%B4%B9%E9%A2%9D%E5%BA%A6%E5%80%BC%E5%A4%9A%E5%B0%91%E9%92%B1\/$/u,
-  );
+  await expect(page).toHaveURL(/\/posts\/cloudflare-workers-ai-3594342e\/$/u);
 
   await page.goto("/en/");
   await page.getByRole("button", { name: "Search writing" }).click();
@@ -553,7 +548,7 @@ test("serves localized metadata and the custom not-found page", async ({
     page.locator('link[rel="alternate"][hreflang="zh-CN"]'),
   ).toHaveAttribute("href", /\/$/u);
 
-  await page.goto("/posts/ai-agent-深度学习指南/");
+  await page.goto("/posts/ai-agent-3114342e/");
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
     "content",
     "article",
@@ -602,12 +597,10 @@ test("keeps the core reading path available without JavaScript", async ({
 
   await page.goto("/");
   await page
-    .locator('a[href="/posts/从-prompt-到-subagent-ai-工程化学习路线/"]')
+    .locator('a[href="/posts/prompt-subagent-ai-36c4342e/"]')
     .first()
     .click();
-  await expect(page).toHaveURL(
-    /\/posts\/%E4%BB%8E-prompt-%E5%88%B0-subagent-ai-%E5%B7%A5%E7%A8%8B%E5%8C%96%E5%AD%A6%E4%B9%A0%E8%B7%AF%E7%BA%BF\/$/u,
-  );
+  await expect(page).toHaveURL(/\/posts\/prompt-subagent-ai-36c4342e\/$/u);
   await expect(
     page.getByRole("heading", {
       level: 1,

@@ -7,6 +7,7 @@ tags:
   - "AI"
 draft: false
 pinned: false
+translationKey: "ai-agent-深度学习指南"
 source: "notion"
 notionPageId: "3114342e-b403-8041-8ba4-e913c9e73bd4"
 ---
@@ -31,21 +32,15 @@ notionPageId: "3114342e-b403-8041-8ba4-e913c9e73bd4"
 
 ---
 
-
 ## **1. Agent 的本质**
-
 
 ### **一句话定义**
 
-
 Agent = LLM + 工具调用 + 循环
-
 
 没了。所有框架（Vercel AI SDK、LangChain、CrewAI）封装的都是这个东西。
 
-
 ### **伪代码**
-
 
 ```plain text
 function agent(userMessage, tools, maxSteps):
@@ -65,12 +60,9 @@ function agent(userMessage, tools, maxSteps):
     return "达到最大步数，停止"
 ```
 
-
 ### **关键洞察**
 
-
 **模型并不”知道”自己在当 agent。** 它只是在做一件事：根据当前的 messages 数组，预测下一个 token。当 messages 里包含工具定义时，模型可能生成工具调用格式的输出；当工具结果被追加到 messages 后，模型基于新的上下文继续生成。
-
 
 所谓的”自主决策”，其实是：
 
@@ -80,18 +72,13 @@ function agent(userMessage, tools, maxSteps):
 
 **没有任何魔法。**
 
-
 ---
-
 
 ## **2. 手写 Agent 循环（不用 SDK）**
 
-
 这是最重要的一步。不依赖任何框架，直接用 HTTP 请求实现 agent。
 
-
 ### **2.1 基础版：单次工具调用**
-
 
 ```plain text
 // src/manual-agent-basic.ts
@@ -216,7 +203,6 @@ async function runAgent(userMessage: string, maxSteps = 10) {
 runAgent("查一下北京和东京的天气，算一下温差");
 ```
 
-
 运行这段代码，你会清楚看到：
 
 1. **每次 LLM 调用的输入**是整个 messages 数组（包括之前的工具调用和结果）
@@ -225,27 +211,19 @@ runAgent("查一下北京和东京的天气，算一下温差");
 
 ### **2.2 动手练习**
 
-
 **练习 1：** 运行上面的代码，在每次 callLLM 前打印完整的 messages 数组，观察它是如何增长的。
-
 
 **练习 2：** 故意把某个工具的 description 写得很模糊，观察模型是否还能正确选择工具。
 
-
 **练习 3：** 把 maxSteps 设为 1，观察模型在只能执行一步时会怎么做。
-
 
 ---
 
-
 ## **3. Prompt Engineering for Agents**
-
 
 普通聊天的 prompt engineering 和 agent 场景有本质区别。聊天只需要模型回答好，agent 还需要模型**正确地选择和调用工具**。
 
-
 ### **3.1 System Prompt 的要素**
-
 
 ```plain text
 你是一个 [角色描述]。
@@ -267,21 +245,17 @@ runAgent("查一下北京和东京的天气，算一下温差");
 - 不要在一次回答中调用超过 5 次工具
 ```
 
-
 ### **3.2 常见问题与解法**
 
-
-| **问题** | **现象**          | **解法**                                |
-| ------ | --------------- | ------------------------------------- |
-| 模型不调工具 | 用户问天气，模型直接编一个回答 | 在 prompt 里强调”必须使用工具获取实时信息，不要猜测”       |
-| 模型乱调工具 | 用户随便聊天，模型也去调工具  | 在 prompt 里说明”只在需要时使用工具”               |
-| 参数错误   | 模型传了错误的参数格式     | 改善工具的 description 和参数 description     |
-| 无限循环   | 模型反复调用同一个工具     | 设置 maxSteps + 在 prompt 里说”不要重复调用相同工具” |
-| 忽略工具结果 | 工具返回了数据但模型没用    | 在 prompt 里强调”基于工具返回的实际数据回答”           |
-
+| **问题**     | **现象**                       | **解法**                                             |
+| ------------ | ------------------------------ | ---------------------------------------------------- |
+| 模型不调工具 | 用户问天气，模型直接编一个回答 | 在 prompt 里强调”必须使用工具获取实时信息，不要猜测” |
+| 模型乱调工具 | 用户随便聊天，模型也去调工具   | 在 prompt 里说明”只在需要时使用工具”                 |
+| 参数错误     | 模型传了错误的参数格式         | 改善工具的 description 和参数 description            |
+| 无限循环     | 模型反复调用同一个工具         | 设置 maxSteps + 在 prompt 里说”不要重复调用相同工具” |
+| 忽略工具结果 | 工具返回了数据但模型没用       | 在 prompt 里强调”基于工具返回的实际数据回答”         |
 
 ### **3.3 高级技巧：思维链 (Chain of Thought)**
-
 
 ```plain text
 ## 回答流程
@@ -292,24 +266,17 @@ runAgent("查一下北京和东京的天气，算一下温差");
 4. 如果信息足够了，直接回答。
 ```
 
-
 这会让模型的工具选择更加可控和可解释。
-
 
 ---
 
-
 ## **4. 工具设计的学问**
-
 
 工具设计直接决定 agent 的能力上限。模型是通过工具的 description 和 schema 来理解工具的，而不是通过代码。
 
-
 ### **4.1 好工具 vs 差工具**
 
-
 **差的设计：**
-
 
 ```plain text
 tool({
@@ -320,9 +287,7 @@ tool({
 })
 ```
 
-
 **好的设计：**
-
 
 ```plain text
 tool({
@@ -333,12 +298,9 @@ tool({
 })
 ```
 
-
 ### **4.2 工具设计原则**
 
-
 **原则 1：单一职责**
-
 
 ```plain text
 ❌ processData(action: "create" | "read" | "update" | "delete", ...)
@@ -348,7 +310,6 @@ tool({
 ✅ deleteUser(userId)
 ```
 
-
 **原则 2：description 是给模型看的文档**
 
 - 说明什么时候应该用这个工具
@@ -357,15 +318,12 @@ tool({
 
 **原则 3：参数设计要降低模型犯错概率**
 
-
 ```plain text
 ❌ date: z.string()  // 模型可能给出 "明天"、"2024-01-01"、"Jan 1" 等各种格式
 ✅ year: z.number(), month: z.number(), day: z.number()  // 结构化，不容易出错
 ```
 
-
 **原则 4：返回值要有足够的上下文**
-
 
 ```plain text
 // 差：模型不知道单位，可能误解
@@ -375,33 +333,24 @@ tool({
 ✅ return { temp: 5, unit: "°C", city: "北京", condition: "晴" }
 ```
 
-
 ### **4.3 工具粒度的权衡**
 
-
-| **粒度**     | **优点**    | **缺点**        | **适合场景** |
-| ---------- | --------- | ------------- | -------- |
-| 细粒度（多个小工具） | 灵活组合，容易测试 | 模型需要更多步骤，可能选错 | 通用 agent |
-| 粗粒度（少量大工具） | 步骤少，不容易出错 | 灵活性差，功能写死     | 特定业务流程   |
-
+| **粒度**             | **优点**           | **缺点**                   | **适合场景** |
+| -------------------- | ------------------ | -------------------------- | ------------ |
+| 细粒度（多个小工具） | 灵活组合，容易测试 | 模型需要更多步骤，可能选错 | 通用 agent   |
+| 粗粒度（少量大工具） | 步骤少，不容易出错 | 灵活性差，功能写死         | 特定业务流程 |
 
 ---
 
-
 ## **5. 核心论文与思维模式**
-
 
 ### **5.1 ReAct (Reasoning + Acting)**
 
-
 **论文：** _ReAct: Synergizing Reasoning and Acting in Language Models_ (2022)
-
 
 这是当前 agent 工具调用模式的理论基础。
 
-
 核心思想：让模型交替进行「推理」和「行动」。
-
 
 ```plain text
 用户：北京和东京哪个更热？
@@ -418,15 +367,11 @@ Thought: 北京 5°C，东京 8°C，东京更热。我有足够信息了。
 Answer: 东京（8°C）比北京（5°C）更热，温差 3°C。
 ```
 
-
 **为什么重要：** 目前所有主流 agent 框架的工具调用循环，本质上都是 ReAct 模式的实现。
-
 
 ### **5.2 Plan-and-Execute**
 
-
 与 ReAct 的「走一步看一步」不同，Plan-and-Execute 是「先规划完，再执行」。
-
 
 ```plain text
 用户：帮我调研 React 和 Vue 的区别，写一份对比报告
@@ -444,15 +389,11 @@ Execute:
   ...
 ```
 
-
 **适用场景：** 复杂任务、多步骤任务、需要全局规划的任务。
-
 
 ### **5.3 Reflexion（自我反思）**
 
-
 让 agent 在失败后反思原因，并改进下一次尝试。
-
 
 ```plain text
 Attempt 1:
@@ -463,31 +404,24 @@ Attempt 2:
   Action: search("Python quicksort 实现") → 得到有效结果
 ```
 
-
 ### **5.4 必读论文清单**
 
-
-| **论文**                            | **年份** | **核心贡献**                      |
-| --------------------------------- | ------ | ----------------------------- |
-| ReAct                             | 2022   | 推理+行动交替，奠定 agent 基础模式         |
-| Toolformer                        | 2023   | 让模型自己学会什么时候调工具                |
-| Reflexion                         | 2023   | 自我反思与迭代改进                     |
-| Plan-and-Execute                  | 2023   | 先规划后执行的 agent 架构              |
-| LATS (Language Agent Tree Search) | 2023   | 将树搜索引入 agent 决策               |
-| Voyager                           | 2023   | Minecraft 里的自主 agent，展示终身学习能力 |
-
+| **论文**                          | **年份** | **核心贡献**                               |
+| --------------------------------- | -------- | ------------------------------------------ |
+| ReAct                             | 2022     | 推理+行动交替，奠定 agent 基础模式         |
+| Toolformer                        | 2023     | 让模型自己学会什么时候调工具               |
+| Reflexion                         | 2023     | 自我反思与迭代改进                         |
+| Plan-and-Execute                  | 2023     | 先规划后执行的 agent 架构                  |
+| LATS (Language Agent Tree Search) | 2023     | 将树搜索引入 agent 决策                    |
+| Voyager                           | 2023     | Minecraft 里的自主 agent，展示终身学习能力 |
 
 ---
 
-
 ## **6. 记忆与上下文管理**
-
 
 ### **6.1 问题：Context Window 是有限的**
 
-
 DeepSeek 的 context window 大约 64K-128K tokens。看似很大，但在 agent 场景下：
-
 
 ```plain text
 System Prompt:        ~500 tokens
@@ -498,12 +432,9 @@ System Prompt:        ~500 tokens
 10 轮交互后:           ~5000-10000 tokens
 ```
 
-
 如果是长期运行的 agent（比如编程助手），几十轮交互后就会逼近上限。
 
-
 ### **6.2 解法一：对话压缩**
-
 
 ```plain text
 // 当 messages 太长时，用另一个 LLM 调用来压缩历史
@@ -522,12 +453,9 @@ async function compressHistory(messages: Message[]): Promise<Message[]> {
 }
 ```
 
-
 ### **6.3 解法二：RAG (检索增强生成)**
 
-
 不把所有信息塞进 context，而是用向量数据库存储，需要时检索。
-
 
 ```plain text
 用户提问 → 向量搜索相关文档 → 把相关片段塞进 context → LLM 生成回答
@@ -542,28 +470,21 @@ const response = await generateText({
 });
 ```
 
-
 ### **6.4 记忆的三个层次**
 
-
-| **层次** | **实现方式**    | **生命周期** | **示例**     |
-| ------ | ----------- | -------- | ---------- |
-| 工作记忆   | messages 数组 | 单次对话     | 当前对话的上下文   |
-| 短期记忆   | 数据库/文件      | 跨对话（天/周） | 用户偏好、最近的任务 |
-| 长期记忆   | 向量数据库       | 永久       | 知识库、历史决策   |
-
+| **层次** | **实现方式**  | **生命周期**    | **示例**             |
+| -------- | ------------- | --------------- | -------------------- |
+| 工作记忆 | messages 数组 | 单次对话        | 当前对话的上下文     |
+| 短期记忆 | 数据库/文件   | 跨对话（天/周） | 用户偏好、最近的任务 |
+| 长期记忆 | 向量数据库    | 永久            | 知识库、历史决策     |
 
 ---
 
-
 ## **7. 多 Agent 编排**
-
 
 单个 agent 有能力上限。当任务复杂时，需要多个 agent 协作。
 
-
 ### **7.1 模式一：顺序链 (Pipeline)**
-
 
 ```plain text
 Planner Agent → Executor Agent → Reviewer Agent
@@ -582,12 +503,9 @@ const review = await reviewerAgent.generateText({
 });
 ```
 
-
 ### **7.2 模式二：分层委托 (Delegation)**
 
-
 一个 “管理者” agent 把子任务分配给专门的 agent。
-
 
 ```plain text
 Manager Agent
@@ -595,9 +513,7 @@ Manager Agent
   Search Agent  Code Agent  Test Agent
 ```
 
-
 实现方式：把「调用其他 agent」作为管理者的工具。
-
 
 ```plain text
 const managerTools = {
@@ -620,12 +536,9 @@ const managerTools = {
 };
 ```
 
-
 ### **7.3 模式三：辩论/共识 (Debate)**
 
-
 多个 agent 从不同角度分析同一个问题，最后综合。
-
 
 ```plain text
 Agent A (乐观视角) ──┐
@@ -633,12 +546,9 @@ Agent A (乐观视角) ──┐
   Agent C (技术视角) ──┘
 ```
 
-
 ### **7.4 模式四：自主协作 (Swarm)**
 
-
 多个 agent 共享一个任务池，自主领取和完成任务。
-
 
 ```plain text
 Task Pool: [task1, task2, task3, task4, task5]
@@ -646,42 +556,33 @@ Task Pool: [task1, task2, task3, task4, task5]
   Agent A (领 task1) | Agent B (领 task2) | Agent C (领 task3)
 ```
 
-
 ### **7.5 选择哪种模式？**
 
-
-| **场景**          | **推荐模式**           | **原因**    |
-| --------------- | ------------------ | --------- |
+| **场景**                     | **推荐模式**       | **原因**           |
+| ---------------------------- | ------------------ | ------------------ |
 | 线性流程（写代码→测试→部署） | Pipeline           | 每步依赖上一步结果 |
-| 复杂项目（多模块并行开发）   | Delegation / Swarm | 可并行，需要协调  |
-| 需要深思熟虑的决策       | Debate             | 多角度避免盲点   |
-| 明确的子任务分工        | Delegation         | 管理者统一调度   |
-
+| 复杂项目（多模块并行开发）   | Delegation / Swarm | 可并行，需要协调   |
+| 需要深思熟虑的决策           | Debate             | 多角度避免盲点     |
+| 明确的子任务分工             | Delegation         | 管理者统一调度     |
 
 ---
 
-
 ## **8. 可靠性工程**
-
 
 这是 agent 从 demo 到生产的最大鸿沟。
 
-
 ### **8.1 模型会犯的错**
 
-
-| **错误类型** | **示例**        | **防御措施**              |
-| -------- | ------------- | --------------------- |
-| 幻觉       | 编造工具不存在的参数    | Zod schema 验证输入       |
-| 格式错误     | 工具参数不是合法 JSON | try-catch + 重试        |
-| 选错工具     | 该搜索时去算数       | 改善工具 description      |
-| 忽略错误     | 工具报错但模型当没看见   | 在 prompt 里强调错误处理      |
-| 无限循环     | 反复调同一个工具      | maxSteps + 重复检测       |
-| 过度调用     | 简单问题也调一堆工具    | 在 prompt 里引导”先思考是否需要” |
-
+| **错误类型** | **示例**               | **防御措施**                     |
+| ------------ | ---------------------- | -------------------------------- |
+| 幻觉         | 编造工具不存在的参数   | Zod schema 验证输入              |
+| 格式错误     | 工具参数不是合法 JSON  | try-catch + 重试                 |
+| 选错工具     | 该搜索时去算数         | 改善工具 description             |
+| 忽略错误     | 工具报错但模型当没看见 | 在 prompt 里强调错误处理         |
+| 无限循环     | 反复调同一个工具       | maxSteps + 重复检测              |
+| 过度调用     | 简单问题也调一堆工具   | 在 prompt 里引导”先思考是否需要” |
 
 ### **8.2 防御性编程**
-
 
 ```plain text
 // 工具执行的 wrapper
@@ -709,9 +610,7 @@ async function safeExecute(
 }
 ```
 
-
 ### **8.3 输出校验**
-
 
 ```plain text
 // 用 Zod 校验模型的最终输出
@@ -732,7 +631,6 @@ const { object } = await generateObject({
 // 不符合 schema 的输出会被拒绝并重试
 ```
 
-
 ### **8.4 可靠性 Checklist**
 
 - [ ] 所有工具都有超时处理
@@ -745,28 +643,22 @@ const { object } = await generateObject({
 
 ---
 
-
 ## **9. 评估 (Evals)**
-
 
 Agent 的输出是不确定的。同一个问题跑两次可能得到不同的工具调用顺序和最终回答。怎么评估好不好？
 
-
 ### **9.1 评估维度**
 
-
-| **维度** | **衡量什么**   | **评估方法**    |
-| ------ | ---------- | ----------- |
-| 正确性    | 最终答案是否正确   | 人工标注 + 自动对比 |
-| 工具效率   | 是否用最少的步骤完成 | 统计平均步骤数     |
-| 工具准确性  | 是否选了正确的工具  | 与预期工具序列对比   |
-| 鲁棒性    | 工具出错时能否恢复  | 故意注入错误，观察表现 |
-| 延迟     | 端到端耗时      | 计时          |
-| 成本     | token 消耗量  | 统计 token 用量 |
-
+| **维度**   | **衡量什么**         | **评估方法**           |
+| ---------- | -------------------- | ---------------------- |
+| 正确性     | 最终答案是否正确     | 人工标注 + 自动对比    |
+| 工具效率   | 是否用最少的步骤完成 | 统计平均步骤数         |
+| 工具准确性 | 是否选了正确的工具   | 与预期工具序列对比     |
+| 鲁棒性     | 工具出错时能否恢复   | 故意注入错误，观察表现 |
+| 延迟       | 端到端耗时           | 计时                   |
+| 成本       | token 消耗量         | 统计 token 用量        |
 
 ### **9.2 简单的评估框架**
-
 
 ```plain text
 interface TestCase {
@@ -821,12 +713,9 @@ async function runEval(testCases: TestCase[]) {
 }
 ```
 
-
 ### **9.3 LLM-as-Judge**
 
-
 用另一个 LLM 来评判 agent 的输出质量。
-
 
 ```plain text
 const judgment = await generateText({
@@ -845,21 +734,15 @@ const judgment = await generateText({
 });
 ```
 
-
 ---
-
 
 ## **10. 实战项目建议**
 
-
 按难度递增排列。每个项目都会遇到不同的真实问题。
-
 
 ### **项目 1：个人知识库问答 Agent**
 
-
 **做什么：** 读取本地 Markdown 文件，用 RAG 回答关于这些文件的问题。
-
 
 **你会学到：**
 
@@ -870,12 +753,9 @@ const judgment = await generateText({
 
 **技术栈建议：** AI SDK + 本地向量库（如 vectra 或 orama）
 
-
 ### **项目 2：命令行编程助手**
 
-
 **做什么：** 一个能读写文件、执行命令的 CLI agent（类似简化版 Claude Code）。
-
 
 **你会学到：**
 
@@ -886,7 +766,6 @@ const judgment = await generateText({
 
 **工具示例：**
 
-
 ```plain text
 readFile(path) → 读文件
 writeFile(path, content) → 写文件
@@ -894,12 +773,9 @@ runCommand(cmd) → 执行命令（需要确认）
 listFiles(dir) → 列目录
 ```
 
-
 ### **项目 3：多 Agent 研究助手**
 
-
 **做什么：** 给定一个主题，自动搜索、阅读、总结、生成研究报告。
-
 
 **你会学到：**
 
@@ -910,17 +786,13 @@ listFiles(dir) → 列目录
 
 **架构：**
 
-
 ```plain text
 Planner → [Searcher, Searcher, Searcher] (并行) → Synthesizer → Writer
 ```
 
-
 ### **项目 4：自我改进的代码生成 Agent**
 
-
 **做什么：** 给需求 → 生成代码 → 运行测试 → 如果失败则分析错误 → 修改代码 → 重试。
-
 
 **你会学到：**
 
@@ -931,14 +803,11 @@ Planner → [Searcher, Searcher, Searcher] (并行) → Synthesizer → Writer
 
 ---
 
-
 ## **11. 推荐资源**
-
 
 ### **论文**
 
-
-| **论文**                       | **链接**                           |
+| **论文**                     | **链接**                         |
 | ---------------------------- | -------------------------------- |
 | ReAct                        | https://arxiv.org/abs/2210.03629 |
 | Toolformer                   | https://arxiv.org/abs/2302.04761 |
@@ -947,46 +816,37 @@ Planner → [Searcher, Searcher, Searcher] (并行) → Synthesizer → Writer
 | LATS                         | https://arxiv.org/abs/2310.04406 |
 | A Survey on LLM-based Agents | https://arxiv.org/abs/2308.11432 |
 
-
 ### **文档**
 
-
-| **资源**                     | **链接**                                                        |
-| -------------------------- | ------------------------------------------------------------- |
-| Vercel AI SDK 官方文档         | https://ai-sdk.dev                                            |
+| **资源**                     | **链接**                                                      |
+| ---------------------------- | ------------------------------------------------------------- |
+| Vercel AI SDK 官方文档       | https://ai-sdk.dev                                            |
 | Vercel AI SDK - Agents 章节  | https://ai-sdk.dev/docs/foundations/agents                    |
 | OpenAI Function Calling 指南 | https://platform.openai.com/docs/guides/function-calling      |
 | DeepSeek API 文档            | https://platform.deepseek.com/api-docs                        |
 | Anthropic Tool Use 指南      | https://docs.anthropic.com/en/docs/build-with-claude/tool-use |
 
-
 ### **开源项目（值得阅读源码）**
 
-
-| **项目**                    | **为什么读它**                   |
-| ------------------------- | --------------------------- |
-| Vercel AI SDK (vercel/ai) | 理解 agent 循环的工业级实现           |
-| LangChain.js              | 理解 chain/agent/memory 的抽象设计 |
-| AutoGPT                   | 早期自主 agent 的经典尝试，学习它的问题和局限  |
-| OpenDevin                 | 开源编程 agent，学习工具设计和沙箱        |
-| CrewAI                    | 多 agent 协作框架，学习编排模式         |
-
+| **项目**                  | **为什么读它**                                |
+| ------------------------- | --------------------------------------------- |
+| Vercel AI SDK (vercel/ai) | 理解 agent 循环的工业级实现                   |
+| LangChain.js              | 理解 chain/agent/memory 的抽象设计            |
+| AutoGPT                   | 早期自主 agent 的经典尝试，学习它的问题和局限 |
+| OpenDevin                 | 开源编程 agent，学习工具设计和沙箱            |
+| CrewAI                    | 多 agent 协作框架，学习编排模式               |
 
 ### **课程与博客**
 
-
-| **资源**                           | **说明**                     |
-| -------------------------------- | -------------------------- |
-| DeepLearning.AI - AI Agents 系列课程 | Andrew Ng 的短课程，免费          |
-| Lilian Weng 的博客                  | OpenAI 研究员，写了很多 agent 综述文章 |
-| Simon Willison 的博客               | LLM 实践经验，大量真实案例            |
-
+| **资源**                             | **说明**                               |
+| ------------------------------------ | -------------------------------------- |
+| DeepLearning.AI - AI Agents 系列课程 | Andrew Ng 的短课程，免费               |
+| Lilian Weng 的博客                   | OpenAI 研究员，写了很多 agent 综述文章 |
+| Simon Willison 的博客                | LLM 实践经验，大量真实案例             |
 
 ---
 
-
 ## **总结**
-
 
 ```plain text
 SDK 调用        → 入门（你已经在这里了）
@@ -997,6 +857,5 @@ Prompt 工程     → 决定 agent 稳定性
 可靠性工程       → 从 demo 到生产
 评估体系        → 量化改进方向
 ```
-
 
 最重要的一条建议：**做一个解决你自己真实需求的 agent。** 在 demo 里一切都很美好，只有真实场景才会暴露真正的挑战。
