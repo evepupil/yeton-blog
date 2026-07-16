@@ -38,7 +38,7 @@
 2. Notion 内容先写入 Git。Cloudflare Pages 监听 `main` commit 自动构建，Action 不需要任何 Cloudflare 凭据。
 3. 文章 slug 使用不含空格的小写 kebab-case，可包含中文等 Unicode 字母。Notion 可填写 `Slug`；未填写时使用标题中的 ASCII 单词加页面 ID 前 8 位，纯中文标题使用 `notion-<页面 ID>`。
 4. 同步文章带 `source: "notion"` 与 `notionPageId`。覆盖和清理只处理这种文章，遇到同 slug 手写文件会停止同步。
-5. 正文图、封面和友链头像下载到 `public/`。只接受 HTTP/HTTPS 和 JPEG、PNG、GIF、WebP、AVIF，单张图片上限 10 MB，超时为 30 秒。
+5. 正文图、封面和友链头像下载到 `public/`。下载传输沿用参考项目已在线验证的 Node.js 原生 HTTP/HTTPS 请求与手动重定向，不附加自定义请求头；只接受 HTTP/HTTPS 和 JPEG、PNG、GIF、WebP、AVIF，单张图片上限 10 MB，超时为 30 秒。
 6. 图片先写临时目录，整篇处理成功后替换正式目录。任意图片失败会让 Action 失败，仓库不会得到半成品 commit。
 7. 默认 `overwrite` 在成功获取至少一篇发布文章后才清理过期 Notion 文章。发布查询返回空列表时保留现有文章，避免字段或权限错误造成批量删除。
 
@@ -46,6 +46,8 @@
 
 ### 2026-07-16
 
+- 修复 GitHub Actions 下载 Notion 图片返回 403：复用参考项目的原生 HTTP/HTTPS 下载方式，保留当前项目的重定向上限、超时、体积和文件签名校验。
+- 下载错误只记录图片来源域名，不记录可能包含临时签名的完整 URL。
 - 清理“Giscus 与访问统计待接入”的过期说明，明确同步模块与第三方展示服务的边界。
 - 友链页面已接入同步产物，公共友链 schema 移到 `lib/friends/`，页面和同步流程使用同一套校验规则。
 

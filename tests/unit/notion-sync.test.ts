@@ -1,4 +1,11 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -15,6 +22,7 @@ import { parseSyncMode } from "@/lib/notion-sync/config";
 import { mapNotionFriend } from "@/lib/notion-sync/friends";
 import {
   createFriendAvatarBaseName,
+  fetchRemoteImage,
   prepareArticleAssets,
   resolveImageExtension,
 } from "@/lib/notion-sync/images";
@@ -24,6 +32,23 @@ import { syncNotionArticles } from "@/lib/notion-sync/sync";
 
 const pageId = "34a4342e-b403-8095-928c-d890fd41b915";
 const temporaryDirectories: string[] = [];
+const testServers: Server[] = [];
+
+async function startImageServer(
+  handler: (
+    request: IncomingMessage,
+    response: ServerResponse<IncomingMessage>,
+  ) => void,
+): Promise<string> {
+  const server = createServer(handler);
+  testServers.push(server);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address() as AddressInfo;
+  return `http://127.0.0.1:${address.port}`;
+}
 
 function richText(value: string) {
   return [{ plain_text: value }];
@@ -92,11 +117,17 @@ class FakeNotionSource implements NotionContentSource {
 }
 
 afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
+  await Promise.all([
+    ...temporaryDirectories
       .splice(0)
       .map((directory) => rm(directory, { force: true, recursive: true })),
-  );
+    ...testServers.splice(0).map(
+      (server) =>
+        new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+        }),
+    ),
+  ]);
 });
 
 describe("Notion content mapping", () => {
@@ -256,5 +287,52 @@ describe("Notion sync helpers", () => {
         ),
       ),
     ).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  it("uses the reference HTTP downloader and follows redirects", async () => {
+    let userAgent: string | undefined;
+    const origin = await startImageServer((request, response) => {
+      if (request.url === "/redirect") {
+        response.writeHead(302, { location: "/image.png" });
+        response.end();
+        return;
+      }
+      userAgent = request.headers["user-agent"];
+      response.writeHead(200, { "content-type": "image/png" });
+      response.end(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    });
+
+    const image = await fetchRemoteImage(`${origin}/redirect`);
+
+    expect(image.extension).toBe("png");
+    expect(image.bytes).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
+    expect(userAgent).toBeUndefined();
+  });
+
+  it("reports image HTTP failures without exposing signed queries", async () => {
+    const origin = await startImageServer((_request, response) => {
+      response.writeHead(403);
+      response.end();
+    });
+
+    const download = fetchRemoteImage(
+      `${origin}/image.png?X-Amz-Signature=secret`,
+    );
+
+    await expect(download).rejects.toThrow(
+      `Image download from ${origin} failed with HTTP 403.`,
+    );
+    await expect(download).rejects.not.toThrow("secret");
+  });
+
+  it("rejects redirects to non-HTTP protocols", async () => {
+    const origin = await startImageServer((_request, response) => {
+      response.writeHead(302, { location: "file:///tmp/image.png" });
+      response.end();
+    });
+
+    await expect(fetchRemoteImage(`${origin}/redirect`)).rejects.toThrow(
+      `Image redirect from ${origin} must use HTTP or HTTPS.`,
+    );
   });
 });

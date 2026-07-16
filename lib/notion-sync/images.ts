@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import http, { type IncomingMessage } from "node:http";
+import https from "node:https";
 import path from "node:path";
 
 import remarkParse from "remark-parse";
@@ -7,6 +9,10 @@ import { unified } from "unified";
 import { visit } from "unist-util-visit";
 
 const maximumImageBytes = 10 * 1024 * 1024;
+const maximumRedirects = 5;
+const requestTimeoutMilliseconds = 30_000;
+const allowedImageProtocols = new Set(["http:", "https:"]);
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
 const contentTypeExtensions = new Map([
   ["image/avif", "avif"],
   ["image/gif", "gif"],
@@ -93,62 +99,129 @@ function validateImageBytes(bytes: Uint8Array, extension: string) {
   }
 }
 
-async function readLimitedBody(response: Response): Promise<Uint8Array> {
-  if (!response.body) {
-    throw new Error("Image response has no body.");
-  }
+function readHeader(
+  response: IncomingMessage,
+  name: "content-length" | "content-type",
+): string | undefined {
+  const value = response.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+}
 
-  const contentLength = Number(response.headers.get("content-length") ?? 0);
-  if (contentLength > maximumImageBytes) {
+async function readLimitedBody(response: IncomingMessage): Promise<Uint8Array> {
+  const contentLength = Number(readHeader(response, "content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > maximumImageBytes) {
+    response.destroy();
     throw new Error("Remote image exceeds the 10 MB limit.");
   }
 
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const chunks: Buffer[] = [];
   let totalBytes = 0;
 
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    totalBytes += result.value.byteLength;
+  for await (const chunk of response) {
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += bytes.byteLength;
     if (totalBytes > maximumImageBytes) {
-      await reader.cancel();
+      response.destroy();
       throw new Error("Remote image exceeds the 10 MB limit.");
     }
-    chunks.push(result.value);
+    chunks.push(bytes);
   }
 
-  const bytes = new Uint8Array(totalBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
+  return new Uint8Array(Buffer.concat(chunks, totalBytes));
+}
+
+interface ImageResponse {
+  readonly response: IncomingMessage;
+  readonly url: URL;
+}
+
+function requestImage(
+  url: URL,
+  redirectsRemaining: number,
+): Promise<ImageResponse> {
+  return new Promise((resolve, reject) => {
+    const transport = url.protocol === "https:" ? https : http;
+    const request = transport.get(url, (response) => {
+      const status = response.statusCode ?? 0;
+      if (redirectStatuses.has(status)) {
+        const location = response.headers.location;
+        response.resume();
+        if (!location) {
+          reject(
+            new Error(`Image redirect from ${url.origin} has no location.`),
+          );
+          return;
+        }
+        if (redirectsRemaining === 0) {
+          reject(
+            new Error(`Image download from ${url.origin} exceeded redirects.`),
+          );
+          return;
+        }
+        let redirectUrl: URL;
+        try {
+          redirectUrl = new URL(location, url);
+        } catch {
+          reject(
+            new Error(
+              `Image redirect from ${url.origin} has invalid location.`,
+            ),
+          );
+          return;
+        }
+        if (!allowedImageProtocols.has(redirectUrl.protocol)) {
+          reject(
+            new Error(
+              `Image redirect from ${url.origin} must use HTTP or HTTPS.`,
+            ),
+          );
+          return;
+        }
+        requestImage(redirectUrl, redirectsRemaining - 1).then(resolve, reject);
+        return;
+      }
+
+      if (status !== 200) {
+        response.resume();
+        reject(
+          new Error(
+            `Image download from ${url.origin} failed with HTTP ${status}.`,
+          ),
+        );
+        return;
+      }
+      resolve({ response, url });
+    });
+
+    request.setTimeout(requestTimeoutMilliseconds, () => {
+      request.destroy(new Error("Image download timed out after 30 seconds."));
+    });
+    request.once("error", reject);
+  });
 }
 
 export async function fetchRemoteImage(url: string): Promise<DownloadedImage> {
   const parsedUrl = new URL(url);
-  if (!new Set(["http:", "https:"]).has(parsedUrl.protocol)) {
+  if (!allowedImageProtocols.has(parsedUrl.protocol)) {
     throw new Error(`Image URL must use http or https: ${url}`);
   }
 
-  const response = await fetch(parsedUrl, {
-    redirect: "follow",
-    signal: AbortSignal.timeout(30_000),
-    headers: { "User-Agent": "hero-ui-blog-notion-sync/1.0" },
-  });
-  if (!response.ok) {
-    throw new Error(`Image download failed with HTTP ${response.status}.`);
-  }
-
-  const extension = resolveImageExtension(
-    response.url || parsedUrl.href,
-    response.headers.get("content-type"),
+  const { response, url: finalUrl } = await requestImage(
+    parsedUrl,
+    maximumRedirects,
   );
-  const bytes = await readLimitedBody(response);
-  validateImageBytes(bytes, extension);
-  return { bytes, extension };
+  try {
+    const extension = resolveImageExtension(
+      finalUrl.href,
+      readHeader(response, "content-type") ?? null,
+    );
+    const bytes = await readLimitedBody(response);
+    validateImageBytes(bytes, extension);
+    return { bytes, extension };
+  } catch (error) {
+    response.destroy();
+    throw error;
+  }
 }
 
 async function saveImage(
