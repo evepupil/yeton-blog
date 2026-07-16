@@ -18,6 +18,8 @@ const analytics = resolveUmamiConfig();
 const requiredFiles = [
   "_headers",
   "_redirects",
+  "_routes.json",
+  "_worker.js/index.js",
   "404.html",
   "en/404/index.html",
   "en/links/index.html",
@@ -77,6 +79,31 @@ async function checkRedirectsFile(errors: string[]): Promise<void> {
     if (!rules.has(rule)) {
       errors.push(`_redirects: missing required legacy rule ${rule}.`);
     }
+  }
+}
+
+async function checkWorkerRoutesFile(errors: string[]): Promise<void> {
+  const source = await readFile(
+    path.join(outputDirectory, "_routes.json"),
+    "utf8",
+  );
+  let routes: unknown;
+  try {
+    routes = JSON.parse(source);
+  } catch {
+    errors.push("_routes.json: invalid JSON.");
+    return;
+  }
+
+  if (
+    !routes ||
+    typeof routes !== "object" ||
+    Array.isArray(routes) ||
+    Reflect.get(routes, "version") !== 1 ||
+    JSON.stringify(Reflect.get(routes, "include")) !== '["/api/*"]' ||
+    JSON.stringify(Reflect.get(routes, "exclude")) !== "[]"
+  ) {
+    errors.push("_routes.json: only /api/* may run through the Worker.");
   }
 }
 
@@ -408,6 +435,7 @@ async function main() {
   );
   await checkHeadersFile(errors);
   await checkRedirectsFile(errors);
+  await checkWorkerRoutesFile(errors);
   await Promise.all(
     (["rss.xml", "en/rss.xml", "sitemap.xml"] as const).map((relativePath) =>
       checkXmlUrls(relativePath, errors),
