@@ -44,7 +44,7 @@
 7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
-10. `pnpm build` 将 `functions/` 编译到 `out/_worker.js/index.js`。这能让 Pages Git 上传阶段稳定识别动态接口，`_routes.json` 保证文章和静态资源继续直接由 Pages 资产服务处理。
+10. `pnpm build` 将 `functions/` 编译为单文件 `out/_worker.js`。这能让 Pages Git 上传阶段直接识别动态接口，`_routes.json` 保证文章和静态资源继续由 Pages 资产服务处理。
 
 ## 改动历史
 

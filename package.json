@@ -23,7 +23,7 @@
     "sync-friends": "tsx scripts/sync-notion-friends.ts",
     "sync-content": "pnpm sync-notion && pnpm sync-friends",
     "ai-search:migrate": "wrangler d1 migrations apply yeton-blog-ai-rate-limit --remote",
-    "functions:build": "wrangler pages functions build functions --outdir out/_worker.js --minify",
+    "functions:build": "tsx scripts/build-pages-functions.ts",
     "redirects:build": "tsx scripts/generate-redirects.ts",
     "search:build": "tsx scripts/generate-search-index.ts",
     "site:check": "tsx scripts/check-static-output.ts",

@@ -19,7 +19,7 @@ const requiredFiles = [
   "_headers",
   "_redirects",
   "_routes.json",
-  "_worker.js/index.js",
+  "_worker.js",
   "404.html",
   "en/404/index.html",
   "en/links/index.html",
