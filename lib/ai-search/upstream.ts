@@ -5,6 +5,14 @@ interface AutoRagPayload {
   readonly sources: unknown;
 }
 
+export type AutoRagResponseMode = "cumulative" | "delta" | "unknown";
+
+export interface AutoRagDeltaResult {
+  readonly delta: string;
+  readonly fullText: string;
+  readonly mode: AutoRagResponseMode;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -27,19 +35,40 @@ export function decodeAutoRagFrame(frame: SseFrame): AutoRagPayload | null {
   };
 }
 
-export function getCumulativeDelta(
+export function getAutoRagDelta(
   previous: string,
   current: string,
-): { readonly delta: string; readonly fullText: string } | null {
-  if (current === previous || previous.startsWith(current)) {
-    return { delta: "", fullText: previous };
+  mode: AutoRagResponseMode,
+): AutoRagDeltaResult | null {
+  if (!current) return { delta: "", fullText: previous, mode };
+  if (mode === "delta") {
+    return {
+      delta: current,
+      fullText: previous + current,
+      mode,
+    };
   }
-  if (!current.startsWith(previous)) {
+
+  if (!previous) {
+    return { delta: current, fullText: current, mode };
+  }
+  if (current === previous || previous.startsWith(current)) {
+    return { delta: "", fullText: previous, mode: "cumulative" };
+  }
+  if (current.startsWith(previous)) {
+    return {
+      delta: current.slice(previous.length),
+      fullText: current,
+      mode: "cumulative",
+    };
+  }
+  if (mode === "cumulative") {
     return null;
   }
 
   return {
-    delta: current.slice(previous.length),
-    fullText: current,
+    delta: current,
+    fullText: previous + current,
+    mode: "delta",
   };
 }

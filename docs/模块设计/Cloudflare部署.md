@@ -22,7 +22,7 @@
 | -------------------------------------- | ------------------------------------ |
 | `.github/workflows/quality.yml`        | PR 与 `main` 的代码质量检查          |
 | `.node-version`、`.nvmrc`              | 锁定 Node.js 22.14.0                 |
-| `wrangler.jsonc`                       | Pages 输出目录、AI 与限流 binding    |
+| `wrangler.jsonc`                       | Pages 输出目录、AI 与 D1 binding     |
 | `public/_headers`                      | 静态资源缓存和生产安全响应头         |
 | `redirects.config.ts`                  | 旧站路径和文章 slug 的集中映射       |
 | `scripts/generate-redirects.ts`        | 生成 Pages 永久重定向文件            |
@@ -42,7 +42,7 @@
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
-9. AI 搜索使用 Pages Function 与 `AI` binding。每用户和全站限流由两个独立 Rate Limit binding 执行，任一 binding 缺失时接口返回 `503`，避免绕过成本保护。
+9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
 
 ## 改动历史
 
@@ -51,7 +51,7 @@
 - 将 `_redirects` 改为集中配置生成，增加 18 篇旧文章 slug 到新 slug 的永久映射，并为带尾斜杠和不带尾斜杠的请求分别生成规则。
 - 公网冒烟从配置读取文章迁移清单，逐条确认 Cloudflare 返回单跳 `301` 和正确目标。
 - Pages 的规则文件使用百分号编码保存中文旧路径，和浏览器实际发送的请求路径保持一致。
-- 为 M8 增加 Cloudflare AI binding，以及每用户 6 次/分钟、全站 30 次/分钟的 Rate Limit binding。
+- 为 M8 增加 Cloudflare AI 与 D1 binding；创建 APAC D1 数据库并应用限流表迁移，实现每用户 6 次/分钟、全站 30 次/分钟。
 
 ### 2026-07-15
 
@@ -90,11 +90,18 @@
 
 Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding：
 
-| Binding                  | 用途                        |
-| ------------------------ | --------------------------- |
-| `AI`                     | 调用 AutoRAG AI Search      |
-| `AI_USER_RATE_LIMITER`   | 单个访问来源每分钟最多 6 次 |
-| `AI_GLOBAL_RATE_LIMITER` | 整个站点每分钟最多 30 次    |
+| Binding            | 用途                               |
+| ------------------ | ---------------------------------- |
+| `AI`               | 调用 AutoRAG AI Search             |
+| `AI_RATE_LIMIT_DB` | 原子记录单个来源和全站每分钟请求数 |
+
+首次部署或新建环境时执行：
+
+```bash
+pnpm ai-search:migrate
+```
+
+迁移目标是 `yeton-blog-ai-rate-limit`。数据库 ID 保存在 `wrangler.jsonc`，它是公开资源标识，不是访问凭据。
 
 `NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog1.chaosyn.com`。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 
@@ -148,7 +155,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - 单测覆盖正式 URL、本地构建跳过和 Pages 构建强制校验。
 - `pnpm build` 检查 `_headers` 已复制到 `out`，并确认生成的 `_redirects` 包含集中配置中的全部规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
-- `wrangler pages functions build` 校验 Pages Function 可以和 AI、限流 binding 一起打包。
+- `wrangler pages functions build` 校验 Pages Function 可以和 AI、D1 binding 一起打包。
 - 公网冒烟已对 deployment 地址、`yeton-blog.pages.dev` 和 `blog1.chaosyn.com` 执行通过。
 
 ## 当前限制

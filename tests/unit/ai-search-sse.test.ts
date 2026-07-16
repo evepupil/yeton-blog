@@ -6,7 +6,7 @@ import {
   flushSseRemainder,
   parseSseChunk,
 } from "@/lib/ai-search/sse";
-import { getCumulativeDelta } from "@/lib/ai-search/upstream";
+import { getAutoRagDelta } from "@/lib/ai-search/upstream";
 
 describe("AI search SSE protocol", () => {
   it("keeps incomplete frames between network chunks", () => {
@@ -51,18 +51,49 @@ describe("AI search SSE protocol", () => {
   });
 
   it("turns cumulative AutoRAG responses into non-duplicated deltas", () => {
-    expect(getCumulativeDelta("", "Cloudflare")).toEqual({
+    expect(getAutoRagDelta("", "Cloudflare", "unknown")).toEqual({
       delta: "Cloudflare",
       fullText: "Cloudflare",
+      mode: "unknown",
     });
-    expect(getCumulativeDelta("Cloudflare", "Cloudflare AI")).toEqual({
+    expect(getAutoRagDelta("Cloudflare", "Cloudflare AI", "unknown")).toEqual({
       delta: " AI",
       fullText: "Cloudflare AI",
+      mode: "cumulative",
     });
-    expect(getCumulativeDelta("Cloudflare AI", "Cloudflare")).toEqual({
+    expect(
+      getAutoRagDelta("Cloudflare AI", "Cloudflare", "cumulative"),
+    ).toEqual({
       delta: "",
       fullText: "Cloudflare AI",
+      mode: "cumulative",
     });
-    expect(getCumulativeDelta("Cloudflare", "AutoRAG")).toBeNull();
+    expect(getAutoRagDelta("Cloudflare", "AutoRAG", "cumulative")).toBeNull();
+  });
+
+  it("appends delta chunks returned by the live reference AutoRAG", () => {
+    const first = getAutoRagDelta("", "According", "unknown");
+    expect(first).toEqual({
+      delta: "According",
+      fullText: "According",
+      mode: "unknown",
+    });
+    const second = getAutoRagDelta(
+      first!.fullText,
+      " to the provided",
+      first!.mode,
+    );
+    expect(second).toEqual({
+      delta: " to the provided",
+      fullText: "According to the provided",
+      mode: "delta",
+    });
+    expect(
+      getAutoRagDelta(second!.fullText, " documents", second!.mode),
+    ).toEqual({
+      delta: " documents",
+      fullText: "According to the provided documents",
+      mode: "delta",
+    });
   });
 });

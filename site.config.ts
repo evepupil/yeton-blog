@@ -20,6 +20,11 @@ export interface AiSearchConfig {
   readonly maxCitations: number;
   readonly maxQueryLength: number;
   readonly model: string;
+  readonly rateLimit: {
+    readonly globalRequests: number;
+    readonly userRequests: number;
+    readonly windowSeconds: number;
+  };
   readonly requestTimeoutMs: number;
   readonly rerankerModel: string;
   readonly scoreThreshold: number;
@@ -143,6 +148,11 @@ export const siteConfig = {
       maxCitations: 5,
       maxQueryLength: 500,
       model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      rateLimit: {
+        globalRequests: 30,
+        userRequests: 6,
+        windowSeconds: 60,
+      },
       requestTimeoutMs: 30_000,
       rerankerModel: "@cf/baai/bge-reranker-base",
       scoreThreshold: 0.3,

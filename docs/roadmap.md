@@ -384,10 +384,10 @@ docs/
 **当前结果，2026-07-16**
 
 - 已复用参考项目的 Cloudflare AI binding、AutoRAG 索引、模型、重排模型与检索参数。
-- 已实现同源校验、500 字输入上限、每用户与全站双限流、30 秒超时和结构化日志；缺少 AI 或限流 binding 时安全拒绝请求。
-- 已把 AutoRAG 累计文本转换为 `delta`、`citations`、`done`、`error` 四类 SSE 事件，并正确处理跨网络分片的数据。
+- 已实现同源校验、500 字输入上限、D1 原子双限流、30 秒超时和结构化日志；缺少 AI 或 D1 binding 时安全拒绝请求。
+- 已兼容 AutoRAG 的逐段文本和累计文本，统一转换为 `delta`、`citations`、`done`、`error` 四类 SSE 事件，并正确处理跨网络分片的数据。
 - 已实现按点击加载的 HeroUI Drawer，支持中英文界面、停止、失败重试和站内引用跳转，普通全文搜索保持独立。
-- 已完成纯函数、Pages Function 和浏览器客户端单测；生产 AutoRAG 真请求与限流 binding 仍待部署验证。
+- 已创建 APAC D1 限流库并执行初始迁移；生产 AutoRAG 真请求与 D1 binding 仍待部署验证。
 
 **发布关系**：独立增强项，可单独关闭。
 

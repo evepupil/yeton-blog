@@ -4,6 +4,11 @@ import {
   validateAiSearchQuery,
 } from "../../lib/ai-search/request";
 import {
+  cleanupOldAiRateLimits,
+  consumeAiRateLimit,
+  type AiRateLimitDatabase,
+} from "../../lib/ai-search/rate-limit";
+import {
   encodeAiSearchEvent,
   flushSseRemainder,
   parseSseChunk,
@@ -15,7 +20,8 @@ import type {
 } from "../../lib/ai-search/types";
 import {
   decodeAutoRagFrame,
-  getCumulativeDelta,
+  getAutoRagDelta,
+  type AutoRagResponseMode,
 } from "../../lib/ai-search/upstream";
 import { siteConfig } from "../../site.config";
 
@@ -40,21 +46,15 @@ interface AiBinding {
   };
 }
 
-interface RateLimitBinding {
-  limit(options: {
-    readonly key: string;
-  }): Promise<{ readonly success: boolean }>;
-}
-
 export interface AiSearchEnv {
   readonly AI?: AiBinding;
-  readonly AI_GLOBAL_RATE_LIMITER?: RateLimitBinding;
-  readonly AI_USER_RATE_LIMITER?: RateLimitBinding;
+  readonly AI_RATE_LIMIT_DB?: AiRateLimitDatabase;
 }
 
 interface PagesFunctionContext {
   readonly env: AiSearchEnv;
   readonly request: Request;
+  readonly waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 class UpstreamTimeoutError extends Error {}
@@ -139,6 +139,7 @@ function createResponseStream(
       let buffer = "";
       let fullText = "";
       let latestSources: unknown = [];
+      let responseMode: AutoRagResponseMode = "unknown";
       let timedOut = false;
       const timeoutId = setTimeout(() => {
         timedOut = true;
@@ -151,9 +152,10 @@ function createResponseStream(
         if (Array.isArray(payload.sources)) latestSources = payload.sources;
         if (payload.response === null) return true;
 
-        const next = getCumulativeDelta(fullText, payload.response);
+        const next = getAutoRagDelta(fullText, payload.response, responseMode);
         if (!next) return false;
         fullText = next.fullText;
+        responseMode = next.mode;
         if (next.delta) {
           streamEvent(controller, {
             data: { text: next.delta },
@@ -174,7 +176,7 @@ function createResponseStream(
           );
           buffer = parsed.remainder;
           if (!parsed.frames.every(processFrame)) {
-            throw new Error("AutoRAG returned a non-cumulative response.");
+            throw new Error("AutoRAG changed response formats mid-stream.");
           }
         }
 
@@ -184,7 +186,7 @@ function createResponseStream(
         buffer += decoder.decode();
         const finalFrame = flushSseRemainder(buffer);
         if (finalFrame && !processFrame(finalFrame)) {
-          throw new Error("AutoRAG returned a non-cumulative response.");
+          throw new Error("AutoRAG changed response formats mid-stream.");
         }
 
         const citations = mapAutoRagCitations(
@@ -241,6 +243,7 @@ function createResponseStream(
 export async function onRequestPost({
   env,
   request,
+  waitUntil,
 }: PagesFunctionContext): Promise<Response> {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
@@ -251,7 +254,7 @@ export async function onRequestPost({
   if (!request.headers.get("Content-Type")?.includes("application/json")) {
     return errorResponse("INVALID_REQUEST", 415, requestId, false);
   }
-  if (!env.AI || !env.AI_USER_RATE_LIMITER || !env.AI_GLOBAL_RATE_LIMITER) {
+  if (!env.AI || !env.AI_RATE_LIMIT_DB) {
     return errorResponse("SERVICE_UNAVAILABLE", 503, requestId, true);
   }
 
@@ -272,18 +275,29 @@ export async function onRequestPost({
   }
 
   try {
-    const userLimit = await env.AI_USER_RATE_LIMITER.limit({
-      key: getClientKey(request),
+    const rateLimit = await consumeAiRateLimit({
+      clientKey: getClientKey(request),
+      database: env.AI_RATE_LIMIT_DB,
+      globalLimit: config.rateLimit.globalRequests,
+      userLimit: config.rateLimit.userRequests,
+      windowSeconds: config.rateLimit.windowSeconds,
     });
-    if (!userLimit.success) {
+    if (!rateLimit.allowed) {
+      logEvent("info", "ai_search_rate_limited", requestId, {
+        globalCount: rateLimit.globalCount,
+        userCount: rateLimit.userCount,
+      });
       return errorResponse("RATE_LIMITED", 429, requestId, true);
     }
 
-    const globalLimit = await env.AI_GLOBAL_RATE_LIMITER.limit({
-      key: "global",
-    });
-    if (!globalLimit.success) {
-      return errorResponse("RATE_LIMITED", 429, requestId, true);
+    if (requestId.startsWith("00") && waitUntil) {
+      waitUntil(
+        cleanupOldAiRateLimits(env.AI_RATE_LIMIT_DB).catch((error: unknown) => {
+          logEvent("error", "ai_search_rate_limit_cleanup_error", requestId, {
+            reason: error instanceof Error ? error.name : "unknown",
+          });
+        }),
+      );
     }
 
     const upstreamResponse = await withTimeout(

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { onRequestPost, type AiSearchEnv } from "@/functions/api/ai-search";
+import type { AiRateLimitDatabase } from "@/lib/ai-search/rate-limit";
 
 function createUpstreamResponse(chunks: readonly string[]): Response {
   const encoder = new TextEncoder();
@@ -34,34 +35,42 @@ function createEnv(options?: {
   readonly userAllowed?: boolean;
 }): {
   readonly aiSearch: ReturnType<typeof vi.fn>;
+  readonly batch: ReturnType<typeof vi.fn>;
   readonly env: AiSearchEnv;
-  readonly globalLimit: ReturnType<typeof vi.fn>;
-  readonly userLimit: ReturnType<typeof vi.fn>;
 } {
   const aiSearch = vi
     .fn()
     .mockResolvedValue(
       createUpstreamResponse([
         'data: {"response":"Cloud","data":[{"filename":"content/posts/zh/claude-code里面使用chatgpt的模型教程.md","score":0.9}]}\n',
-        '\ndata: {"response":"Cloudflare","data":[{"filename":"content/posts/zh/claude-code里面使用chatgpt的模型教程.md","score":0.9}]}\n\n',
+        '\ndata: {"response":"flare","data":[{"filename":"content/posts/zh/claude-code里面使用chatgpt的模型教程.md","score":0.9}]}\n\n',
       ]),
     );
-  const userLimit = vi.fn().mockResolvedValue({
-    success: options?.userAllowed ?? true,
-  });
-  const globalLimit = vi.fn().mockResolvedValue({
-    success: options?.globalAllowed ?? true,
-  });
+  const batch = vi.fn().mockResolvedValue([
+    {
+      results: [{ request_count: options?.userAllowed === false ? 7 : 1 }],
+      success: true,
+    },
+    {
+      results: [{ request_count: options?.globalAllowed === false ? 31 : 1 }],
+      success: true,
+    },
+  ]);
+  const database = {
+    batch,
+    exec: vi.fn().mockResolvedValue(undefined),
+    prepare: vi.fn(() => ({
+      bind: (...values: readonly unknown[]) => ({ values }),
+    })),
+  } satisfies AiRateLimitDatabase;
 
   return {
     aiSearch,
+    batch,
     env: {
       AI: { autorag: () => ({ aiSearch }) },
-      AI_GLOBAL_RATE_LIMITER: { limit: globalLimit },
-      AI_USER_RATE_LIMITER: { limit: userLimit },
+      AI_RATE_LIMIT_DB: database,
     },
-    globalLimit,
-    userLimit,
   };
 }
 
@@ -71,8 +80,8 @@ describe("AI search Pages Function", () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);
   });
 
-  it("streams non-duplicated deltas followed by canonical citations", async () => {
-    const { aiSearch, env, globalLimit, userLimit } = createEnv();
+  it("streams live-style delta chunks followed by canonical citations", async () => {
+    const { aiSearch, batch, env } = createEnv();
     const response = await onRequestPost({
       env,
       request: createRequest(undefined, {
@@ -83,8 +92,7 @@ describe("AI search Pages Function", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
-    expect(userLimit).toHaveBeenCalledWith({ key: "203.0.113.4" });
-    expect(globalLimit).toHaveBeenCalledWith({ key: "global" });
+    expect(batch).toHaveBeenCalledOnce();
     expect(aiSearch).toHaveBeenCalledWith(
       expect.objectContaining({
         max_num_results: 5,
@@ -96,7 +104,6 @@ describe("AI search Pages Function", () => {
     const body = await response.text();
     expect(body).toContain('data: {"text":"Cloud"}');
     expect(body).toContain('data: {"text":"flare"}');
-    expect(body).not.toContain('data: {"text":"Cloudflare"}');
     expect(body).toContain('"href":"/posts/claude-code-chatgpt-34a4342e/"');
     expect(body).toContain("event: done");
   });
@@ -114,8 +121,8 @@ describe("AI search Pages Function", () => {
     });
   });
 
-  it("rejects a limited user before consuming the global limit", async () => {
-    const { aiSearch, env, globalLimit } = createEnv({ userAllowed: false });
+  it("rejects a limited user before calling AutoRAG", async () => {
+    const { aiSearch, env } = createEnv({ userAllowed: false });
     const response = await onRequestPost({
       env,
       request: createRequest(),
@@ -123,12 +130,11 @@ describe("AI search Pages Function", () => {
 
     expect(response.status).toBe(429);
     expect(response.headers.get("Retry-After")).toBe("60");
-    expect(globalLimit).not.toHaveBeenCalled();
     expect(aiSearch).not.toHaveBeenCalled();
   });
 
   it("rejects cross-origin requests before consuming any AI quota", async () => {
-    const { aiSearch, env, userLimit } = createEnv();
+    const { aiSearch, batch, env } = createEnv();
     const response = await onRequestPost({
       env,
       request: createRequest(undefined, {
@@ -137,7 +143,7 @@ describe("AI search Pages Function", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(userLimit).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
     expect(aiSearch).not.toHaveBeenCalled();
   });
 });

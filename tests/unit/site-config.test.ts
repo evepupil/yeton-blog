@@ -31,6 +31,11 @@ describe("site configuration", () => {
   it("keeps the current integration switches explicit", () => {
     expect(siteConfig.integrations.adsense.enabled).toBe(false);
     expect(siteConfig.integrations.aiSearch.enabled).toBe(true);
+    expect(siteConfig.integrations.aiSearch.rateLimit).toEqual({
+      globalRequests: 30,
+      userRequests: 6,
+      windowSeconds: 60,
+    });
     expect(siteConfig.integrations.analytics.enabled).toBe(true);
     expect(siteConfig.integrations.comments.enabled).toBe(true);
   });

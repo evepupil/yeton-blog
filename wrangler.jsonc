@@ -1,27 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "hero-ui-blog",
+  "name": "yeton-blog",
   "compatibility_date": "2026-07-14",
   "pages_build_output_dir": "./out",
   "ai": {
     "binding": "AI",
   },
-  "ratelimits": [
+  "d1_databases": [
     {
-      "name": "AI_USER_RATE_LIMITER",
-      "namespace_id": "1001",
-      "simple": {
-        "limit": 6,
-        "period": 60,
-      },
-    },
-    {
-      "name": "AI_GLOBAL_RATE_LIMITER",
-      "namespace_id": "1002",
-      "simple": {
-        "limit": 30,
-        "period": 60,
-      },
+      "binding": "AI_RATE_LIMIT_DB",
+      "database_name": "yeton-blog-ai-rate-limit",
+      "database_id": "9fe3c93e-3875-42de-b53a-3e514681ba6f",
+      "migrations_dir": "migrations/ai-search",
     },
   ],
 }
