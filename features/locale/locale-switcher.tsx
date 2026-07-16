@@ -1,8 +1,10 @@
 "use client";
 
+import { ListBox } from "@heroui/react/list-box";
+import { Select } from "@heroui/react/select";
 import { Languages } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import type { ChangeEvent } from "react";
+import type { Key } from "react";
 
 import { getLocaleSwitchPath } from "@/lib/i18n";
 import type { LocaleRouteMap } from "@/lib/i18n";
@@ -22,24 +24,46 @@ export function LocaleSwitcher({
   const pathname = usePathname();
   const router = useRouter();
 
-  function handleLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
-    router.push(
-      getLocaleSwitchPath(
-        pathname,
-        event.target.value as SiteLocale,
-        contentRoutes,
-      ),
-    );
+  function handleLocaleChange(key: Key | null) {
+    if (key !== "zh-CN" && key !== "en") return;
+
+    router.push(getLocaleSwitchPath(pathname, key, contentRoutes));
   }
 
   return (
-    <label className="locale-switcher">
-      <Languages aria-hidden="true" />
-      <span className="sr-only">{label}</span>
-      <select aria-label={label} onChange={handleLocaleChange} value={locale}>
-        <option value="zh-CN">中</option>
-        <option value="en">EN</option>
-      </select>
-    </label>
+    <Select.Root
+      aria-label={label}
+      className="locale-switcher"
+      onSelectionChange={handleLocaleChange}
+      selectedKey={locale}
+    >
+      <Select.Trigger className="header-icon-button locale-switcher-trigger">
+        <Languages aria-hidden="true" />
+        <span className="sr-only">{label}</span>
+      </Select.Trigger>
+      <Select.Popover
+        className="locale-switcher-popover"
+        placement="bottom end"
+      >
+        <ListBox className="locale-switcher-list">
+          <ListBox.Item
+            className="locale-switcher-option"
+            id="zh-CN"
+            textValue="简体中文"
+          >
+            <span>简体中文</span>
+            <ListBox.ItemIndicator />
+          </ListBox.Item>
+          <ListBox.Item
+            className="locale-switcher-option"
+            id="en"
+            textValue="English"
+          >
+            <span>English</span>
+            <ListBox.ItemIndicator />
+          </ListBox.Item>
+        </ListBox>
+      </Select.Popover>
+    </Select.Root>
   );
 }

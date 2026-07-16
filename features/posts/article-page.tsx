@@ -54,7 +54,6 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
           </span>
         </div>
         <h1>{article.title}</h1>
-        <p>{article.description}</p>
         <div className="article-header-tags">
           {article.tags.map((tag) => (
             <Chip key={tag} size="sm" variant="soft">

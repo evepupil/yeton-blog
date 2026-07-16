@@ -249,13 +249,20 @@ svg {
 }
 
 .header-icon-button {
+  display: inline-grid;
   width: 42px;
   min-width: 42px;
   height: 42px;
+  place-items: center;
   padding: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--text);
+}
+
+.header-icon-button > svg {
+  grid-area: 1 / 1;
+  margin: auto;
 }
 
 .header-icon-button:hover {
@@ -264,26 +271,72 @@ svg {
 }
 
 .locale-switcher {
-  display: flex;
+  width: 42px;
+  min-width: 42px;
   height: 42px;
-  align-items: center;
-  gap: 3px;
-  padding-left: 10px;
 }
 
-.locale-switcher svg {
-  width: 16px;
-  height: 16px;
-}
-
-.locale-switcher select {
-  width: 48px;
-  height: 100%;
-  padding: 0 4px;
+.locale-switcher-trigger {
   background: transparent;
   border: 0;
-  font-size: 12px;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.locale-switcher-trigger[aria-expanded="true"] {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.locale-switcher-trigger svg {
+  width: 18px;
+  height: 18px;
+}
+
+.locale-switcher-popover {
+  z-index: 90;
+  min-width: 154px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+
+.locale-switcher-list {
+  padding: 0;
+  outline: 0;
+}
+
+.locale-switcher-option {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 10px;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
   font-weight: 700;
+  outline: 0;
+}
+
+.locale-switcher-option[data-focused],
+.locale-switcher-option[data-hovered] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.locale-switcher-option[data-selected] {
+  color: var(--accent);
+}
+
+.locale-switcher-option [data-slot="list-box-item-indicator"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .theme-icon-sun,
@@ -849,13 +902,8 @@ html[data-theme="dark"] .theme-icon-sun {
     height: 64px;
   }
 
-  .brand-copy small,
-  .locale-switcher svg {
+  .brand-copy small {
     display: none;
-  }
-
-  .locale-switcher {
-    padding-left: 2px;
   }
 
   .mobile-navigation {

@@ -262,7 +262,7 @@
 }
 
 .article-header {
-  max-width: 940px;
+  max-width: none;
   padding-block: 72px 50px;
 }
 
@@ -299,27 +299,19 @@
 }
 
 .article-header h1 {
-  max-width: 900px;
-  margin: 18px 0;
+  max-width: none;
+  margin: 18px 0 24px;
   font-family: var(--serif);
   font-size: 58px;
   font-weight: 900;
   line-height: 1.24;
 }
 
-.article-header > p {
-  max-width: 760px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 17px;
-  line-height: 1.85;
-}
-
 .article-header-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 26px;
+  margin-top: 0;
 }
 
 .article-header-tags [data-slot="chip"] {
@@ -348,7 +340,7 @@
   display: grid;
   grid-template-columns: minmax(0, 760px) 220px;
   gap: clamp(56px, 8vw, 100px);
-  justify-content: center;
+  justify-content: start;
   padding-top: 64px;
 }
 
@@ -359,8 +351,8 @@
 .article-prose {
   color: var(--text);
   font-family: var(--serif);
-  font-size: 18px;
-  line-height: 2;
+  font-size: 17px;
+  line-height: 1.95;
 }
 
 .article-prose h2,
@@ -726,10 +718,6 @@
     line-height: 1.32;
   }
 
-  .article-header > p {
-    font-size: 15px;
-  }
-
   .article-cover {
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -742,8 +730,8 @@
   }
 
   .article-prose {
-    font-size: 17px;
-    line-height: 1.95;
+    font-size: 16px;
+    line-height: 1.9;
   }
 
   .article-prose h2 {

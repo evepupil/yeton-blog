@@ -16,6 +16,17 @@ function collectBrowserErrors(page: Page) {
   return errors;
 }
 
+async function switchLocale(
+  page: Page,
+  triggerLabel: string,
+  optionLabel: string,
+) {
+  const trigger = page.getByRole("button", { name: triggerLabel });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await page.getByRole("option", { name: optionLabel, exact: true }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("https://cloud.umami.is/**", async (route) => {
     await route.fulfill({
@@ -64,7 +75,37 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
     initialTheme === "dark" ? "light" : "dark",
   );
 
-  await page.getByLabel("选择语言").selectOption("en");
+  const searchAlignment = await page
+    .getByRole("button", { name: "搜索文章" })
+    .evaluate((button) => {
+      const icon = button.querySelector("svg");
+      if (!icon) return null;
+      const buttonRect = button.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+      return {
+        x:
+          iconRect.left +
+          iconRect.width / 2 -
+          (buttonRect.left + buttonRect.width / 2),
+        y:
+          iconRect.top +
+          iconRect.height / 2 -
+          (buttonRect.top + buttonRect.height / 2),
+      };
+    });
+  expect(searchAlignment).not.toBeNull();
+  expect(Math.abs(searchAlignment!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(searchAlignment!.y)).toBeLessThanOrEqual(1);
+
+  const localeTrigger = page.getByRole("button", { name: "选择语言" });
+  await expect(localeTrigger.locator("svg")).toHaveCount(1);
+  await expect(localeTrigger.locator('[data-slot="select-value"]')).toHaveCount(
+    0,
+  );
+  await expect(
+    localeTrigger.locator('[data-slot="select-default-indicator"]'),
+  ).toHaveCount(0);
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
   await expect(
     page.getByRole("heading", {
@@ -126,7 +167,7 @@ test("shows synchronized friend links with an avatar fallback", async ({
   await expect(friendLink).toHaveAttribute("target", "_blank");
   await expect(page.locator(".friend-avatar-fallback")).toHaveText("B");
 
-  await page.getByLabel("选择语言").selectOption("en");
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/links\/$/u);
   await expect(
     page.getByRole("heading", { level: 1, name: "Friends" }),
@@ -161,6 +202,9 @@ test("opens a migrated article with contents, navigation and translation", async
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
+  await page.route("https://giscus.app/client.js", async (route) => {
+    await route.fulfill({ body: "", contentType: "application/javascript" });
+  });
   await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
   await expect(
     page.getByRole("heading", {
@@ -184,7 +228,7 @@ test("opens a migrated article with contents, navigation and translation", async
     .click();
   await expect(page).toHaveURL(/\/posts\/cloudflare-ai-gateway-3024342e\/$/u);
 
-  await page.getByLabel("选择语言").selectOption("en");
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(
     /\/en\/posts\/cloudflare-ai-gateway-custom-provider-setup-and-pitfalls\/$/u,
   );
@@ -194,6 +238,52 @@ test("opens a migrated article with contents, navigation and translation", async
       name: "Cloudflare AI Gateway: Custom Provider Setup and Pitfalls",
     }),
   ).toBeVisible();
+
+  const articleLayout = await page.evaluate(() => {
+    const title = document.querySelector(".article-header h1");
+    const description = document.querySelector(".article-header > p");
+    const body = document.querySelector(".article-layout > article");
+    const prose = document.querySelector(".article-prose");
+    if (!title || !body || !prose) return null;
+    const titleRect = title.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    return {
+      bodyX: bodyRect.x,
+      descriptionExists: Boolean(description),
+      fontSize: getComputedStyle(prose).fontSize,
+      titleWidth: titleRect.width,
+      titleX: titleRect.x,
+    };
+  });
+  expect(articleLayout).not.toBeNull();
+  expect(articleLayout!.descriptionExists).toBe(false);
+  expect(articleLayout!.fontSize).toBe("17px");
+  expect(articleLayout!.titleWidth).toBeGreaterThan(1100);
+  expect(
+    Math.abs(articleLayout!.titleX - articleLayout!.bodyX),
+  ).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileArticleLayout = await page.evaluate(() => {
+    const title = document.querySelector(".article-header h1");
+    const body = document.querySelector(".article-layout > article");
+    const prose = document.querySelector(".article-prose");
+    if (!title || !body || !prose) return null;
+    return {
+      bodyX: body.getBoundingClientRect().x,
+      fontSize: getComputedStyle(prose).fontSize,
+      hasOverflow:
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+      titleX: title.getBoundingClientRect().x,
+    };
+  });
+  expect(mobileArticleLayout).not.toBeNull();
+  expect(mobileArticleLayout!.fontSize).toBe("16px");
+  expect(mobileArticleLayout!.hasOverflow).toBe(false);
+  expect(
+    Math.abs(mobileArticleLayout!.titleX - mobileArticleLayout!.bodyX),
+  ).toBeLessThanOrEqual(1);
   expect(browserErrors).toEqual([]);
 });
 
@@ -497,7 +587,7 @@ test("opens a migrated book chapter and falls back across languages", async ({
   );
   await expect(page.locator("#prompt把需求表达清楚")).toBeInViewport();
 
-  await page.getByLabel("选择语言").selectOption("en");
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
   await expect(
     page.getByRole("heading", {
@@ -514,11 +604,11 @@ test("returns to the target home when content has no translation", async ({
   const browserErrors = collectBrowserErrors(page);
 
   await page.goto("/posts/prompt-subagent-ai-36c4342e/");
-  await page.getByLabel("选择语言").selectOption("en");
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
 
   await page.goto("/books/tae-kim-japanese-grammar-guide/");
-  await page.getByLabel("选择语言").selectOption("en");
+  await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
   expect(browserErrors).toEqual([]);
 });
