@@ -234,6 +234,7 @@ async function main() {
       requireSecurityHeaders: true,
     },
     { expectedStatus: 200, kind: "html", locale: "en", path: "/en/" },
+    { expectedStatus: 200, kind: "html", locale: "zh-CN", path: "/links/" },
     {
       expectedStatus: 200,
       kind: "html",

@@ -7,6 +7,7 @@ import {
   serializeNotionArticle,
 } from "@/lib/notion-sync/article";
 import type { NotionContentSource } from "@/lib/notion-sync/client";
+import { friendLinksFileSchema } from "@/lib/friends/schema";
 import { mapNotionFriend } from "@/lib/notion-sync/friends";
 import {
   prepareArticleAssets,
@@ -20,11 +21,7 @@ import {
   type ArticleOwnership,
   writeTextIfChanged,
 } from "@/lib/notion-sync/store";
-import {
-  friendLinksFileSchema,
-  type SyncMode,
-  type SyncSummary,
-} from "@/lib/notion-sync/types";
+import type { SyncMode, SyncSummary } from "@/lib/notion-sync/types";
 
 interface SyncArticlesOptions {
   readonly contentRoot: string;

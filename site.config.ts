@@ -55,6 +55,7 @@ interface PublicSiteConfig {
   readonly sectionDescriptions: {
     readonly archives: LocalizedText;
     readonly books: LocalizedText;
+    readonly links: LocalizedText;
     readonly posts: LocalizedText;
   };
   readonly socialLinks: readonly {
@@ -147,6 +148,10 @@ export const siteConfig = {
     books: {
       "zh-CN": "查看叶桐正在连载或已经完成的图书与长文。",
       en: "Books and long-form guides in progress or complete.",
+    },
+    links: {
+      "zh-CN": "在各自角落持续写作、创造与分享的人。",
+      en: "People who keep writing, creating and sharing from their own corners of the web.",
     },
     posts: {
       "zh-CN": "按发布时间浏览 Serverless、Cloudflare、AI 与独立开发文章。",

@@ -22,6 +22,7 @@ describe("localized navigation", () => {
   it("switches locale without losing the current section", () => {
     expect(getLocalizedPath("/posts/", "en")).toBe("/en/posts/");
     expect(getLocalizedPath("/en/books/", "zh-CN")).toBe("/books/");
+    expect(getLocaleSwitchPath("/links/", "en")).toBe("/en/links/");
     expect(getLocalizedPath("/rss.xml", "en")).toBe("/en/rss.xml");
     expect(stripLocalePrefix("/en/")).toBe("/");
   });
@@ -47,9 +48,11 @@ describe("localized navigation", () => {
   it("marks only the matching navigation section active", () => {
     const englishItems = getNavigationItems("en");
     const postsItem = englishItems.find((item) => item.key === "posts");
+    const linksItem = englishItems.find((item) => item.key === "links");
     const homeItem = englishItems.find((item) => item.key === "home");
 
     expect(postsItem).toBeDefined();
+    expect(linksItem).toBeDefined();
     expect(homeItem).toBeDefined();
     expect(isNavigationItemActive("/en/posts/example/", postsItem!.href)).toBe(
       true,
@@ -57,5 +60,6 @@ describe("localized navigation", () => {
     expect(isNavigationItemActive("/en/posts/example/", homeItem!.href)).toBe(
       false,
     );
+    expect(isNavigationItemActive("/en/links/", linksItem!.href)).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 import type { PageObjectResponse } from "@notionhq/client";
 
+import { friendLinkSchema, type FriendLink } from "@/lib/friends/schema";
 import { readRichText, readTitle, readUrl } from "@/lib/notion-sync/properties";
-import { friendLinkSchema, type FriendLink } from "@/lib/notion-sync/types";
 
 export interface RemoteFriendLink extends Omit<FriendLink, "avatar"> {
   readonly avatarUrl?: string;

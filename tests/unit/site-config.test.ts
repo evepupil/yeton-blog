@@ -17,6 +17,9 @@ describe("site configuration", () => {
       authorName: "叶桐",
       description: siteConfig.brand.description["zh-CN"],
       name: "潮思Chaosyn",
+      sectionDescriptions: {
+        links: siteConfig.sectionDescriptions.links["zh-CN"],
+      },
     });
     expect(getLocalizedSiteConfig("en")).toMatchObject({
       authorName: "Yeton",

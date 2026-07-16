@@ -6,6 +6,7 @@ const routeDefinitions = [
   { key: "posts", path: "/posts/" },
   { key: "archives", path: "/archives/" },
   { key: "books", path: "/books/" },
+  { key: "links", path: "/links/" },
   { key: "about", path: "/about/" },
 ] as const;
 

@@ -24,6 +24,7 @@ export function getLocalizedSiteConfig(locale: SiteLocale) {
     sectionDescriptions: {
       archives: siteConfig.sectionDescriptions.archives[locale],
       books: siteConfig.sectionDescriptions.books[locale],
+      links: siteConfig.sectionDescriptions.links[locale],
       posts: siteConfig.sectionDescriptions.posts[locale],
     },
   } as const;

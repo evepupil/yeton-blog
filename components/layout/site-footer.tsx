@@ -31,6 +31,9 @@ export function SiteFooter() {
           <SiteLink href={getLocalizedPath("/books/", locale)}>
             {copy.nav.books}
           </SiteLink>
+          <SiteLink href={getLocalizedPath("/links/", locale)}>
+            {copy.nav.links}
+          </SiteLink>
           <SiteLink href={getLocalizedPath("/about/", locale)}>
             {copy.nav.about}
           </SiteLink>

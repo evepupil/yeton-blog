@@ -106,6 +106,33 @@ test("opens and closes the mobile navigation", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("shows synchronized friend links with an avatar fallback", async ({
+  page,
+}) => {
+  await page.route("**/images/friends/betsy-blog.webp", async (route) => {
+    await route.abort("failed");
+  });
+  await page.goto("/links/");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "友链" }),
+  ).toBeVisible();
+  await expect(page.getByText("1 个站点", { exact: true })).toBeVisible();
+  const friendLink = page.getByRole("link", { name: "访问 Betsy Blog" });
+  await expect(friendLink).toHaveAttribute("href", "https://www.micostar.cc");
+  await expect(friendLink).toHaveAttribute("target", "_blank");
+  await expect(page.locator(".friend-avatar-fallback")).toHaveText("B");
+
+  await page.getByLabel("选择语言").selectOption("en");
+  await expect(page).toHaveURL(/\/en\/links\/$/u);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Friends" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Visit Betsy Blog" }),
+  ).toBeVisible();
+});
+
 test("opens recent writing from whole home cards while keeping read labels", async ({
   page,
 }) => {
