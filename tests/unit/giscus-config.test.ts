@@ -10,8 +10,13 @@ const completeSettings = {
 } as const;
 
 describe("Giscus configuration", () => {
-  it("uses the disabled central setting outside Playwright", () => {
-    expect(readGiscusConfig(false)).toBeNull();
+  it("reads the enabled central setting outside Playwright", () => {
+    expect(readGiscusConfig(false)).toEqual({
+      category: "General",
+      categoryId: "DIC_kwDOTY-rvc4DBSku",
+      repo: "evepupil/yeton-blog",
+      repoId: "R_kgDOTY-rvQ",
+    });
   });
 
   it("accepts an enabled central setting", () => {

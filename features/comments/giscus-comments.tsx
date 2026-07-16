@@ -91,7 +91,7 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
     script.dataset.strict = "1";
     script.dataset.reactionsEnabled = "1";
     script.dataset.emitMetadata = "0";
-    script.dataset.inputPosition = "top";
+    script.dataset.inputPosition = "bottom";
     script.dataset.theme = initialTheme.current;
     script.dataset.lang = locale;
     script.dataset.loading = "lazy";

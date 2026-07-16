@@ -132,8 +132,8 @@ export const siteConfig = {
     },
     comments: {
       category: "General",
-      categoryId: "",
-      enabled: false,
+      categoryId: "DIC_kwDOTY-rvc4DBSku",
+      enabled: true,
       provider: "giscus",
       repo: "evepupil/yeton-blog",
       repoId: "R_kgDOTY-rvQ",

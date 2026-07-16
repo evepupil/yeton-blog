@@ -31,7 +31,7 @@ describe("site configuration", () => {
   it("enables only integrations that have been completed", () => {
     expect(siteConfig.integrations.adsense.enabled).toBe(false);
     expect(siteConfig.integrations.analytics.enabled).toBe(true);
-    expect(siteConfig.integrations.comments.enabled).toBe(false);
+    expect(siteConfig.integrations.comments.enabled).toBe(true);
   });
 
   it("uses a local URL when the deployment URL is absent", () => {

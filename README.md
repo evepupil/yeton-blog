@@ -76,7 +76,7 @@ pnpm sync-content
 
 ## Giscus 评论
 
-文章页支持点击后加载 Giscus、跟随站点主题和加载失败重试。需要先在 GitHub 为目标仓库开启 Discussions、安装 Giscus App 并选择分类，然后编辑 `site.config.ts` 的 `integrations.comments`：
+文章页已启用 Giscus，使用 `evepupil/yeton-blog` 的 `General` 分类。评论支持点击后加载、跟随站点主题和加载失败重试。更换仓库或分类时，先在 GitHub 开启 Discussions、安装 Giscus App 并选择分类，然后编辑 `site.config.ts` 的 `integrations.comments`：
 
 ```ts
 comments: {
