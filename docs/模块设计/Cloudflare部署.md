@@ -45,6 +45,7 @@
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
 10. `pnpm build` 将 `functions/` 编译为单文件 `out/_worker.js`。这能让 Pages Git 上传阶段直接识别动态接口，`_routes.json` 保证文章和静态资源继续由 Pages 资产服务处理。
+11. Pages 项目名是 `yeton-blog`，仓库 Wrangler 名称保留应用名 `hero-ui-blog`。production binding 以 Dashboard 为准，避免 Git 上传器把仓库配置切成只发布静态产物的模式。
 
 ## 改动历史
 
