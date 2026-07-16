@@ -100,7 +100,7 @@
 | `/books/<book>/<chapter>/` | `/books/<book>/`    |
 | `/sitemap-index.xml`       | `/sitemap.xml`      |
 
-中文文章改用 Notion 当前生成的新 slug。18 个旧 `/posts/<slug>/` 地址集中配置在 `redirects.config.ts`，并永久跳到对应新地址。友链和赞助页当前没有等价目标，暂不跳到无关页面；对应功能上线后再补精确规则。
+中文文章改用 Notion 当前生成的新 slug。18 个旧 `/posts/<slug>/` 地址集中配置在 `redirects.config.ts`，并永久跳到对应新地址。当前已经上线 `/links/`，旧站友链路径仍待补充精确映射；赞助功能位于文章末尾，没有独立页面可作为旧赞助地址的等价目标。
 
 ## 测试方法
 
@@ -113,5 +113,5 @@
 ## 当前限制
 
 - 搜索索引随站点构建更新，没有在线增量索引。
-- Cloudflare Pages 对未知地址统一使用根目录 `404.html`，所以任意未知 `/en/*` 地址仍会落到中文全局 404；`/en/404/` 已提供英文页面，阶段 6 部署配置再决定是否增加按语言分流。
-- 正式 canonical、RSS 和 sitemap 地址取决于阶段 6 配置真实 `NEXT_PUBLIC_SITE_URL`。
+- Cloudflare Pages 对未知地址统一使用根目录 `404.html`，所以任意未知 `/en/*` 地址仍会落到中文全局 404；显式 `/en/404/` 已提供英文页面。
+- canonical、RSS 和 sitemap 已使用 Pages 构建命令传入的 `NEXT_PUBLIC_SITE_URL`；正式域名切换时必须同步修改该值并重新提交 sitemap。
