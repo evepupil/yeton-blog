@@ -25,10 +25,10 @@ describe("redirect configuration", () => {
 
     expect(redirectsConfig.postSlugs).toHaveLength(18);
     expect(output).toContain(
-      "/posts/ai-agent-深度学习指南 /posts/ai-agent-3114342e/ 301",
+      `${encodeURI("/posts/ai-agent-深度学习指南")} /posts/ai-agent-3114342e/ 301`,
     );
     expect(output).toContain(
-      "/posts/ai-agent-深度学习指南/ /posts/ai-agent-3114342e/ 301",
+      `${encodeURI("/posts/ai-agent-深度学习指南/")} /posts/ai-agent-3114342e/ 301`,
     );
   });
 

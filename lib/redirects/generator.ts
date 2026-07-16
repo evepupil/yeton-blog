@@ -70,7 +70,7 @@ export function createRedirectRules(
 }
 
 export function serializeRedirectRule(rule: RedirectRule): string {
-  return `${rule.from} ${rule.to} ${rule.status}`;
+  return `${encodeURI(rule.from)} ${encodeURI(rule.to)} ${rule.status}`;
 }
 
 export function serializeRedirectFile(
