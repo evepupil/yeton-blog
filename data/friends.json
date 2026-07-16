@@ -2,9 +2,9 @@
   "friends": [
     {
       "name": "Betsy Blog",
-      "avatar": "/images/friends/betsy-blog.webp",
       "description": "爱我所爱，我们是彼此永远的动力",
-      "url": "https://www.micostar.cc"
+      "url": "https://www.micostar.cc",
+      "avatar": "/images/friends/friend-f8545507dba1.webp"
     }
   ]
 }
