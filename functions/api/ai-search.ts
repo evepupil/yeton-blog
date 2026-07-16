@@ -1,4 +1,7 @@
-import { mapAutoRagCitations } from "../../lib/ai-search/citations";
+import {
+  extractAutoRagSources,
+  mapAutoRagCitations,
+} from "../../lib/ai-search/citations";
 import {
   isAllowedRequestOrigin,
   validateAiSearchQuery,
@@ -14,6 +17,7 @@ import {
   parseSseChunk,
 } from "../../lib/ai-search/sse";
 import type {
+  AiSearchCitation,
   AiSearchErrorCode,
   AiSearchStreamEvent,
   SseFrame,
@@ -25,9 +29,8 @@ import {
 } from "../../lib/ai-search/upstream";
 import { siteConfig } from "../../site.config";
 
-interface AutoRagSearchOptions {
+interface AutoRagRetrievalOptions {
   readonly max_num_results: number;
-  readonly model: string;
   readonly query: string;
   readonly ranking_options: {
     readonly score_threshold: number;
@@ -37,12 +40,17 @@ interface AutoRagSearchOptions {
     readonly model: string;
   };
   readonly rewrite_query: true;
+}
+
+interface AutoRagAiSearchOptions extends AutoRagRetrievalOptions {
+  readonly model: string;
   readonly stream: true;
 }
 
 interface AiBinding {
   autorag(name: string): {
-    aiSearch(options: AutoRagSearchOptions): Promise<Response>;
+    aiSearch(options: AutoRagAiSearchOptions): Promise<Response>;
+    search(options: AutoRagRetrievalOptions): Promise<unknown>;
   };
 }
 
@@ -127,6 +135,7 @@ function streamEvent(
 
 function createResponseStream(
   upstream: ReadableStream<Uint8Array>,
+  initialCitations: readonly AiSearchCitation[],
   requestId: string,
 ): ReadableStream<Uint8Array> {
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -138,7 +147,6 @@ function createResponseStream(
       const decoder = new TextDecoder();
       let buffer = "";
       let fullText = "";
-      let latestSources: unknown = [];
       let responseMode: AutoRagResponseMode = "unknown";
       let timedOut = false;
       const timeoutId = setTimeout(() => {
@@ -149,7 +157,6 @@ function createResponseStream(
       const processFrame = (frame: SseFrame): boolean => {
         const payload = decodeAutoRagFrame(frame);
         if (!payload) return true;
-        if (Array.isArray(payload.sources)) latestSources = payload.sources;
         if (payload.response === null) return true;
 
         const next = getAutoRagDelta(fullText, payload.response, responseMode);
@@ -166,6 +173,11 @@ function createResponseStream(
       };
 
       try {
+        streamEvent(controller, {
+          data: { citations: initialCitations },
+          event: "citations",
+        });
+
         while (!cancelled) {
           const result = await reader.read();
           if (result.done) break;
@@ -189,14 +201,10 @@ function createResponseStream(
           throw new Error("AutoRAG changed response formats mid-stream.");
         }
 
-        const citations = mapAutoRagCitations(
-          latestSources,
-          config.maxCitations,
-        );
-        if (!fullText.trim() || citations.length === 0) {
-          const code = fullText.trim() ? "NO_CITATIONS" : "UPSTREAM_ERROR";
+        if (!fullText.trim()) {
+          const code = "UPSTREAM_ERROR";
           streamEvent(controller, {
-            data: { code, requestId, retryable: code !== "NO_CITATIONS" },
+            data: { code, requestId, retryable: true },
             event: "error",
           });
           controller.close();
@@ -205,16 +213,12 @@ function createResponseStream(
         }
 
         streamEvent(controller, {
-          data: { citations },
-          event: "citations",
-        });
-        streamEvent(controller, {
           data: { requestId },
           event: "done",
         });
         controller.close();
         logEvent("info", "ai_search_complete", requestId, {
-          citationCount: citations.length,
+          citationCount: initialCitations.length,
         });
       } catch (error: unknown) {
         if (cancelled) return;
@@ -300,19 +304,35 @@ export async function onRequestPost({
       );
     }
 
+    const autorag = env.AI.autorag(config.autoragName);
+    const retrievalOptions = {
+      max_num_results: config.maxCitations,
+      query: validation.query,
+      ranking_options: {
+        score_threshold: config.scoreThreshold,
+      },
+      reranking: {
+        enabled: true,
+        model: config.rerankerModel,
+      },
+      rewrite_query: true,
+    } as const satisfies AutoRagRetrievalOptions;
+    const searchResult = await withTimeout(
+      autorag.search(retrievalOptions),
+      config.requestTimeoutMs,
+    );
+    const citations = mapAutoRagCitations(
+      extractAutoRagSources(searchResult),
+      config.maxCitations,
+    );
+    if (citations.length === 0) {
+      return errorResponse("NO_CITATIONS", 422, requestId, false);
+    }
+
     const upstreamResponse = await withTimeout(
-      env.AI.autorag(config.autoragName).aiSearch({
-        max_num_results: config.maxCitations,
+      autorag.aiSearch({
+        ...retrievalOptions,
         model: config.model,
-        query: validation.query,
-        ranking_options: {
-          score_threshold: config.scoreThreshold,
-        },
-        reranking: {
-          enabled: true,
-          model: config.rerankerModel,
-        },
-        rewrite_query: true,
         stream: true,
       }),
       config.requestTimeoutMs,
@@ -337,7 +357,7 @@ export async function onRequestPost({
     });
 
     return new Response(
-      createResponseStream(upstreamResponse.body, requestId),
+      createResponseStream(upstreamResponse.body, citations, requestId),
       { headers },
     );
   } catch (error: unknown) {

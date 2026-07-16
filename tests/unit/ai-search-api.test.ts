@@ -37,15 +37,24 @@ function createEnv(options?: {
   readonly aiSearch: ReturnType<typeof vi.fn>;
   readonly batch: ReturnType<typeof vi.fn>;
   readonly env: AiSearchEnv;
+  readonly search: ReturnType<typeof vi.fn>;
 } {
   const aiSearch = vi
     .fn()
     .mockResolvedValue(
       createUpstreamResponse([
-        'data: {"response":"Cloud","data":[{"filename":"content/posts/zh/claude-code里面使用chatgpt的模型教程.md","score":0.9}]}\n',
-        '\ndata: {"response":"flare","data":[{"filename":"content/posts/zh/claude-code里面使用chatgpt的模型教程.md","score":0.9}]}\n\n',
+        'data: {"response":"Cloud","data":[]}\n',
+        '\ndata: {"response":"flare","data":[]}\n\n',
       ]),
     );
+  const search = vi.fn().mockResolvedValue({
+    data: [
+      {
+        filename: "content/posts/zh/claude-code里面使用chatgpt的模型教程.md",
+        score: 0.9,
+      },
+    ],
+  });
   const batch = vi.fn().mockResolvedValue([
     {
       results: [{ request_count: options?.userAllowed === false ? 7 : 1 }],
@@ -68,9 +77,10 @@ function createEnv(options?: {
     aiSearch,
     batch,
     env: {
-      AI: { autorag: () => ({ aiSearch }) },
+      AI: { autorag: () => ({ aiSearch, search }) },
       AI_RATE_LIMIT_DB: database,
     },
+    search,
   };
 }
 
@@ -81,7 +91,7 @@ describe("AI search Pages Function", () => {
   });
 
   it("streams live-style delta chunks followed by canonical citations", async () => {
-    const { aiSearch, batch, env } = createEnv();
+    const { aiSearch, batch, env, search } = createEnv();
     const response = await onRequestPost({
       env,
       request: createRequest(undefined, {
@@ -93,6 +103,12 @@ describe("AI search Pages Function", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(batch).toHaveBeenCalledOnce();
+    expect(search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        max_num_results: 5,
+        query: "Cloudflare AI",
+      }),
+    );
     expect(aiSearch).toHaveBeenCalledWith(
       expect.objectContaining({
         max_num_results: 5,
@@ -119,6 +135,23 @@ describe("AI search Pages Function", () => {
       code: "SERVICE_UNAVAILABLE",
       retryable: true,
     });
+  });
+
+  it("does not generate an answer when retrieval has no citations", async () => {
+    const { aiSearch, env, search } = createEnv();
+    search.mockResolvedValue({ data: [] });
+
+    const response = await onRequestPost({
+      env,
+      request: createRequest(),
+    });
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "NO_CITATIONS",
+      retryable: false,
+    });
+    expect(aiSearch).not.toHaveBeenCalled();
   });
 
   it("rejects a limited user before calling AutoRAG", async () => {

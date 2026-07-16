@@ -387,7 +387,7 @@ docs/
 - 已实现同源校验、500 字输入上限、D1 原子双限流、30 秒超时和结构化日志；缺少 AI 或 D1 binding 时安全拒绝请求。
 - 已兼容 AutoRAG 的逐段文本和累计文本，统一转换为 `delta`、`citations`、`done`、`error` 四类 SSE 事件，并正确处理跨网络分片的数据。
 - 已实现按点击加载的 HeroUI Drawer，支持中英文界面、停止、失败重试和站内引用跳转，普通全文搜索保持独立。
-- 已创建 APAC D1 限流库并执行初始迁移；生产 AutoRAG 真请求与 D1 binding 仍待部署验证。
+- 已创建 APAC D1 限流库并执行初始迁移；preview 已完成真实 AutoRAG 回答、旧 URL 引用映射、站内原文跳转和 D1 计数验证，production Git deployment 仍待验证。
 
 **发布关系**：独立增强项，可单独关闭。
 
