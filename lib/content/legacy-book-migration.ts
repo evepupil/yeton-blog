@@ -8,8 +8,14 @@ import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { z } from "zod";
 
-import { bookFrontmatterSchema } from "@/lib/content/schema";
-import type { BookFrontmatter } from "@/lib/content/schema";
+import {
+  bookChapterFrontmatterSchema,
+  bookFrontmatterSchema,
+} from "@/lib/content/schema";
+import type {
+  BookChapterFrontmatter,
+  BookFrontmatter,
+} from "@/lib/content/schema";
 
 const legacyBookIndexSchema = z.object({
   author: z.string().optional(),
@@ -44,20 +50,29 @@ export interface LegacyBookChapterSource {
 interface ParsedLegacyBookChapter {
   readonly body: string;
   readonly fileName: string;
+  readonly slug: string;
   readonly title: string;
 }
 
 export interface MigrateLegacyBookOptions {
   readonly chapters: readonly LegacyBookChapterSource[];
   readonly indexRaw: string;
+  readonly legacySlug?: string;
   readonly order: number;
+  readonly slug: string;
+}
+
+export interface MigratedLegacyBookChapter {
+  readonly content: string;
+  readonly frontmatter: BookChapterFrontmatter;
   readonly slug: string;
 }
 
 export interface MigratedLegacyBook {
   readonly chapterCount: number;
-  readonly content: string;
+  readonly chapters: readonly MigratedLegacyBookChapter[];
   readonly frontmatter: BookFrontmatter;
+  readonly indexContent: string;
   readonly slug: string;
 }
 
@@ -100,7 +115,7 @@ export function normalizeLegacyBookSection(markdown: string): string {
     return markdown.trim().replace(/[ \t]+$/gmu, "");
   }
 
-  const depthShift = 3 - minimumDepth;
+  const depthShift = 2 - minimumDepth;
   const replacements: MarkdownReplacement[] = [];
   visit(tree, "heading", (node) => {
     const startOffset = node.position?.start.offset;
@@ -113,7 +128,7 @@ export function normalizeLegacyBookSection(markdown: string): string {
       throw new Error("Cannot rewrite a legacy book heading.");
     }
 
-    const depth = Math.min(6, Math.max(3, node.depth + depthShift));
+    const depth = Math.min(6, Math.max(2, node.depth + depthShift));
     replacements.push({
       end: startOffset + headingMarker[0].length,
       start: startOffset,
@@ -124,37 +139,28 @@ export function normalizeLegacyBookSection(markdown: string): string {
   return applyReplacements(markdown, replacements);
 }
 
-interface LegacyBookHeadingData {
-  readonly secondLevelIds: readonly string[];
-  readonly sectionAnchors: ReadonlyMap<string, string>;
-}
-
-function collectHeadingData(markdown: string): LegacyBookHeadingData {
+function collectSectionAnchors(markdown: string): ReadonlyMap<string, string> {
   const tree = unified().use(remarkParse).parse(markdown);
   const slugger = new GithubSlugger();
-  const secondLevelIds: string[] = [];
   const sectionAnchors = new Map<string, string>();
 
   visit(tree, "heading", (node) => {
     const text = toString(node).trim();
     const id = slugger.slug(text);
-    if (node.depth === 2) {
-      secondLevelIds.push(id);
-    }
-
     const sectionNumber = /^(\d+(?:\.\d+)+)(?=\s|$)/u.exec(text)?.[1];
     if (sectionNumber) {
       sectionAnchors.set(sectionNumber, id);
     }
   });
 
-  return { secondLevelIds, sectionAnchors };
+  return sectionAnchors;
 }
 
 export function rewriteLegacyBookChapterLinks(
   markdown: string,
-  bookSlug: string,
-  chapterAnchors: ReadonlyMap<string, string>,
+  legacyBookSlug: string,
+  canonicalBookSlug: string,
+  chapterSlugs: ReadonlySet<string>,
   sectionAnchors: ReadonlyMap<string, string> = new Map(),
 ): string {
   const tree = unified().use(remarkParse).parse(markdown);
@@ -171,16 +177,19 @@ export function rewriteLegacyBookChapterLinks(
 
     let migratedUrl: string | null = null;
     const chapterMatch = /^\/books\/([^/]+)\/([^/?#]+)\/?$/u.exec(node.url);
-    if (
-      chapterMatch?.[1] &&
-      chapterMatch[2] &&
-      decodeURIComponent(chapterMatch[1]) === bookSlug
-    ) {
-      const anchor = chapterAnchors.get(decodeURIComponent(chapterMatch[2]));
-      migratedUrl = anchor ? `/books/${bookSlug}/#${anchor}` : null;
+    if (chapterMatch?.[1] && chapterMatch[2]) {
+      const sourceBookSlug = decodeURIComponent(chapterMatch[1]);
+      const chapterSlug = decodeURIComponent(chapterMatch[2]);
+      if (
+        (sourceBookSlug === legacyBookSlug ||
+          sourceBookSlug === canonicalBookSlug) &&
+        chapterSlugs.has(chapterSlug)
+      ) {
+        migratedUrl = `/books/${canonicalBookSlug}/${chapterSlug}/`;
+      }
     } else if (/^\d+(?:\.\d+)+$/u.test(node.url)) {
       const anchor = sectionAnchors.get(node.url);
-      migratedUrl = anchor ? `/books/${bookSlug}/#${anchor}` : null;
+      migratedUrl = anchor ? `#${anchor}` : null;
       if (!migratedUrl && node.type === "link") {
         const startOffset = node.position?.start.offset;
         const endOffset = node.position?.end.offset;
@@ -239,7 +248,6 @@ export function migrateLegacyBookFrontmatter(
     draft: legacy.draft,
     locale: legacy.lang,
     order,
-    progress: legacy.progress ?? (completed ? 100 : 0),
     ...(legacy.published
       ? { published: normalizeDate(legacy.published, "published") }
       : {}),
@@ -259,7 +267,7 @@ export function serializeMigratedBook(
   frontmatter: BookFrontmatter,
   markdown: string,
 ): string {
-  const lines = [
+  return [
     "---",
     `title: ${JSON.stringify(frontmatter.title)}`,
     `description: ${JSON.stringify(frontmatter.description)}`,
@@ -278,16 +286,29 @@ export function serializeMigratedBook(
     `locale: ${JSON.stringify(frontmatter.locale)}`,
     `tags: ${JSON.stringify(frontmatter.tags)}`,
     `status: ${JSON.stringify(frontmatter.status)}`,
-    `progress: ${frontmatter.progress}`,
     `order: ${frontmatter.order}`,
     `draft: ${frontmatter.draft}`,
     "---",
     "",
     markdown.trim(),
     "",
-  ];
+  ].join("\n");
+}
 
-  return lines.join("\n");
+function serializeMigratedBookChapter(
+  frontmatter: BookChapterFrontmatter,
+  markdown: string,
+): string {
+  return [
+    "---",
+    `title: ${JSON.stringify(frontmatter.title)}`,
+    `order: ${frontmatter.order}`,
+    `draft: ${frontmatter.draft}`,
+    "---",
+    "",
+    markdown.trim(),
+    "",
+  ].join("\n");
 }
 
 function parseLegacyChapter(
@@ -302,6 +323,7 @@ function parseLegacyChapter(
   return {
     body: normalizeLegacyBookSection(parsed.content),
     fileName: source.fileName,
+    slug: path.basename(source.fileName, path.extname(source.fileName)),
     title: frontmatter.title,
   };
 }
@@ -314,51 +336,49 @@ export function migrateLegacyBook(
     parsedIndex.data,
     options.order,
   );
-  const chapters = options.chapters
+  const parsedChapters = options.chapters
     .toSorted((left, right) => left.fileName.localeCompare(right.fileName))
     .map(parseLegacyChapter)
     .filter((chapter): chapter is ParsedLegacyBookChapter => chapter !== null);
 
-  if (chapters.length === 0) {
+  if (parsedChapters.length === 0) {
     throw new Error(`Legacy book ${options.slug} has no published chapters.`);
   }
 
-  const introductionTitle =
-    frontmatter.locale === "en" ? "Introduction" : "导读";
-  const sections = [
-    `## ${introductionTitle}\n\n${normalizeLegacyBookSection(parsedIndex.content)}`,
-    ...chapters.map((chapter) => `## ${chapter.title}\n\n${chapter.body}`),
-  ];
-  const markdown = sections.join("\n\n");
-  const headingData = collectHeadingData(markdown);
-  const chapterHeadingIds = headingData.secondLevelIds.slice(1);
-  if (chapterHeadingIds.length !== chapters.length) {
-    throw new Error(`Cannot resolve chapter anchors for ${options.slug}.`);
-  }
-  const chapterAnchors = new Map(
-    chapters.map((chapter, index) => {
-      const anchor = chapterHeadingIds[index];
-      if (!anchor) {
-        throw new Error(`Cannot resolve chapter anchor: ${chapter.title}`);
-      }
-
-      return [
-        path.basename(chapter.fileName, path.extname(chapter.fileName)),
-        anchor,
-      ];
-    }),
-  );
-  const migratedMarkdown = rewriteLegacyBookChapterLinks(
-    markdown,
+  const chapterSlugs = new Set(parsedChapters.map((chapter) => chapter.slug));
+  const legacyBookSlug = options.legacySlug ?? options.slug;
+  const indexMarkdown = rewriteLegacyBookChapterLinks(
+    normalizeLegacyBookSection(parsedIndex.content),
+    legacyBookSlug,
     options.slug,
-    chapterAnchors,
-    headingData.sectionAnchors,
+    chapterSlugs,
   );
+  const chapters = parsedChapters.map((chapter, index) => {
+    const chapterFrontmatter = bookChapterFrontmatterSchema.parse({
+      draft: false,
+      order: index + 1,
+      title: chapter.title,
+    });
+    const markdown = rewriteLegacyBookChapterLinks(
+      chapter.body,
+      legacyBookSlug,
+      options.slug,
+      chapterSlugs,
+      collectSectionAnchors(chapter.body),
+    );
+
+    return {
+      content: serializeMigratedBookChapter(chapterFrontmatter, markdown),
+      frontmatter: chapterFrontmatter,
+      slug: chapter.slug,
+    };
+  });
 
   return {
     chapterCount: chapters.length,
-    content: serializeMigratedBook(frontmatter, migratedMarkdown),
+    chapters,
     frontmatter,
+    indexContent: serializeMigratedBook(frontmatter, indexMarkdown),
     slug: options.slug,
   };
 }

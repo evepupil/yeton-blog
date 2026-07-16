@@ -13,7 +13,7 @@
 | `features/search/`                 | HeroUI 搜索弹窗、文案和样式                 |
 | `lib/search/`                      | 分词、索引文档、MiniSearch 配置和浏览器加载 |
 | `lib/seo/metadata.ts`              | 页面 canonical、hreflang 和分享元数据       |
-| `lib/seo/content-metadata.ts`      | 文章、图书元数据和文章 JSON-LD              |
+| `lib/seo/content-metadata.ts`      | 文章、图书、章节元数据和文章 JSON-LD        |
 | `lib/seo/rss.ts`                   | 中英文 RSS 数据与 XML 生成                  |
 | `lib/seo/sitemap.ts`               | 静态页面、内容、标签与译文站点地图          |
 | `scripts/generate-search-index.ts` | 构建中英文序列化搜索索引                    |
@@ -31,7 +31,7 @@
 1. 搜索索引在构建期按语言分别生成。草稿在进入索引前过滤，浏览器不会收到另一种语言的索引。
 2. MiniSearch 与索引 JSON 只在首次打开搜索弹窗时并行加载，普通阅读不会下载搜索代码和正文索引。
 3. 中文按单个汉字分词，英文按单词分词。查询使用 AND、前缀匹配和长词模糊匹配，减少短查询误命中。
-4. 页面元数据统一通过 `lib/seo` 生成。静态栏目自动建立中英文对应关系，文章和图书只在真实译文存在时输出 hreflang。
+4. 页面元数据统一通过 `lib/seo` 生成。静态栏目自动建立中英文对应关系，文章、图书和章节只在真实译文存在时输出 hreflang。
 5. 中文和英文使用两个根布局，构建出的 `<html lang>` 无需等待 hydration。Header 不再在浏览器里补写语言。
 6. 文章 JSON-LD 使用 `BlogPosting`，包含作者、发布日期、更新时间、语言、封面和规范地址。序列化时转义 `<`，防止内容结束 script 标签。
 7. `pnpm build` 的最后一步解析真实产物。HTML、XML 和 JSON 使用结构化解析器检查，坏链接、缺资源、错误语言或缺少 SEO 字段都会让构建失败。
@@ -46,6 +46,8 @@
 - 清理 Notion 首次同步产生的 15 份重复正文，旧地址通过单跳 `301` 合并到新 slug，canonical、RSS 和 sitemap 只保留新文章。
 - 内容校验确认每个文章重定向目标真实存在、旧 slug 已退出内容目录；静态产物检查覆盖配置中的全部规则，生产冒烟覆盖全部文章迁移。
 - 公网冒烟发现 Pages 不匹配原始中文规则后，生成器改为输出百分号编码路径，配置文件继续保留可读中文 slug。
+- 图书章节恢复为真实静态路由，章节 canonical、hreflang、sitemap 和站内链接完整性进入构建门禁。
+- 删除会把所有旧章节跳到图书首页的通配规则；同 slug 章节直接复用旧 URL，旧日语书名通过保留 `:chapter` 的单跳规则迁移。
 
 ### 2026-07-15
 
@@ -73,9 +75,9 @@
 
 - `NEXT_PUBLIC_SITE_URL` 是 canonical、分享地址、RSS 和 sitemap 的统一地址来源；本地缺省值为 `http://localhost:3000`。
 - 栏目页按相同路由建立中英文 alternates。标签没有跨语言关系，只声明当前语言。
-- 文章和图书通过 `translationKey` 找译文，缺少译文时不会输出错误 hreflang。
+- 文章、图书和章节通过 `translationKey` 找译文，缺少译文时不会输出错误 hreflang。
 - RSS 只包含对应语言的已发布文章，按发布时间倒序输出。
-- sitemap 包含首页、栏目、文章、图书和文章标签；草稿与 404 不进入站点地图。
+- sitemap 包含首页、栏目、文章、图书、图书章节和文章标签；草稿与 404 不进入站点地图。
 
 ### 构建完整性
 
@@ -89,22 +91,23 @@
 
 ### 旧站 URL 迁移
 
-| 旧路径                     | 当前路径            |
-| -------------------------- | ------------------- |
-| `/posts/en/<slug>/`        | `/en/posts/<slug>/` |
-| `/archive/`                | `/archives/`        |
-| `/archive/en/`             | `/en/archives/`     |
-| `/archive/tag/<tag>/`      | `/tags/<tag>/`      |
-| `/archive/en/tag/<tag>/`   | `/en/tags/<tag>/`   |
-| `/about/en/`               | `/en/about/`        |
-| `/books/<book>/<chapter>/` | `/books/<book>/`    |
-| `/sitemap-index.xml`       | `/sitemap.xml`      |
+| 旧路径                                                | 当前路径                                           |
+| ----------------------------------------------------- | -------------------------------------------------- |
+| `/posts/en/<slug>/`                                   | `/en/posts/<slug>/`                                |
+| `/archive/`                                           | `/archives/`                                       |
+| `/archive/en/`                                        | `/en/archives/`                                    |
+| `/archive/tag/<tag>/`                                 | `/tags/<tag>/`                                     |
+| `/archive/en/tag/<tag>/`                              | `/en/tags/<tag>/`                                  |
+| `/about/en/`                                          | `/en/about/`                                       |
+| `/books/<book>/<chapter>/`                            | 保持原章节地址                                     |
+| `/books/《Tae Kim日语语法指南》中文翻译版/<chapter>/` | `/books/tae-kim-japanese-grammar-guide/<chapter>/` |
+| `/sitemap-index.xml`                                  | `/sitemap.xml`                                     |
 
 中文文章改用 Notion 当前生成的新 slug。18 个旧 `/posts/<slug>/` 地址集中配置在 `redirects.config.ts`，并永久跳到对应新地址。当前已经上线 `/links/`，旧站友链路径仍待补充精确映射；赞助功能位于文章末尾，没有独立页面可作为旧赞助地址的等价目标。
 
 ## 测试方法
 
-- Vitest 覆盖分词、语言隔离、标题/标签/正文命中、RSS 草稿过滤、sitemap 译文关系、canonical 和 JSON-LD。
+- Vitest 覆盖分词、语言隔离、标题/标签/正文命中、RSS 草稿过滤、图书章节 sitemap、译文关系、canonical 和 JSON-LD。
 - Playwright 覆盖中英文搜索、搜索结果导航、关键元数据、全局 404、英文 404 和关闭 JavaScript 后的阅读路径。
 - Vitest 覆盖映射展开、重复来源、重定向链和相同源目标校验。
 - `pnpm build` 重新生成 `_redirects` 并检查全部配置规则；部署后冒烟验证 18 个旧文章地址返回单跳 `301` 和正确目标。

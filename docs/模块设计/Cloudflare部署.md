@@ -70,7 +70,7 @@
 - 将 `_headers` 纳入静态产物完整性检查，并为 Pages 构建配置增加单测。
 - 根据参考项目确认部署模型后，删除主动上传所需的 Cloudflare secrets、variables 和部署脚本。
 - 将 Git remote 关联到 `evepupil/yeton-blog`，确认 Cloudflare Pages 项目 `yeton-blog` 已连接该仓库。
-- 使用正式地址 `https://blog1.chaosyn.com` 完成生产构建、Wrangler 首次发布和公网冒烟。
+- 早期使用 `https://blog1.chaosyn.com` 完成首次生产构建和公网冒烟，随后将 Pages 正式 origin 与构建命令切换到 `https://blog.chaosyn.com`。
 - 根据失败 deployment 的服务端配置和构建日志确认变量已保存但未进入构建进程，将正式域名加入 Pages 构建命令后重试成功。
 - 阶段 7 为 Giscus 增加 `https://giscus.app` 的 `script-src`、`connect-src` 和 `frame-src`，并将规则纳入静态产物检查。
 - 阶段 7 为 Umami Cloud 增加 `https://cloud.umami.is` 的 `script-src` 与 `connect-src`，统计服务失败不影响静态站点。
@@ -83,17 +83,17 @@
 
 在 Cloudflare Dashboard 创建 Pages 项目并关联 Git 仓库，配置：
 
-| 配置项               | 值                                                          |
-| -------------------- | ----------------------------------------------------------- |
-| Pages project        | `yeton-blog`                                                |
-| Production branch    | `main`                                                      |
-| Production origin    | `https://blog1.chaosyn.com`                                 |
-| Build command        | `NEXT_PUBLIC_SITE_URL=https://blog1.chaosyn.com pnpm build` |
-| Build output         | `out`                                                       |
-| Root directory       | `/`                                                         |
-| Node.js              | `22.14.0`                                                   |
-| pnpm                 | `10.21.0`                                                   |
-| Environment variable | `NEXT_PUBLIC_SITE_URL`                                      |
+| 配置项               | 值                                                         |
+| -------------------- | ---------------------------------------------------------- |
+| Pages project        | `yeton-blog`                                               |
+| Production branch    | `main`                                                     |
+| Production origin    | `https://blog.chaosyn.com`                                 |
+| Build command        | `NEXT_PUBLIC_SITE_URL=https://blog.chaosyn.com pnpm build` |
+| Build output         | `out`                                                      |
+| Root directory       | `/`                                                        |
+| Node.js              | `22.14.0`                                                  |
+| pnpm                 | `10.21.0`                                                  |
+| Environment variable | `NEXT_PUBLIC_SITE_URL`                                     |
 
 Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding：
 
@@ -110,7 +110,7 @@ pnpm ai-search:migrate
 
 迁移目标是 `yeton-blog-ai-rate-limit`。数据库 ID 保存在 `wrangler.jsonc`，它是公开资源标识，不是访问凭据。
 
-`NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog1.chaosyn.com`。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
+`NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog.chaosyn.com`。没有自定义域名时可使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 
 ### 自动部署流程
 
@@ -122,13 +122,13 @@ pnpm ai-search:migrate
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
 
-### 旧域名切换
+### 正式域名状态
 
-1. 内容迁移和本地门禁完成后，将 `blog.chaosyn.com` 绑定到当前 Pages 项目。
-2. 将 Pages 构建命令与 `NEXT_PUBLIC_SITE_URL` 同步改为 `https://blog.chaosyn.com`。
-3. 在 Cloudflare Dashboard 创建只匹配 `blog1.chaosyn.com` hostname 的永久重定向，目标为 `https://blog.chaosyn.com/${path}`。
-4. 保留 `redirects.config.ts` 中的迁移映射，让生成的 `_redirects` 继续把旧站内部路径一跳到当前 canonical。
-5. 部署后运行公网冒烟，并向 Google Search Console 和 Bing Webmaster Tools 提交新的 sitemap。
+1. `blog.chaosyn.com` 已绑定到当前 Pages 项目。
+2. Pages 构建命令与 `NEXT_PUBLIC_SITE_URL` 已同步为 `https://blog.chaosyn.com`。
+3. `blog1.chaosyn.com` 如需保留，应在 Cloudflare Dashboard 使用只匹配该 hostname 的永久重定向，目标为 `https://blog.chaosyn.com/${path}`。
+4. `redirects.config.ts` 继续维护旧站内部路径到当前 canonical 的单跳映射。
+5. 每次域名或路由变更部署后，对正式域名运行公网冒烟，并确认 Google Search Console 和 Bing Webmaster Tools 使用当前 sitemap。
 
 ### Notion 同步关系
 
@@ -163,11 +163,11 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - `pnpm build` 检查 `_headers` 已复制到 `out`，并确认生成的 `_redirects` 包含集中配置中的全部规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
 - `wrangler pages functions build` 校验 Pages Function 可以和 AI、D1 binding 一起打包。
-- 公网冒烟已对 deployment 地址、`yeton-blog.pages.dev` 和 `blog1.chaosyn.com` 执行通过。
+- 早期公网冒烟已覆盖 deployment 地址、`yeton-blog.pages.dev` 和临时域名；当前正式域名为 `blog.chaosyn.com`，本次路由改造发布后需要重新执行正式域名冒烟。
 
 ## 当前限制
 
-- 仓库、Pages 项目、正式域名、Wrangler 直传和 Git 来源的生产构建已经打通。
+- 仓库、Pages 项目、正式域名和 Git 来源的生产构建已经打通。
 - Cloudflare Dashboard 变量与构建命令都保存了公开站点地址；正式域名变化时必须同步修改两处，避免 canonical、RSS 和 sitemap 继续使用旧地址。
 - Giscus 的仓库、Discussions 分类、公开 ID 和生产 iframe 已经验证；更换仓库时需要重新生成整组公开参数。
 - 当前站已经有 `/links/` 友链页，但旧站友链路径尚未加入迁移映射；赞助只有文章末尾入口，没有独立赞助页可作为旧地址目标。

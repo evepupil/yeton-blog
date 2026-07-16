@@ -101,6 +101,7 @@ async function main(): Promise<void> {
       return migrateLegacyBook({
         chapters: await loadChapters(directory),
         indexRaw: await readFile(path.join(directory, "index.md"), "utf8"),
+        legacySlug: directoryName,
         order,
         slug,
       });
@@ -113,21 +114,36 @@ async function main(): Promise<void> {
     mkdir(path.join(targetBooksRoot, "en"), { recursive: true }),
   ]);
   await Promise.all(
-    migratedBooks.map(async (book) =>
-      writeFile(
-        path.join(
-          targetBooksRoot,
-          book.frontmatter.locale === "en" ? "en" : "zh",
-          `${book.slug}.md`,
+    migratedBooks.map(async (book) => {
+      const bookDirectory = path.join(
+        targetBooksRoot,
+        book.frontmatter.locale === "en" ? "en" : "zh",
+        book.slug,
+      );
+      await mkdir(bookDirectory, { recursive: true });
+      await Promise.all([
+        writeFile(
+          path.join(bookDirectory, "index.md"),
+          await format(book.indexContent, {
+            endOfLine: "lf",
+            parser: "markdown",
+            proseWrap: "preserve",
+          }),
+          "utf8",
         ),
-        await format(book.content, {
-          endOfLine: "lf",
-          parser: "markdown",
-          proseWrap: "preserve",
-        }),
-        "utf8",
-      ),
-    ),
+        ...book.chapters.map(async (chapter) =>
+          writeFile(
+            path.join(bookDirectory, `${chapter.slug}.md`),
+            await format(chapter.content, {
+              endOfLine: "lf",
+              parser: "markdown",
+              proseWrap: "preserve",
+            }),
+            "utf8",
+          ),
+        ),
+      ]);
+    }),
   );
 
   const chapterCount = migratedBooks.reduce(

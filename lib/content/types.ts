@@ -1,4 +1,8 @@
-import type { ArticleFrontmatter, BookFrontmatter } from "@/lib/content/schema";
+import type {
+  ArticleFrontmatter,
+  BookChapterFrontmatter,
+  BookFrontmatter,
+} from "@/lib/content/schema";
 import type { SiteLocale } from "@/lib/site-config";
 
 export interface ContentHeading {
@@ -37,7 +41,18 @@ export interface ArticleNavigation {
   readonly previous: ArticlePreview | null;
 }
 
-export interface Book extends BookFrontmatter, ContentFile {}
+export interface BookChapter extends BookChapterFrontmatter, ContentFile {
+  readonly bookSlug: string;
+}
+
+export interface Book extends BookFrontmatter, ContentFile {
+  readonly chapters: readonly BookChapter[];
+}
+
+export interface BookChapterNavigation {
+  readonly next: BookChapter | null;
+  readonly previous: BookChapter | null;
+}
 
 export interface TagSummary {
   readonly count: number;

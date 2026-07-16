@@ -635,7 +635,7 @@ test("shows archive counts and opens a tag detail page", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
-test("opens a migrated book chapter and falls back across languages", async ({
+test("uses fixed book cards and reads one migrated chapter at a time", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -645,24 +645,51 @@ test("opens a migrated book chapter and falls back across languages", async ({
     page.getByRole("heading", { level: 1, name: "图书与长文" }),
   ).toBeVisible();
   await expect(page.locator(".book-item")).toHaveCount(3);
-  await expect(page.getByRole("progressbar").nth(0)).toHaveAttribute(
-    "aria-valuenow",
-    "100",
-  );
-  await expect(page.getByRole("progressbar").nth(1)).toHaveAttribute(
-    "aria-valuenow",
-    "100",
-  );
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
+  await expect(
+    page.locator(".book-item").first().locator(".book-chapters-preview a"),
+  ).toHaveCount(2);
+
+  const desktopHeights = await page
+    .locator(".book-item")
+    .evaluateAll((items) =>
+      items.map((item) => item.getBoundingClientRect().height),
+    );
+  expect(new Set(desktopHeights).size).toBe(1);
 
   await page
     .locator(".book-item")
     .first()
     .getByRole("link", { name: "Prompt：把需求表达清楚" })
     .click();
+  await expect(page).toHaveURL(/\/books\/ai-engineering\/01-prompt\/$/u);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Prompt：把需求表达清楚",
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".book-chapter-sidebar nav a")).toHaveCount(12);
+  await expect(
+    page.locator('.book-chapter-sidebar nav a[aria-current="page"]'),
+  ).toHaveText(/Prompt：把需求表达清楚/u);
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Structured Output：让 AI 输出可被程序处理的结果",
+    }),
+  ).toHaveCount(0);
+
+  await page.locator(".book-chapter-nav-link.is-next").click();
   await expect(page).toHaveURL(
-    /\/books\/ai-engineering\/#prompt%E6%8A%8A%E9%9C%80%E6%B1%82%E8%A1%A8%E8%BE%BE%E6%B8%85%E6%A5%9A$/u,
+    /\/books\/ai-engineering\/02-structured-output\/$/u,
   );
-  await expect(page.locator("#prompt把需求表达清楚")).toBeInViewport();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Structured Output：让 AI 输出可被程序处理的结果",
+    }),
+  ).toBeVisible();
 
   await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
@@ -672,6 +699,21 @@ test("opens a migrated book chapter and falls back across languages", async ({
       name: "Exploring technology and evolving ideas",
     }),
   ).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/books/");
+  const mobileHeights = await page
+    .locator(".book-item")
+    .evaluateAll((items) =>
+      items.map((item) => item.getBoundingClientRect().height),
+    );
+  expect(new Set(mobileHeights).size).toBe(1);
+  await expect(page.locator(".book-chapters-preview")).toHaveCount(3);
+  await expect(page.locator(".book-chapters-preview").first()).toBeHidden();
+
+  await page.goto("/books/ai-engineering/01-prompt/");
+  await expect(page.locator(".book-chapter-sidebar")).toBeHidden();
+  await expect(page.locator(".book-mobile-directory")).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 

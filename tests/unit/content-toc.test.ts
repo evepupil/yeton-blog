@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getArticleTocHeadings,
-  getBookChapterHeadings,
-} from "@/lib/content/toc";
+import { getArticleTocHeadings } from "@/lib/content/toc";
 import type { ContentHeading } from "@/lib/content/types";
 
 function heading(index: number, depth: 2 | 3): ContentHeading {
@@ -29,14 +26,5 @@ describe("article table of contents", () => {
 
     expect(visible).toHaveLength(8);
     expect(visible.every((item) => item.depth === 2)).toBe(true);
-  });
-
-  it("keeps only top-level chapters on book cards", () => {
-    const headings = [heading(1, 2), heading(2, 3), heading(3, 2)];
-
-    expect(getBookChapterHeadings(headings)).toEqual([
-      headings[0],
-      headings[2],
-    ]);
   });
 });

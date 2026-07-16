@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { BookDetailPage } from "@/features/books/book-detail-page";
+import { decodeBookSegment } from "@/features/books/book-links";
 import { NotFoundPage } from "@/features/not-found/not-found-page";
 import {
   findBookTranslation,
@@ -31,16 +32,17 @@ export async function generateMetadata({
   params,
 }: BookRouteProps): Promise<Metadata> {
   const [{ slug }, books] = await Promise.all([params, getAllBooks()]);
-  const book = findPublishedBook(books, "en", slug);
+  const decodedSlug = decodeBookSegment(slug);
+  const book = findPublishedBook(books, "en", decodedSlug);
 
   return book
     ? buildBookMetadata(book, findBookTranslation(books, book, "zh-CN"))
     : buildPageMetadata({
-        alternatePaths: { en: `/en/books/${slug}/` },
+        alternatePaths: { en: `/en/books/${decodedSlug}/` },
         description: "There is no book at this address.",
         locale: "en",
         noIndex: true,
-        pathname: `/en/books/${slug}/`,
+        pathname: `/en/books/${decodedSlug}/`,
         title: "Book not found",
       });
 }
@@ -51,7 +53,7 @@ export default async function EnglishBookPage({ params }: BookRouteProps) {
     return <NotFoundPage locale="en" />;
   }
 
-  const book = findPublishedBook(books, "en", slug);
+  const book = findPublishedBook(books, "en", decodeBookSegment(slug));
 
   if (!book) {
     notFound();

@@ -9,9 +9,10 @@ import { analyzeMarkdown } from "@/lib/content/markdown";
 import { calculateReadingMetrics } from "@/lib/content/metrics";
 import {
   articleFrontmatterSchema,
+  bookChapterFrontmatterSchema,
   bookFrontmatterSchema,
 } from "@/lib/content/schema";
-import type { Article, Book } from "@/lib/content/types";
+import type { Article, Book, BookChapter } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
 
 const supportedExtensions = new Set([".md", ".mdx"]);
@@ -60,6 +61,10 @@ function parseFrontmatter<T>(
 function getSlug(filePath: string, sourcePath: string): string {
   const slug = path.basename(filePath, path.extname(filePath));
 
+  return validateSlug(slug, sourcePath);
+}
+
+function validateSlug(slug: string, sourcePath: string): string {
   if (!slugPattern.test(slug) || slug !== slug.toLowerCase()) {
     throw new ContentValidationError(
       sourcePath,
@@ -68,6 +73,10 @@ function getSlug(filePath: string, sourcePath: string): string {
   }
 
   return slug;
+}
+
+function getSourcePath(filePath: string): string {
+  return path.relative(process.cwd(), filePath).replaceAll("\\", "/");
 }
 
 function validateLocaleDirectory(
@@ -169,9 +178,7 @@ async function readArticle(
   publicRoot: string,
   filePath: string,
 ): Promise<Article> {
-  const sourcePath = path
-    .relative(process.cwd(), filePath)
-    .replaceAll("\\", "/");
+  const sourcePath = getSourcePath(filePath);
   const raw = await readFile(filePath, "utf8");
   const parsed = matter(raw);
   const frontmatter = parseFrontmatter(
@@ -205,11 +212,90 @@ async function readArticle(
   };
 }
 
-async function readBook(root: string, filePath: string): Promise<Book> {
-  const sourcePath = path
-    .relative(process.cwd(), filePath)
-    .replaceAll("\\", "/");
+async function readBookChapter(
+  filePath: string,
+  bookSlug: string,
+): Promise<BookChapter> {
+  const sourcePath = getSourcePath(filePath);
   const raw = await readFile(filePath, "utf8");
+  const parsed = matter(raw);
+  const frontmatter = parseFrontmatter(
+    bookChapterFrontmatterSchema,
+    parsed.data,
+    sourcePath,
+  );
+  const body = parsed.content.trim();
+
+  if (!body) {
+    throw new ContentValidationError(
+      sourcePath,
+      "book chapter body cannot be empty",
+    );
+  }
+
+  const analysis = analyzeMarkdown(body);
+
+  return {
+    ...frontmatter,
+    body,
+    bookSlug,
+    headings: analysis.headings,
+    plainText: analysis.plainText,
+    slug: getSlug(filePath, sourcePath),
+    sourcePath,
+  };
+}
+
+function validateBookChapters(
+  chapters: readonly BookChapter[],
+  indexSourcePath: string,
+): void {
+  const orders = new Set<number>();
+  const slugs = new Set<string>();
+
+  for (const chapter of chapters) {
+    if (orders.has(chapter.order)) {
+      throw new ContentValidationError(
+        chapter.sourcePath,
+        `duplicate chapter order ${chapter.order}`,
+      );
+    }
+    if (slugs.has(chapter.slug)) {
+      throw new ContentValidationError(
+        chapter.sourcePath,
+        `duplicate chapter slug ${chapter.slug}`,
+      );
+    }
+    orders.add(chapter.order);
+    slugs.add(chapter.slug);
+  }
+
+  if (chapters.length === 0) {
+    throw new ContentValidationError(
+      indexSourcePath,
+      "book must contain at least one chapter",
+    );
+  }
+}
+
+async function readBook(root: string, directory: string): Promise<Book> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const indexEntry = entries.find(
+    (entry) =>
+      entry.isFile() &&
+      path.basename(entry.name, path.extname(entry.name)) === "index" &&
+      supportedExtensions.has(path.extname(entry.name)),
+  );
+  if (!indexEntry) {
+    throw new ContentValidationError(
+      getSourcePath(directory),
+      "book directory must contain index.md or index.mdx",
+    );
+  }
+
+  const indexPath = path.join(directory, indexEntry.name);
+  const sourcePath = getSourcePath(indexPath);
+  const raw = await readFile(indexPath, "utf8");
   const parsed = matter(raw);
   const frontmatter = parseFrontmatter(
     bookFrontmatterSchema,
@@ -222,17 +308,71 @@ async function readBook(root: string, filePath: string): Promise<Book> {
     throw new ContentValidationError(sourcePath, "book body cannot be empty");
   }
 
-  validateLocaleDirectory(root, filePath, frontmatter.locale, sourcePath);
+  validateLocaleDirectory(root, indexPath, frontmatter.locale, sourcePath);
+  const slug = validateSlug(path.basename(directory), sourcePath);
+  const chapterFiles = entries
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name !== indexEntry.name &&
+        supportedExtensions.has(path.extname(entry.name)),
+    )
+    .map((entry) => path.join(directory, entry.name));
+  const chapters = (
+    await Promise.all(
+      chapterFiles.map((filePath) => readBookChapter(filePath, slug)),
+    )
+  ).toSorted((left, right) => left.order - right.order);
+  validateBookChapters(chapters, sourcePath);
   const analysis = analyzeMarkdown(body);
 
   return {
     ...frontmatter,
     body,
+    chapters,
     headings: analysis.headings,
     plainText: analysis.plainText,
-    slug: getSlug(filePath, sourcePath),
+    slug,
     sourcePath,
   };
+}
+
+async function listBookDirectories(root: string): Promise<string[]> {
+  const directories = await Promise.all(
+    Object.values(localeDirectories).map(async (localeDirectory) => {
+      const localeRoot = path.join(root, localeDirectory);
+      let entries;
+      try {
+        entries = await readdir(localeRoot, { withFileTypes: true });
+      } catch (error: unknown) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          return [];
+        }
+        throw error;
+      }
+
+      const legacyFile = entries.find(
+        (entry) =>
+          entry.isFile() && supportedExtensions.has(path.extname(entry.name)),
+      );
+      if (legacyFile) {
+        throw new ContentValidationError(
+          getSourcePath(path.join(localeRoot, legacyFile.name)),
+          "book files must live in a book directory with an index file",
+        );
+      }
+
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(localeRoot, entry.name));
+    }),
+  );
+
+  return directories.flat().toSorted();
 }
 
 export async function loadArticles(
@@ -253,9 +393,9 @@ export async function loadBooks(
   options: LoadContentOptions = {},
 ): Promise<Book[]> {
   const root = options.root ?? path.join(process.cwd(), "content", "books");
-  const files = await listContentFiles(root);
+  const directories = await listBookDirectories(root);
   const books = await Promise.all(
-    files.map((filePath) => readBook(root, filePath)),
+    directories.map((directory) => readBook(root, directory)),
   );
 
   validateUniqueContent(books, "book");

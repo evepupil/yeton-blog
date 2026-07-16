@@ -60,6 +60,11 @@ describe("SEO output", () => {
       en: expect.stringMatching(/ai-agent-deep-learning-guide\/$/u),
     });
     expect(sitemap.some(({ url }) => url.endsWith("/en/books/"))).toBe(true);
+    expect(
+      sitemap.some(({ url }) =>
+        url.endsWith("/books/ai-engineering/01-prompt/"),
+      ),
+    ).toBe(true);
     expect(sitemap.some(({ url }) => url.endsWith("/links/"))).toBe(true);
     expect(sitemap.some(({ url }) => url.endsWith("/en/links/"))).toBe(true);
   });

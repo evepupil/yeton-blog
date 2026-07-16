@@ -10,8 +10,10 @@
 /archive/* /archives/ 301
 /about/en /en/about/ 301
 /about/en/* /en/about/ 301
-/books/:book/:chapter/ /books/:book/ 301
-/books/:book/:chapter /books/:book/ 301
+/books/%E3%80%8ATae%20Kim%E6%97%A5%E8%AF%AD%E8%AF%AD%E6%B3%95%E6%8C%87%E5%8D%97%E3%80%8B%E4%B8%AD%E6%96%87%E7%BF%BB%E8%AF%91%E7%89%88 /books/tae-kim-japanese-grammar-guide/ 301
+/books/%E3%80%8ATae%20Kim%E6%97%A5%E8%AF%AD%E8%AF%AD%E6%B3%95%E6%8C%87%E5%8D%97%E3%80%8B%E4%B8%AD%E6%96%87%E7%BF%BB%E8%AF%91%E7%89%88/ /books/tae-kim-japanese-grammar-guide/ 301
+/books/%E3%80%8ATae%20Kim%E6%97%A5%E8%AF%AD%E8%AF%AD%E6%B3%95%E6%8C%87%E5%8D%97%E3%80%8B%E4%B8%AD%E6%96%87%E7%BF%BB%E8%AF%91%E7%89%88/:chapter /books/tae-kim-japanese-grammar-guide/:chapter/ 301
+/books/%E3%80%8ATae%20Kim%E6%97%A5%E8%AF%AD%E8%AF%AD%E6%B3%95%E6%8C%87%E5%8D%97%E3%80%8B%E4%B8%AD%E6%96%87%E7%BF%BB%E8%AF%91%E7%89%88/:chapter/ /books/tae-kim-japanese-grammar-guide/:chapter/ 301
 /sitemap-index.xml /sitemap.xml 301
 /posts/ai-agent-%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97 /posts/ai-agent-3114342e/ 301
 /posts/ai-agent-%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97/ /posts/ai-agent-3114342e/ 301

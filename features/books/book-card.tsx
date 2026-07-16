@@ -1,13 +1,16 @@
 import { Chip } from "@heroui/react/chip";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Clock3, ListOrdered } from "lucide-react";
 
 import { SiteLink } from "@/components/ui/site-link";
-import { booksContent } from "@/features/books/book-content";
-import { getBookHref } from "@/features/books/book-links";
-import { siteConfig } from "@/lib/site-config";
-import { BookProgress } from "@/features/books/book-progress";
-import { getBookChapterHeadings } from "@/lib/content/toc";
+import { booksContent, formatBookContent } from "@/features/books/book-content";
+import {
+  formatBookDate,
+  getBookChapterHref,
+  getBookHref,
+} from "@/features/books/book-links";
+import { getPublishedBookChapters } from "@/lib/content/queries";
 import type { Book } from "@/lib/content/types";
+import { siteConfig } from "@/lib/site-config";
 
 interface BookCardProps {
   readonly book: Book;
@@ -17,8 +20,11 @@ interface BookCardProps {
 export function BookCard({ book, index }: BookCardProps) {
   const content = booksContent[book.locale];
   const href = getBookHref(book.locale, book.slug);
+  const chapters = getPublishedBookChapters(book);
+  const previewChapters = chapters.slice(0, 2);
   const status =
     book.status === "complete" ? content.complete : content.serializing;
+  const updated = book.updated ?? book.published;
 
   return (
     <article className="book-item">
@@ -37,19 +43,61 @@ export function BookCard({ book, index }: BookCardProps) {
             {status}
           </Chip>
         </header>
+        {book.author || book.translator ? (
+          <div className="book-card-byline">
+            {book.author ? (
+              <span>
+                {content.author} · {book.author}
+              </span>
+            ) : null}
+            {book.translator ? (
+              <span>
+                {content.translator} · {book.translator}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <p>{book.description}</p>
-        <BookProgress label={content.progress} progress={book.progress} />
-        <nav aria-label={content.chapters} className="book-chapters">
-          {getBookChapterHeadings(book.headings).map((chapter) => (
-            <SiteLink href={`${href}#${chapter.id}`} key={chapter.id}>
-              {chapter.text}
-            </SiteLink>
-          ))}
-        </nav>
-        <SiteLink className="article-link" href={href}>
-          {content.openBook}
-          <ArrowUpRight aria-hidden="true" />
-        </SiteLink>
+        <div className="book-card-facts">
+          <span>
+            <ListOrdered aria-hidden="true" />
+            {formatBookContent(content.chapterCount, {
+              count: chapters.length,
+            })}
+          </span>
+          {updated ? (
+            <time dateTime={updated}>
+              <Clock3 aria-hidden="true" />
+              {content.updated} {formatBookDate(updated, book.locale)}
+            </time>
+          ) : null}
+        </div>
+        {previewChapters.length > 0 ? (
+          <nav aria-label={content.chapters} className="book-chapters-preview">
+            {previewChapters.map((chapter) => (
+              <SiteLink
+                href={getBookChapterHref(book.locale, book.slug, chapter.slug)}
+                key={chapter.slug}
+              >
+                <span>{String(chapter.order).padStart(2, "0")}</span>
+                {chapter.title}
+              </SiteLink>
+            ))}
+          </nav>
+        ) : null}
+        <div className="book-card-footer">
+          <div className="book-card-tags">
+            {book.tags.slice(0, 3).map((tag) => (
+              <Chip key={tag} size="sm">
+                {tag}
+              </Chip>
+            ))}
+          </div>
+          <SiteLink className="article-link" href={href}>
+            {content.openBook}
+            <ArrowUpRight aria-hidden="true" />
+          </SiteLink>
+        </div>
       </div>
     </article>
   );

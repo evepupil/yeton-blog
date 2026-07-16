@@ -30,6 +30,7 @@ describe("localized navigation", () => {
   it("falls back to home when switching unknown dynamic content", () => {
     expect(getLocaleSwitchPath("/posts/a-post/", "en")).toBe("/en/");
     expect(getLocaleSwitchPath("/en/books/a-book/", "zh-CN")).toBe("/");
+    expect(getLocaleSwitchPath("/books/a-book/a-chapter/", "en")).toBe("/en/");
   });
 
   it("keeps tag names readable until the router encodes the URL", () => {

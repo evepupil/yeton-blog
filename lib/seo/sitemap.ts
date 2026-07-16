@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next";
 
-import { getBookHref } from "@/features/books/book-links";
+import { getBookChapterHref, getBookHref } from "@/features/books/book-links";
 import { getPostHref } from "@/features/posts/post-links";
 import { getTagHref } from "@/features/tags/tag-links";
 import {
   findArticleTranslation,
+  findBookChapterTranslation,
   findBookTranslation,
   getPublishedArticles,
+  getPublishedBookChapters,
   getPublishedBooks,
   getTagSummaries,
 } from "@/lib/content/queries";
@@ -136,9 +138,48 @@ export function buildSitemap({
         buildEntry(getBookHref(book.locale, book.slug), {
           alternatePaths,
           changeFrequency: "monthly",
+          ...(book.updated || book.published
+            ? { lastModified: book.updated ?? book.published }
+            : {}),
           priority: 0.7,
         }),
       );
+
+      for (const chapter of getPublishedBookChapters(book)) {
+        const chapterTranslation = findBookChapterTranslation(
+          books,
+          book,
+          chapter,
+          targetLocale,
+        );
+        const chapterAlternatePaths: LocalePathMap = {
+          [book.locale]: getBookChapterHref(
+            book.locale,
+            book.slug,
+            chapter.slug,
+          ),
+          ...(chapterTranslation
+            ? {
+                [chapterTranslation.book.locale]: getBookChapterHref(
+                  chapterTranslation.book.locale,
+                  chapterTranslation.book.slug,
+                  chapterTranslation.chapter.slug,
+                ),
+              }
+            : {}),
+        };
+
+        entries.push(
+          buildEntry(getBookChapterHref(book.locale, book.slug, chapter.slug), {
+            alternatePaths: chapterAlternatePaths,
+            changeFrequency: "monthly",
+            ...(book.updated || book.published
+              ? { lastModified: book.updated ?? book.published }
+              : {}),
+            priority: 0.6,
+          }),
+        );
+      }
     }
 
     const localeArticles = getPublishedArticles(articles, locale);

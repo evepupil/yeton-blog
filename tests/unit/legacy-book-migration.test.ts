@@ -27,7 +27,6 @@ describe("legacy book migration", () => {
       author: "Tae Kim",
       locale: "zh-CN",
       order: 3,
-      progress: 100,
       published: "2012-11-21",
       status: "complete",
       translator: "Gemini",
@@ -35,7 +34,7 @@ describe("legacy book migration", () => {
     });
   });
 
-  it("moves the shallowest section heading to level three", () => {
+  it("moves the shallowest section heading to level two", () => {
     const markdown = [
       "# Major section",
       "",
@@ -48,9 +47,9 @@ describe("legacy book migration", () => {
 
     expect(normalizeLegacyBookSection(markdown)).toBe(
       [
-        "### Major section",
+        "## Major section",
         "",
-        "#### Detail",
+        "### Detail",
         "",
         "```md",
         "# Code example",
@@ -71,16 +70,17 @@ describe("legacy book migration", () => {
     ].join("\n");
     const migrated = rewriteLegacyBookChapterLinks(
       markdown,
+      "legacy-example",
       "example",
-      new Map([["01-start", "getting-started"]]),
+      new Set(["01-start"]),
       new Map([["1.2.3", "nested-section"]]),
     );
 
     expect(migrated).toBe(
       [
-        "[Read](/books/example/#getting-started)",
+        "[Read](/books/example/01-start/)",
         "",
-        "[Jump](/books/example/#nested-section)",
+        "[Jump](#nested-section)",
         "",
         "Missing",
         "",
@@ -121,14 +121,17 @@ describe("legacy book migration", () => {
     });
 
     expect(book.chapterCount).toBe(2);
-    expect(book.content.indexOf("## First")).toBeLessThan(
-      book.content.indexOf("## Second"),
+    expect(book.chapters.map((chapter) => chapter.slug)).toEqual([
+      "01-first",
+      "02-second",
+    ]);
+    expect(book.indexContent).toContain(
+      "[the first chapter](/books/example/01-first/)",
     );
-    expect(book.content).not.toContain("## Draft");
-    expect(book.content).toContain(
-      "[the first chapter](/books/example/#first)",
+    expect(book.chapters[0]?.content).toContain("## Start");
+    expect(book.chapters[1]?.content).toContain("## Detail");
+    expect(book.chapters.some((chapter) => chapter.slug === "03-draft")).toBe(
+      false,
     );
-    expect(book.content).toContain("### Start");
-    expect(book.content).toContain("### Detail");
   });
 });

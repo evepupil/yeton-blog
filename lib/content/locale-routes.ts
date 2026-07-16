@@ -1,7 +1,10 @@
 import {
   findArticleTranslation,
+  findBookChapterTranslation,
   findBookTranslation,
+  getPublishedBookChapters,
 } from "@/lib/content/queries";
+import { getBookChapterHref } from "@/features/books/book-links";
 import type { Article, Book } from "@/lib/content/types";
 import { getLocalizedPath, type LocaleRouteMap } from "@/lib/i18n";
 import type { SiteLocale } from "@/lib/site-config";
@@ -46,6 +49,25 @@ export function buildContentLocaleRoutes(
     routes[getContentPath("books", book.locale, book.slug)] = translation
       ? getContentPath("books", translation.locale, translation.slug)
       : getLocalizedPath("/", targetLocale);
+
+    for (const chapter of getPublishedBookChapters(book)) {
+      const chapterTranslation = findBookChapterTranslation(
+        books,
+        book,
+        chapter,
+        targetLocale,
+      );
+      routes[getBookChapterHref(book.locale, book.slug, chapter.slug)] =
+        chapterTranslation
+          ? getBookChapterHref(
+              chapterTranslation.book.locale,
+              chapterTranslation.book.slug,
+              chapterTranslation.chapter.slug,
+            )
+          : translation
+            ? getContentPath("books", translation.locale, translation.slug)
+            : getLocalizedPath("/", targetLocale);
+    }
   }
 
   return routes;

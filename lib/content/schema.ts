@@ -71,7 +71,6 @@ export const bookFrontmatterSchema = z
     locale: localeSchema,
     tags: tagsSchema,
     status: z.enum(["serializing", "complete"]),
-    progress: z.number().int().min(0).max(100),
     order: z.number().int().min(0),
     draft: z.boolean().default(false),
     translationKey: translationKeySchema.optional(),
@@ -86,5 +85,15 @@ export const bookFrontmatterSchema = z
     }
   });
 
+export const bookChapterFrontmatterSchema = z.strictObject({
+  title: z.string().trim().min(1),
+  order: z.number().int().min(1),
+  draft: z.boolean().default(false),
+  translationKey: translationKeySchema.optional(),
+});
+
 export type ArticleFrontmatter = z.infer<typeof articleFrontmatterSchema>;
 export type BookFrontmatter = z.infer<typeof bookFrontmatterSchema>;
+export type BookChapterFrontmatter = z.infer<
+  typeof bookChapterFrontmatterSchema
+>;

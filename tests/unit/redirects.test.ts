@@ -30,6 +30,9 @@ describe("redirect configuration", () => {
     expect(output).toContain(
       `${encodeURI("/posts/ai-agent-深度学习指南/")} /posts/ai-agent-3114342e/ 301`,
     );
+    expect(output).toContain(
+      `${encodeURI("/books/《Tae Kim日语语法指南》中文翻译版/:chapter/")} /books/tae-kim-japanese-grammar-guide/:chapter/ 301`,
+    );
   });
 
   it.each([

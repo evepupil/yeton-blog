@@ -103,9 +103,9 @@ comments: {
 ## 内容编写
 
 - 中文文章放在 `content/posts/zh/`，英文文章放在 `content/posts/en/`。
-- 中文图书放在 `content/books/zh/`，英文图书放在 `content/books/en/`。
+- 中文图书放在 `content/books/zh/<book-slug>/`，英文图书放在 `content/books/en/<book-slug>/`。每本书使用 `index.md` 保存介绍，章节分别保存为同目录下的 Markdown 文件。
 - 文件名使用小写 kebab-case，并作为页面 slug；可以包含中文等 Unicode 字母，例如 `cloudflare-配置教程.mdx`。
-- 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书还需要 `status`、`progress` 和 `order`，并可填写 `author`、`translator`、`published`、`updated`。
+- 文章必填 `title`、`description`、`published`、`locale` 和 `tags`；图书索引还需要 `status` 和 `order`，并可填写 `author`、`translator`、`published`、`updated`。章节必填 `title` 和从 1 开始且不重复的 `order`。
 - 有译文时，两种语言使用相同的 `translationKey`；没有译文时省略该字段。
 - 本地图片放在 `public/`，frontmatter 使用以 `/` 开头的站内路径。
 
@@ -113,7 +113,7 @@ comments: {
 
 ## 旧站迁移
 
-`public/_redirects` 将 notion-fuwari 的旧英文文章、归档、标签、英文关于页、图书章节和 sitemap 地址永久跳转到当前规范路由。迁移旧文章时保留原文件名，中文 `/posts/<slug>/` 可以继续使用原地址；英文 `/posts/en/<slug>/` 会 `301` 到 `/en/posts/<slug>/`。
+`public/_redirects` 将 notion-fuwari 的旧英文文章、归档、标签、英文关于页、旧日语书名和 sitemap 地址永久跳转到当前规范路由。原有图书章节路径继续作为真实章节页使用。迁移旧文章时保留原文件名，中文 `/posts/<slug>/` 可以继续使用原地址；英文 `/posts/en/<slug>/` 会 `301` 到 `/en/posts/<slug>/`。
 
 当前仓库已经完成一次真实迁移。需要从旧仓库重新生成时执行：
 
@@ -131,7 +131,7 @@ pnpm content:check
 - 把图片迁入 `public/`，并将 Markdown 和 `image` 改为以 `/` 开头的站内路径
 - 需要继续由 Notion 管理时，补齐 `source: "notion"` 和对应的 `notionPageId`
 
-图书迁移命令会把旧站每个图书目录的 `index.md` 和编号章节合并为一个 Markdown 文件，将旧章节链接改为单页锚点，并删除当前演示图书。三个旧目录的 slug 和展示顺序在迁移脚本中显式配置，新增目录时需要先补充这两项。
+图书迁移命令会保留旧站的目录结构：`index.md` 写入书籍元数据和介绍，每个非草稿章节输出成独立 Markdown，并把章节间链接改成新的规范路径。三个旧目录的 slug 和展示顺序在迁移脚本中显式配置，新增目录时需要先补充这两项。
 
 继续使用 Notion 自动同步时，需要先把每篇页面的 `Slug` 属性填写为旧文件名。同步器会保留中文等 Unicode 字符；缺少显式 Slug 时会根据标题和页面 ID 生成新地址。
 
@@ -141,7 +141,7 @@ pnpm content:check
 
 Umami 服务地址、API 路径、时区、Website ID、分享 ID 和浏览量开关位于 `integrations.analytics`；GA4 开关和 Measurement ID 位于 `integrations.googleAnalytics`。这些都是会进入浏览器构建产物的公开参数。
 
-正式切换时，把 `blog.chaosyn.com` 关联到当前 Pages 项目，并将 `NEXT_PUBLIC_SITE_URL` 和 Pages 构建命令同步改回该域名。临时域名 `blog1.chaosyn.com` 到正式域名的跳转应通过 Cloudflare Redirect Rule 按 hostname 配置，避免 `_redirects` 在正式域名上形成循环。
+正式域名已经切换为 `blog.chaosyn.com`。`NEXT_PUBLIC_SITE_URL` 和 Pages 构建命令必须保持同一地址；临时域名 `blog1.chaosyn.com` 如需继续访问，应通过 Cloudflare Redirect Rule 按 hostname 跳到正式域名，避免 `_redirects` 在正式域名上形成循环。
 
 ## 项目门禁
 
@@ -161,7 +161,7 @@ git diff --check
 
 ## Cloudflare Pages
 
-- 构建命令：`NEXT_PUBLIC_SITE_URL=https://blog1.chaosyn.com pnpm build`
+- 构建命令：`NEXT_PUBLIC_SITE_URL=https://blog.chaosyn.com pnpm build`
 - 输出目录：`out`
 - Wrangler 配置：`wrangler.jsonc`
 - Node.js：`22.14.0`

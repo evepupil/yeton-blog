@@ -5,6 +5,9 @@ import {
   findPublishedBook,
   findPublishedArticle,
   findArticleTranslation,
+  findPublishedBookChapter,
+  getBookChapterNavigation,
+  getPublishedBookChapters,
   getArticleNavigation,
   getPublishedArticlePreviews,
   getPublishedArticles,
@@ -84,5 +87,12 @@ describe("content queries", () => {
     const book = findPublishedBook(books, "zh-CN", "ai-engineering");
     expect(book).not.toBeNull();
     expect(findBookTranslation(books, book!, "en")).toBeNull();
+    expect(getPublishedBookChapters(book!)).toHaveLength(12);
+    const firstChapter = findPublishedBookChapter(book!, "01-prompt");
+    expect(firstChapter).not.toBeNull();
+    expect(getBookChapterNavigation(book!, firstChapter!)).toMatchObject({
+      next: { slug: "02-structured-output" },
+      previous: null,
+    });
   });
 });

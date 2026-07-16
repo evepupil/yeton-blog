@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { BookDetailPage } from "@/features/books/book-detail-page";
+import { decodeBookSegment } from "@/features/books/book-links";
 import {
   findBookTranslation,
   findPublishedBook,
@@ -27,23 +28,24 @@ export async function generateMetadata({
   params,
 }: BookRouteProps): Promise<Metadata> {
   const [{ slug }, books] = await Promise.all([params, getAllBooks()]);
-  const book = findPublishedBook(books, "zh-CN", slug);
+  const decodedSlug = decodeBookSegment(slug);
+  const book = findPublishedBook(books, "zh-CN", decodedSlug);
 
   return book
     ? buildBookMetadata(book, findBookTranslation(books, book, "en"))
     : buildPageMetadata({
-        alternatePaths: { "zh-CN": `/books/${slug}/` },
+        alternatePaths: { "zh-CN": `/books/${decodedSlug}/` },
         description: "这个地址没有对应的图书。",
         locale: "zh-CN",
         noIndex: true,
-        pathname: `/books/${slug}/`,
+        pathname: `/books/${decodedSlug}/`,
         title: "图书未找到",
       });
 }
 
 export default async function ChineseBookPage({ params }: BookRouteProps) {
   const [{ slug }, books] = await Promise.all([params, getAllBooks()]);
-  const book = findPublishedBook(books, "zh-CN", slug);
+  const book = findPublishedBook(books, "zh-CN", decodeBookSegment(slug));
 
   if (!book) {
     notFound();

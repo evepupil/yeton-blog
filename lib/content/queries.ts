@@ -3,6 +3,8 @@ import type {
   ArticleNavigation,
   ArticlePreview,
   Book,
+  BookChapter,
+  BookChapterNavigation,
   TagSummary,
 } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
@@ -143,6 +145,41 @@ export function findPublishedBook(
   );
 }
 
+export function getPublishedBookChapters(book: Book): BookChapter[] {
+  return book.chapters
+    .filter((chapter) => !chapter.draft)
+    .toSorted((left, right) => left.order - right.order);
+}
+
+export function findPublishedBookChapter(
+  book: Book,
+  slug: string,
+): BookChapter | null {
+  return (
+    book.chapters.find((chapter) => !chapter.draft && chapter.slug === slug) ??
+    null
+  );
+}
+
+export function getBookChapterNavigation(
+  book: Book,
+  chapter: BookChapter,
+): BookChapterNavigation {
+  const chapters = getPublishedBookChapters(book);
+  const index = chapters.findIndex(
+    (candidate) => candidate.slug === chapter.slug,
+  );
+
+  if (index < 0) {
+    return { next: null, previous: null };
+  }
+
+  return {
+    next: chapters[index + 1] ?? null,
+    previous: chapters[index - 1] ?? null,
+  };
+}
+
 export function findArticleTranslation(
   articles: readonly Article[],
   article: Article,
@@ -179,4 +216,29 @@ export function findBookTranslation(
         !candidate.draft,
     ) ?? null
   );
+}
+
+export function findBookChapterTranslation(
+  books: readonly Book[],
+  book: Book,
+  chapter: BookChapter,
+  targetLocale: SiteLocale,
+): { readonly book: Book; readonly chapter: BookChapter } | null {
+  if (!chapter.translationKey) {
+    return null;
+  }
+
+  const translatedBook = findBookTranslation(books, book, targetLocale);
+  if (!translatedBook) {
+    return null;
+  }
+
+  const translatedChapter = translatedBook.chapters.find(
+    (candidate) =>
+      !candidate.draft && candidate.translationKey === chapter.translationKey,
+  );
+
+  return translatedChapter
+    ? { book: translatedBook, chapter: translatedChapter }
+    : null;
 }

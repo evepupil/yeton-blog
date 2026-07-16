@@ -13,8 +13,22 @@ export const redirectsConfig = {
     { from: "/archive/*", to: "/archives/" },
     { from: "/about/en", to: "/en/about/" },
     { from: "/about/en/*", to: "/en/about/" },
-    { from: "/books/:book/:chapter/", to: "/books/:book/" },
-    { from: "/books/:book/:chapter", to: "/books/:book/" },
+    {
+      from: "/books/《Tae Kim日语语法指南》中文翻译版",
+      to: "/books/tae-kim-japanese-grammar-guide/",
+    },
+    {
+      from: "/books/《Tae Kim日语语法指南》中文翻译版/",
+      to: "/books/tae-kim-japanese-grammar-guide/",
+    },
+    {
+      from: "/books/《Tae Kim日语语法指南》中文翻译版/:chapter",
+      to: "/books/tae-kim-japanese-grammar-guide/:chapter/",
+    },
+    {
+      from: "/books/《Tae Kim日语语法指南》中文翻译版/:chapter/",
+      to: "/books/tae-kim-japanese-grammar-guide/:chapter/",
+    },
     { from: "/sitemap-index.xml", to: "/sitemap.xml" },
   ],
   postSlugs: [

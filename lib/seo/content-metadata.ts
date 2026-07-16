@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
-import { getBookHref } from "@/features/books/book-links";
+import { getBookChapterHref, getBookHref } from "@/features/books/book-links";
 import { getPostHref } from "@/features/posts/post-links";
-import type { Article, Book } from "@/lib/content/types";
+import type { Article, Book, BookChapter } from "@/lib/content/types";
 import {
   buildPageMetadata,
   getAbsoluteUrl,
@@ -39,6 +39,28 @@ function getBookLocalePaths(
           [translation.locale]: getBookHref(
             translation.locale,
             translation.slug,
+          ),
+        }
+      : {}),
+  };
+}
+
+function getBookChapterLocalePaths(
+  book: Book,
+  chapter: BookChapter,
+  translation: {
+    readonly book: Book;
+    readonly chapter: BookChapter;
+  } | null,
+): LocalePathMap {
+  return {
+    [book.locale]: getBookChapterHref(book.locale, book.slug, chapter.slug),
+    ...(translation
+      ? {
+          [translation.book.locale]: getBookChapterHref(
+            translation.book.locale,
+            translation.book.slug,
+            translation.chapter.slug,
           ),
         }
       : {}),
@@ -84,6 +106,28 @@ export function buildBookMetadata(
     locale: book.locale,
     pathname: getBookHref(book.locale, book.slug),
     title: book.title,
+  });
+}
+
+export function buildBookChapterMetadata(
+  book: Book,
+  chapter: BookChapter,
+  translation: {
+    readonly book: Book;
+    readonly chapter: BookChapter;
+  } | null,
+): Metadata {
+  const description =
+    book.locale === "en"
+      ? `${chapter.title}, chapter ${chapter.order} of ${book.title}. ${book.description}`
+      : `${chapter.title}，《${book.title}》第 ${chapter.order} 章。${book.description}`;
+
+  return buildPageMetadata({
+    alternatePaths: getBookChapterLocalePaths(book, chapter, translation),
+    description,
+    locale: book.locale,
+    pathname: getBookChapterHref(book.locale, book.slug, chapter.slug),
+    title: `${chapter.title} - ${book.title}`,
   });
 }
 

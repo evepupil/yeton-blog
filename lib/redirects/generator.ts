@@ -10,7 +10,11 @@ function validatePath({ from, to }: PathRedirectMapping): void {
     ["source", from],
     ["target", to],
   ] as const) {
-    if (!value.startsWith("/") || /\s/u.test(value) || /[?#]/u.test(value)) {
+    if (
+      !value.startsWith("/") ||
+      /[\r\n\t]/u.test(value) ||
+      /[?#]/u.test(value)
+    ) {
       throw new Error(
         `Redirect ${name} must be a clean absolute path: ${value}`,
       );

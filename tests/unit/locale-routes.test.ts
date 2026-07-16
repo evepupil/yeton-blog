@@ -32,6 +32,7 @@ describe("content locale routes", () => {
 
     expect(routes["/posts/prompt-subagent-ai-36c4342e/"]).toBe("/en/");
     expect(routes["/books/ai-engineering/"]).toBe("/en/");
+    expect(routes["/books/ai-engineering/01-prompt/"]).toBe("/en/");
     expect(routes["/books/tae-kim-japanese-grammar-guide/"]).toBe("/en/");
     expect(getLocaleSwitchPath("/tags/前端/", "en", routes)).toBe("/en/");
   });

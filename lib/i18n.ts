@@ -99,7 +99,10 @@ export function getLocaleSwitchPath(
 
   const basePath = stripLocalePrefix(pathname);
 
-  if (/^\/(?:books|posts|tags)\/[^/]+\/$/u.test(basePath)) {
+  if (
+    /^\/(?:posts|tags)\/[^/]+\/$/u.test(basePath) ||
+    /^\/books\/[^/]+(?:\/[^/]+)?\/$/u.test(basePath)
+  ) {
     return getLocalizedPath("/", locale);
   }
 

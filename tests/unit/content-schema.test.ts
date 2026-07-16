@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   articleFrontmatterSchema,
+  bookChapterFrontmatterSchema,
   bookFrontmatterSchema,
 } from "@/lib/content/schema";
 
@@ -9,29 +10,34 @@ const validBook = {
   description: "A valid book description.",
   locale: "en",
   order: 1,
-  progress: 67,
   status: "serializing",
   tags: ["Engineering"],
   title: "A valid book",
 } as const;
 
 describe("book frontmatter", () => {
-  it.each([0, 67, 100])("accepts integer progress %i", (progress) => {
-    const result = bookFrontmatterSchema.safeParse({
-      ...validBook,
-      progress,
-    });
-
-    expect(result.success).toBe(true);
+  it("accepts book metadata without a reading progress field", () => {
+    expect(bookFrontmatterSchema.safeParse(validBook).success).toBe(true);
+    expect(
+      bookFrontmatterSchema.safeParse({ ...validBook, progress: 50 }).success,
+    ).toBe(false);
   });
 
-  it.each([-1, 50.5, 101])("rejects invalid progress %s", (progress) => {
-    const result = bookFrontmatterSchema.safeParse({
-      ...validBook,
-      progress,
-    });
-
-    expect(result.success).toBe(false);
+  it("requires a positive integer chapter order", () => {
+    expect(
+      bookChapterFrontmatterSchema.safeParse({
+        draft: false,
+        order: 1,
+        title: "Opening",
+      }).success,
+    ).toBe(true);
+    expect(
+      bookChapterFrontmatterSchema.safeParse({
+        draft: false,
+        order: 0,
+        title: "Opening",
+      }).success,
+    ).toBe(false);
   });
 });
 
