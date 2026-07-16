@@ -98,11 +98,13 @@ function createPage(
   } as unknown as PageObjectResponse;
 }
 
-function createArticlePage(): PageObjectResponse {
+function createArticlePage(
+  title = "AI Agent 深度学习指南",
+): PageObjectResponse {
   return createPage({
     Title: {
       id: "title",
-      title: richText("AI Agent 深度学习指南"),
+      title: richText(title),
       type: "title",
     },
     "Published Date": {
@@ -124,7 +126,7 @@ function createArticlePage(): PageObjectResponse {
 }
 
 class FakeNotionSource implements NotionContentSource {
-  readonly page = createArticlePage();
+  constructor(readonly page = createArticlePage()) {}
 
   async listApprovedFriends(): Promise<PageObjectResponse[]> {
     return [];
@@ -154,12 +156,12 @@ afterEach(async () => {
 });
 
 describe("Notion content mapping", () => {
-  it("creates a valid article document with a stable slug", () => {
+  it("creates a valid article document with a stable slug", async () => {
     const article = mapNotionArticle(
       createArticlePage(),
       "## 正文\n\n这是文章摘要。",
     );
-    const document = serializeNotionArticle(article);
+    const document = await serializeNotionArticle(article);
     const parsed = matter(document);
 
     expect(article.slug).toBe("ai-agent-34a4342e");
@@ -257,6 +259,58 @@ describe("Notion synchronization rules", () => {
       }),
     ).rejects.toThrow("collides with manual file");
     expect(await readFile(destination, "utf8")).toContain("Keep me.");
+  });
+
+  it("keeps an existing Notion slug when the title changes", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "notion-sync-"));
+    temporaryDirectories.push(workspace);
+    const contentRoot = path.join(workspace, "content", "posts");
+    const publicRoot = path.join(workspace, "public");
+    const baseOptions = {
+      contentRoot,
+      databaseId: "database",
+      mode: "overwrite" as const,
+      publicRoot,
+    };
+
+    await syncNotionArticles({
+      ...baseOptions,
+      source: new FakeNotionSource(),
+    });
+    const originalPath = getArticlePath(
+      contentRoot,
+      "zh-CN",
+      "ai-agent-34a4342e",
+    );
+    await writeFile(
+      originalPath,
+      (await readFile(originalPath, "utf8")).replace(
+        'source: "notion"',
+        'translationKey: "agent-guide"\nsource: "notion"',
+      ),
+      "utf8",
+    );
+    const renamedSource = new FakeNotionSource(
+      createArticlePage("Renamed Agent Guide"),
+    );
+    const result = await syncNotionArticles({
+      ...baseOptions,
+      source: renamedSource,
+    });
+
+    expect(result).toMatchObject({ created: 0, deleted: 0, updated: 1 });
+    expect(await readFile(originalPath, "utf8")).toContain(
+      'title: "Renamed Agent Guide"',
+    );
+    expect(await readFile(originalPath, "utf8")).toContain(
+      'translationKey: "agent-guide"',
+    );
+    await expect(
+      readFile(
+        getArticlePath(contentRoot, "zh-CN", "renamed-agent-guide-34a4342e"),
+        "utf8",
+      ),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
 

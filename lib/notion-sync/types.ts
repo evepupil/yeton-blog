@@ -14,6 +14,11 @@ export interface NotionArticleMetadata {
   readonly slug: string;
 }
 
+export interface NotionArticleState {
+  readonly slug: string;
+  readonly translationKey?: string;
+}
+
 export interface SyncSummary {
   readonly created: number;
   readonly deleted: number;

@@ -36,7 +36,7 @@
 
 1. 参考实现来自 `D:\myproject\notion-fuwari`，保留它的数据库字段和每天北京时间 0 点同步习惯。
 2. Notion 内容先写入 Git。Cloudflare Pages 监听 `main` commit 自动构建，Action 不需要任何 Cloudflare 凭据。
-3. 文章 slug 使用不含空格的小写 kebab-case，可包含中文等 Unicode 字母。Notion 可填写 `Slug`；未填写时使用标题中的 ASCII 单词加页面 ID 前 8 位，纯中文标题使用 `notion-<页面 ID>`。
+3. 文章 slug 使用不含空格的小写 kebab-case，可包含中文等 Unicode 字母。首次同步时，Notion 可填写 `Slug`；未填写则使用标题中的 ASCII 单词加页面 ID 前 8 位，纯中文标题使用 `notion-<页面 ID>`。后续同步按 `notionPageId` 复用已落盘 slug，标题变化不会重复建文；显式修改 Notion `Slug` 才会主动换地址。Notion 未填写 `Translation Key` 时也会保留本地已有值，避免覆盖时断开双语文章关系。
 4. 同步文章带 `source: "notion"` 与 `notionPageId`。覆盖和清理只处理这种文章，遇到同 slug 手写文件会停止同步。
 5. 正文图、封面和友链头像下载到 `public/`。下载传输沿用参考项目已在线验证的 Node.js 原生 HTTP/HTTPS 请求与手动重定向，不附加自定义请求头；只接受 HTTP/HTTPS 和 JPEG、PNG、GIF、WebP、AVIF，单张图片上限 10 MB，超时为 30 秒。
 6. 图片先写临时目录，处理完成后替换正式目录。单张正文图片失败时沿用参考脚本的规则：打印中文警告、保留远程地址并继续；封面失败时省略封面，友链头像失败时交给页面首字母回退。Notion 查询、字段校验、文件冲突等内容错误仍会终止 Action。
@@ -46,6 +46,9 @@
 
 ### 2026-07-16
 
+- 首次真实同步后，将 18 篇 Notion 文章收敛到新 slug，并按页面 ID 固定后续写入路径和已有译文键，避免标题调整再次产生重复文件或断开双语关系。
+- 旧手写副本清理后由集中式重定向配置承接原 URL，Notion 同步只维护新 canonical 文件。
+- Notion Markdown 在写入前使用仓库 Prettier 规则格式化，保证同步提交可以直接通过 Quality 格式门禁，并保持重复同步无差异。
 - 对齐参考脚本的图片失败规则，知乎等图床返回 403 时保留文章并继续同步，避免单张远程图片阻断全部内容。
 - 增加逐篇文章、图片下载、文件写入、清理结果和汇总统计的中文 Action 日志。
 - 修复 GitHub Actions 下载 Notion 图片返回 403：复用参考项目的原生 HTTP/HTTPS 下载方式，保留当前项目的重定向上限、超时、体积和文件签名校验。
@@ -89,7 +92,7 @@
 
 1. CLI 读取 `.env.local`，校验 Token 和数据库 ID，不输出 Token。
 2. 客户端分页查询文章，按 `Published Date` 倒序读取，并逐页转换 Markdown。
-3. 映射函数校验标题、日期、标签、语言和 slug，再生成本站 frontmatter。
+3. 同步器先按 `notionPageId` 扫描现有 Notion 文件；映射函数校验标题、日期、标签和语言，Notion 未显式填写 `Slug` 时复用现有文件名，再生成本站 frontmatter。
 4. Markdown AST 找出远程图片，逐张打印下载结果；成功时保存到临时目录并改为 `/images/notion/...` 站内路径，失败时保留远程地址并继续。
 5. 文件层检查目标是否属于 Notion。手写文件冲突会报错，Notion 文件按模式新增、更新或跳过。
 6. 默认模式清理不再发布的 Notion 文件与对应图片，随后 `pnpm content:check` 再做整站内容校验。
@@ -109,6 +112,7 @@ pnpm sync-content
 
 - 字段映射测试使用与 Notion SDK 一致的页面结构，验证文章、友链和严格 frontmatter。
 - 临时目录测试连续执行两次相同同步，第二次必须报告 `unchanged`，文件内容保持一致。
+- slug 稳定性测试修改同一 Notion 页面标题，确认同步仍更新原文件、保留本地译文键且不会生成第二个路径。
 - 手写文件冲突测试确认同步报错且原正文保留。
 - 图片测试验证类型识别、确定性命名、下载落盘、Markdown 站内路径替换，以及正文、封面和友链头像遇到 403 时继续同步。
 

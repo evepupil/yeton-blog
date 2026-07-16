@@ -1,4 +1,5 @@
 import type { PageObjectResponse } from "@notionhq/client";
+import { format } from "prettier";
 
 import { analyzeMarkdown } from "@/lib/content/markdown";
 import { articleFrontmatterSchema } from "@/lib/content/schema";
@@ -11,7 +12,10 @@ import {
   readTitle,
 } from "@/lib/notion-sync/properties";
 import { createNotionSlug } from "@/lib/notion-sync/slug";
-import type { NotionArticleMetadata } from "@/lib/notion-sync/types";
+import type {
+  NotionArticleMetadata,
+  NotionArticleState,
+} from "@/lib/notion-sync/types";
 import type { SiteLocale } from "@/lib/site-config";
 
 const localeAliases = new Map<string, SiteLocale>([
@@ -66,6 +70,7 @@ function createDescription(body: string, explicitDescription?: string): string {
 export function mapNotionArticle(
   page: PageObjectResponse,
   body: string,
+  existing?: NotionArticleState,
 ): NotionArticleMetadata {
   if (!body.trim()) {
     throw new Error(`Notion page ${page.id} has an empty article body.`);
@@ -88,14 +93,16 @@ export function mapNotionArticle(
   const slug = createNotionSlug(
     title,
     page.id,
-    readRichText(page.properties, "Slug"),
+    readRichText(page.properties, "Slug") ?? existing?.slug,
   );
   const updated = normalizeDate(
     page.last_edited_time,
     "last edited time",
     page.id,
   );
-  const translationKey = readRichText(page.properties, "Translation Key");
+  const translationKey =
+    readRichText(page.properties, "Translation Key") ??
+    existing?.translationKey;
   const frontmatter = articleFrontmatterSchema.parse({
     title,
     description: createDescription(
@@ -129,7 +136,9 @@ export function mapNotionArticle(
   };
 }
 
-export function serializeNotionArticle(article: NotionArticleMetadata): string {
+export async function serializeNotionArticle(
+  article: NotionArticleMetadata,
+): Promise<string> {
   const data = article.frontmatter;
   const lines = [
     "---",
@@ -155,5 +164,9 @@ export function serializeNotionArticle(article: NotionArticleMetadata): string {
     "",
   );
 
-  return lines.join("\n");
+  return format(lines.join("\n"), {
+    endOfLine: "lf",
+    parser: "mdx",
+    proseWrap: "preserve",
+  });
 }

@@ -17,6 +17,7 @@ import {
 import {
   getArticlePath,
   readArticleOwnership,
+  readNotionArticleStateByPageId,
   removeStaleNotionArticles,
   type ArticleOwnership,
   writeTextIfChanged,
@@ -51,9 +52,17 @@ export async function syncNotionArticles({
   reporter.info("📥 从 Notion 获取已发布文章...");
   const pages = await source.listPublishedArticles(databaseId, publishedStatus);
   reporter.info(`✅ 找到 ${pages.length} 篇已发布文章`);
+  const existingStateByPageId =
+    await readNotionArticleStateByPageId(contentRoot);
   const articles = [];
   for (const page of pages) {
-    articles.push(mapNotionArticle(page, await source.renderArticle(page.id)));
+    articles.push(
+      mapNotionArticle(
+        page,
+        await source.renderArticle(page.id),
+        existingStateByPageId.get(page.id),
+      ),
+    );
   }
 
   const destinations = new Set<string>();
@@ -130,7 +139,7 @@ export async function syncNotionArticles({
     }
     const changed = await writeTextIfChanged(
       destination,
-      serializeNotionArticle({
+      await serializeNotionArticle({
         ...article,
         body: assets.body,
         frontmatter: {
