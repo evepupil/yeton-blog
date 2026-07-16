@@ -29,11 +29,48 @@ async function switchLocale(
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://cloud.umami.is/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes("/api/share/")) {
+      await route.fulfill({
+        body: JSON.stringify({
+          token: "test-umami-share-token-1234567890",
+          websiteId: "526149f7-e7d5-40ac-ae75-50a0c2515abf",
+        }),
+        contentType: "application/json",
+      });
+      return;
+    }
+    if (url.pathname.endsWith("/stats")) {
+      const isLegacyPath = (url.searchParams.get("path") ?? "").includes(
+        "nextdevtpl-一个面向独立开发者的-next-js-全栈-saas-模板",
+      );
+      await route.fulfill({
+        body: JSON.stringify({
+          pageviews: isLegacyPath ? 59 : 3,
+          visitors: isLegacyPath ? 27 : 2,
+          visits: isLegacyPath ? 28 : 2,
+        }),
+        contentType: "application/json",
+      });
+      return;
+    }
     await route.fulfill({
       body: "",
       contentType: "application/javascript",
     });
   });
+  await page.route("https://www.googletagmanager.com/**", async (route) => {
+    await route.fulfill({ body: "", contentType: "application/javascript" });
+  });
+  await page.route(
+    "https://pagead2.googlesyndication.com/**",
+    async (route) => {
+      await route.fulfill({
+        body: "",
+        contentType: "application/javascript",
+      });
+    },
+  );
 });
 
 test("supports the home reading, theme and locale flow", async ({ page }) => {
@@ -64,6 +101,20 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
     page.locator(
       'script[data-website-id="526149f7-e7d5-40ac-ae75-50a0c2515abf"]',
     ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('meta[name="google-adsense-account"]'),
+  ).toHaveAttribute("content", "ca-pub-1149581082118045");
+  await expect(
+    page.locator('meta[name="google-analytics-id"]'),
+  ).toHaveAttribute("content", "G-D9ZRKT7G85");
+  await expect(
+    page.locator(
+      'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]',
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('script[src*="googletagmanager.com/gtag/js?id=G-D9ZRKT7G85"]'),
   ).toHaveCount(1);
 
   const html = page.locator("html");
@@ -212,6 +263,9 @@ test("opens a migrated article with contents, navigation and translation", async
       name: "NextDevTpl：一个面向独立开发者的 Next.js 全栈 SaaS 模板",
     }),
   ).toBeVisible();
+  await expect(page.getByTestId("article-view-stats")).toContainText(
+    "浏览 62 · 访客 29",
+  );
 
   const contents = page.getByRole("complementary", { name: "本文目录" });
   await contents.getByRole("link", { name: "为什么做这个模板？" }).click();
@@ -285,6 +339,29 @@ test("opens a migrated article with contents, navigation and translation", async
     Math.abs(mobileArticleLayout!.titleX - mobileArticleLayout!.bodyX),
   ).toBeLessThanOrEqual(1);
   expect(browserErrors).toEqual([]);
+});
+
+test("keeps articles readable when Umami statistics are unavailable", async ({
+  page,
+}) => {
+  await page.route(
+    /cloud\.umami\.is\/analytics\/us\/api\/websites\/.*\/stats/u,
+    async (route) => {
+      await route.abort("failed");
+    },
+  );
+  await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
+
+  await expect(page.getByTestId("article-view-stats")).toContainText(
+    "统计暂不可用",
+  );
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "NextDevTpl：一个面向独立开发者的 Next.js 全栈 SaaS 模板",
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".article-prose")).not.toBeEmpty();
 });
 
 test("loads comments near the viewport and follows the site theme", async ({

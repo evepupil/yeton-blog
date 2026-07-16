@@ -3,6 +3,7 @@ import { Chip } from "@heroui/react/chip";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { ArticleViewStats } from "@/features/analytics/article-view-stats";
 import { formatPostDate, getPostHref } from "@/features/posts/post-links";
 import type { ArticlePreview } from "@/lib/content/types";
 import type { SiteLocale } from "@/lib/site-config";
@@ -41,6 +42,11 @@ export function ArticleCard({ article, locale }: ArticleCardProps) {
                 {formatPostDate(article.published, locale)}
               </time>
               <span>{article.readTime} MIN</span>
+              <ArticleViewStats
+                compact
+                locale={article.locale}
+                slug={article.slug}
+              />
             </div>
             <h2>{article.title}</h2>
             <Card.Description>{article.description}</Card.Description>

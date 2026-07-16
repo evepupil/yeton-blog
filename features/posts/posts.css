@@ -157,6 +157,29 @@
   white-space: nowrap;
 }
 
+.article-view-stats {
+  display: inline-flex;
+  min-width: 66px;
+  align-items: center;
+  gap: 4px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.article-view-stats svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.article-view-stats[data-state="loading"] {
+  opacity: 0.72;
+}
+
+.article-header-meta .article-view-stats {
+  min-width: 148px;
+}
+
 .post-card-body h2 {
   display: -webkit-box;
   margin: 8px 0 6px;

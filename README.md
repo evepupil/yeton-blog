@@ -4,11 +4,11 @@
 
 ## 当前进度
 
-- 阶段 0 至阶段 6 已完成，博客已通过 Cloudflare Pages 的 Git 集成上线
-- 阶段 7 已完成 Notion 同步、Giscus 评论代码和 Umami 统计，友链页面继续按 roadmap 实现
+- 阶段 0 至阶段 9 已完成，博客已通过 Cloudflare Pages 的 Git 集成上线
+- Notion 同步、Giscus 评论、友链、Umami/GA4 统计、AI 搜索、广告位和赞赏入口均已实现
 - 旧站 33 篇真实文章和引用图片已迁入，线上内容目录不再使用演示文章
 - HTML 原型保留在 `prototype/index.html`
-- Next.js 页面正在按 `docs/roadmap.md` 逐步实现
+- Next.js 页面和增强功能已经完成当前 roadmap，后续改动继续同步模块文档
 
 相关文档：
 
@@ -25,6 +25,9 @@
 - Notion 同步：`docs/模块设计/Notion同步.md`
 - 评论系统：`docs/模块设计/评论系统.md`
 - 访问统计：`docs/模块设计/访问统计.md`
+- 友链：`docs/模块设计/友链.md`
+- AI 搜索：`docs/模块设计/AI搜索.md`
+- 商业化与赞助：`docs/模块设计/商业化与赞助.md`
 
 ## 环境要求
 
@@ -56,7 +59,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - `author`：中英文作者名、签名、首页标题、关于页文案、头像来源和替代文字；`avatar.src` 可填写 `/images/...` 或公开 HTTPS URL
 - `sectionDescriptions`：文章、归档和图书栏目的中英文介绍
 - `socialLinks`：社交平台名称、链接和开关
-- `integrations`：Giscus、广告、微信赞赏、Umami 和 AI 搜索的公开配置与开关
+- `integrations`：Giscus、广告、微信赞赏、Umami、Google Analytics 和 AI 搜索的公开配置与开关
 
 这个文件会进入构建产物，只能填写公开值。Notion Token 等私密信息继续放在环境变量中；`NEXT_PUBLIC_SITE_URL` 由部署环境提供，用于区分本地、预览和生产域名。
 
@@ -93,7 +96,7 @@ comments: {
 
 ## 广告与赞赏
 
-`site.config.ts` 的 `integrations.advertising` 管理首页、文章列表和正文三个广告位。每个位置可以独立关闭，或选择 `adsense` 和 `custom`。自营广告只读取标题、说明、HTTPS/站内链接和可选的 `/images/` 本地图片，不执行广告 HTML。
+`site.config.ts` 的 `integrations.advertising` 管理首页、文章列表和正文三个广告位。每个位置可以独立关闭，或选择 `adsense` 和 `custom`。当前迁移旧站已经使用的 Publisher/slot，并启用正文广告位；首页和列表位置继续关闭。自营广告只读取标题、说明、HTTPS/站内链接和可选的 `/images/` 本地图片，不执行广告 HTML。
 
 `integrations.sponsorship` 管理文章末尾的微信赞赏入口。将真实收款码放到 `public/images/`，再把 `qrCodeSrc` 改成对应的 `/images/...` 路径即可开放扫码；路径为空时弹窗显示未开放状态。
 
@@ -134,7 +137,9 @@ pnpm content:check
 
 ## 访问统计
 
-站点复用旧博客的 Umami Cloud Website ID，保留历史访问数据。统计脚本在页面加载完成后的空闲阶段请求，不使用 Cookie；脚本被广告拦截器阻止时不会影响阅读。服务地址、Website ID、公开分享 ID 和开关都在 `site.config.ts` 的 `integrations.analytics` 中配置。
+站点复用旧博客的 Umami Cloud Website ID、公开分享 ID 和 GA4 Measurement ID。Umami 与 Google Analytics 脚本都延后加载，GA4 默认拒绝分析与广告存储；脚本被广告拦截器阻止时不会影响阅读。文章元信息会显示 Umami 浏览量，并将当前地址与 `redirects.config.ts` 中的旧 slug 数据合计，延续迁移前的历史数字。
+
+Umami 服务地址、API 路径、时区、Website ID、分享 ID 和浏览量开关位于 `integrations.analytics`；GA4 开关和 Measurement ID 位于 `integrations.googleAnalytics`。这些都是会进入浏览器构建产物的公开参数。
 
 正式切换时，把 `blog.chaosyn.com` 关联到当前 Pages 项目，并将 `NEXT_PUBLIC_SITE_URL` 和 Pages 构建命令同步改回该域名。临时域名 `blog1.chaosyn.com` 到正式域名的跳转应通过 Cloudflare Redirect Rule 按 hostname 配置，避免 `_redirects` 在正式域名上形成循环。
 

@@ -45,11 +45,19 @@ export interface SponsorshipConfig {
 }
 
 export interface UmamiAnalyticsConfig {
+  readonly apiPath: string;
   readonly baseUrl: string;
   readonly enabled: boolean;
   readonly provider: "umami";
   readonly shareId: string;
+  readonly showPageViews: boolean;
+  readonly timezone: string;
   readonly websiteId: string;
+}
+
+export interface GoogleAnalyticsConfig {
+  readonly enabled: boolean;
+  readonly measurementId: string;
 }
 
 export interface AiSearchConfig {
@@ -104,6 +112,7 @@ interface PublicSiteConfig {
       readonly repo: string;
       readonly repoId: string;
     };
+    readonly googleAnalytics: GoogleAnalyticsConfig;
     readonly sponsorship: SponsorshipConfig;
   };
   readonly locales: readonly SiteLocale[];
@@ -125,8 +134,8 @@ export const siteConfig = {
   author: {
     about: {
       "zh-CN":
-        "这里记录 Serverless、AI 应用、前后端开发与独立项目实践。本站使用 Umami 做匿名访问统计，不使用 Cookie。",
-      en: "Notes on serverless systems, AI applications, web development and independent projects. This site uses cookie-free Umami analytics.",
+        "这里记录 Serverless、AI 应用、前后端开发与独立项目实践。本站使用 Umami 与 Google Analytics 了解访问情况。",
+      en: "Notes on serverless systems, AI applications, web development and independent projects. This site uses Umami and Google Analytics to understand traffic.",
     },
     aboutTitle: {
       "zh-CN": "关于叶桐",
@@ -190,7 +199,7 @@ export const siteConfig = {
             },
             title: { "zh-CN": "广告合作", en: "Advertise here" },
           },
-          enabled: false,
+          enabled: true,
           provider: "adsense",
           slotId: "6077231481",
         },
@@ -247,10 +256,13 @@ export const siteConfig = {
       scoreThreshold: 0.3,
     },
     analytics: {
+      apiPath: "/analytics/us/api/",
       baseUrl: "https://cloud.umami.is",
       enabled: true,
       provider: "umami",
       shareId: "VOIhBeLJ4qp3otfX",
+      showPageViews: true,
+      timezone: "Asia/Shanghai",
       websiteId: "526149f7-e7d5-40ac-ae75-50a0c2515abf",
     },
     comments: {
@@ -260,6 +272,10 @@ export const siteConfig = {
       provider: "giscus",
       repo: "evepupil/yeton-blog",
       repoId: "R_kgDOTY-rvQ",
+    },
+    googleAnalytics: {
+      enabled: true,
+      measurementId: "G-D9ZRKT7G85",
     },
     sponsorship: {
       copy: {

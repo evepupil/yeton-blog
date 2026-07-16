@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { ArticleViewStats } from "@/features/analytics/article-view-stats";
 import { formatPostDate, getPostHref } from "@/features/posts/post-links";
 import type { ArticlePreview } from "@/lib/content/types";
 import { getLocalizedPath } from "@/lib/i18n";
@@ -67,6 +68,11 @@ export function RecentPosts({ locale, posts }: RecentPostsProps) {
                     {formatPostDate(primary.published, locale)}
                   </time>
                   <span>{primary.readTime} MIN</span>
+                  <ArticleViewStats
+                    compact
+                    locale={primary.locale}
+                    slug={primary.slug}
+                  />
                 </div>
                 <Card.Title>{primary.title}</Card.Title>
                 {primary.description ? (
@@ -98,6 +104,11 @@ export function RecentPosts({ locale, posts }: RecentPostsProps) {
                     <time dateTime={post.published}>
                       {formatPostDate(post.published, locale)}
                     </time>
+                    <ArticleViewStats
+                      compact
+                      locale={post.locale}
+                      slug={post.slug}
+                    />
                   </div>
                   <Card.Title>{post.title}</Card.Title>
                 </Card.Content>

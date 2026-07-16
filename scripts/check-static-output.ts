@@ -5,7 +5,10 @@ import { XMLParser } from "fast-xml-parser";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { resolveSiteUrl } from "@/lib/site-config";
-import { resolveUmamiConfig } from "@/lib/analytics/config";
+import {
+  resolveGoogleAnalyticsConfig,
+  resolveUmamiConfig,
+} from "@/lib/analytics/config";
 import { resolveAdSenseClientId } from "@/lib/monetization/config";
 import {
   createRedirectRules,
@@ -16,6 +19,7 @@ import { redirectsConfig } from "@/redirects.config";
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
 const analytics = resolveUmamiConfig();
+const googleAnalytics = resolveGoogleAnalyticsConfig();
 const adsenseClientId = resolveAdSenseClientId();
 const requiredFiles = [
   "_headers",
@@ -49,7 +53,10 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
     "img-src 'self' data: https:",
     "https://cloud.umami.is",
     "https://pagead2.googlesyndication.com",
-    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is https://pagead2.googlesyndication.com",
+    "https://www.google-analytics.com",
+    "https://region1.google-analytics.com",
+    "https://www.googletagmanager.com",
+    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is https://pagead2.googlesyndication.com https://www.googletagmanager.com",
     "Permissions-Policy:",
     "Referrer-Policy:",
     "X-Content-Type-Options: nosniff",
@@ -268,12 +275,27 @@ async function checkHtmlFile(
   if (
     adsenseClientId &&
     !isNotFoundPage &&
-    (!htmlSource.includes(adsenseClientId) ||
-      !htmlSource.includes(
-        "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js",
-      ))
+    !elements.some(
+      (element) =>
+        element.tagName === "meta" &&
+        getHtmlAttribute(element, "name") === "google-adsense-account" &&
+        getHtmlAttribute(element, "content") === adsenseClientId,
+    )
   ) {
-    errors.push(`${relativePath}: missing configured AdSense script.`);
+    errors.push(`${relativePath}: missing Google AdSense account metadata.`);
+  }
+
+  if (
+    googleAnalytics &&
+    !isNotFoundPage &&
+    !elements.some(
+      (element) =>
+        element.tagName === "meta" &&
+        getHtmlAttribute(element, "name") === "google-analytics-id" &&
+        getHtmlAttribute(element, "content") === googleAnalytics.measurementId,
+    )
+  ) {
+    errors.push(`${relativePath}: missing Google Analytics metadata.`);
   }
 
   if (!html || getHtmlAttribute(html, "lang") !== expectedLocale) {

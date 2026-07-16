@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
+import { ArticleViewStats } from "@/features/analytics/article-view-stats";
 import { GiscusComments } from "@/features/comments/giscus-comments";
 import { AdPlacement } from "@/features/monetization/ad-placement";
 import { SponsorshipSection } from "@/features/monetization/sponsorship-section";
@@ -52,6 +53,7 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
           <span>
             {article.readTime} {content.minutes}
           </span>
+          <ArticleViewStats locale={article.locale} slug={article.slug} />
         </div>
         <h1>{article.title}</h1>
         <div className="article-header-tags">

@@ -10,6 +10,7 @@ export {
   type AdvertisingProvider,
   type AiSearchConfig,
   type CustomAdvertisementConfig,
+  type GoogleAnalyticsConfig,
   type LocalizedText,
   type SiteLocale,
   type SocialPlatform,

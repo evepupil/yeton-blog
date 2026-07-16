@@ -29,11 +29,15 @@ describe("site configuration", () => {
   });
 
   it("keeps the current integration switches explicit", () => {
-    expect(
-      Object.values(siteConfig.integrations.advertising.placements).every(
-        (placement) => !placement.enabled,
-      ),
-    ).toBe(true);
+    expect(siteConfig.integrations.advertising.placements.article.enabled).toBe(
+      true,
+    );
+    expect(siteConfig.integrations.advertising.placements.home.enabled).toBe(
+      false,
+    );
+    expect(siteConfig.integrations.advertising.placements.posts.enabled).toBe(
+      false,
+    );
     expect(siteConfig.integrations.aiSearch.enabled).toBe(true);
     expect(siteConfig.integrations.aiSearch.rateLimit).toEqual({
       globalRequests: 30,
@@ -41,7 +45,9 @@ describe("site configuration", () => {
       windowSeconds: 60,
     });
     expect(siteConfig.integrations.analytics.enabled).toBe(true);
+    expect(siteConfig.integrations.analytics.showPageViews).toBe(true);
     expect(siteConfig.integrations.comments.enabled).toBe(true);
+    expect(siteConfig.integrations.googleAnalytics.enabled).toBe(true);
     expect(siteConfig.integrations.sponsorship.enabled).toBe(true);
   });
 

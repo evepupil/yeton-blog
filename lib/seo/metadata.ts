@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
 import { getLocalizedPath, stripLocalePrefix } from "@/lib/i18n";
+import { resolveGoogleAnalyticsConfig } from "@/lib/analytics/config";
+import { resolveAdSenseClientId } from "@/lib/monetization/config";
 import {
   getLocalizedSiteConfig,
   resolveSiteUrl,
@@ -106,6 +108,8 @@ function getSocialTitle(locale: SiteLocale, title?: string): string {
 export function buildRootMetadata(locale: SiteLocale): Metadata {
   const details = localeMetadata[locale];
   const identity = getLocalizedSiteConfig(locale);
+  const adsenseClientId = resolveAdSenseClientId();
+  const googleAnalytics = resolveGoogleAnalyticsConfig();
 
   return {
     applicationName: details.name,
@@ -113,6 +117,16 @@ export function buildRootMetadata(locale: SiteLocale): Metadata {
     creator: identity.authorName,
     description: details.description,
     metadataBase: resolveSiteUrl(),
+    ...((adsenseClientId || googleAnalytics) && {
+      other: {
+        ...(adsenseClientId
+          ? { "google-adsense-account": adsenseClientId }
+          : {}),
+        ...(googleAnalytics
+          ? { "google-analytics-id": googleAnalytics.measurementId }
+          : {}),
+      },
+    }),
     openGraph: {
       description: details.description,
       images: [{ url: getAbsoluteUrl(siteConfig.brand.socialImage) }],
