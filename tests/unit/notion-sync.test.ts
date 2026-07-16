@@ -24,8 +24,10 @@ import {
   createFriendAvatarBaseName,
   fetchRemoteImage,
   prepareArticleAssets,
+  prepareFriendAvatars,
   resolveImageExtension,
 } from "@/lib/notion-sync/images";
+import type { SyncReporter } from "@/lib/notion-sync/reporter";
 import { createNotionSlug } from "@/lib/notion-sync/slug";
 import { getArticlePath } from "@/lib/notion-sync/store";
 import { syncNotionArticles } from "@/lib/notion-sync/sync";
@@ -33,6 +35,27 @@ import { syncNotionArticles } from "@/lib/notion-sync/sync";
 const pageId = "34a4342e-b403-8095-928c-d890fd41b915";
 const temporaryDirectories: string[] = [];
 const testServers: Server[] = [];
+
+function createMemoryReporter(): {
+  readonly info: string[];
+  readonly reporter: SyncReporter;
+  readonly warnings: string[];
+} {
+  const info: string[] = [];
+  const warnings: string[] = [];
+  return {
+    info,
+    reporter: {
+      info(message) {
+        info.push(message);
+      },
+      warn(message) {
+        warnings.push(message);
+      },
+    },
+    warnings,
+  };
+}
 
 async function startImageServer(
   handler: (
@@ -184,11 +207,13 @@ describe("Notion synchronization rules", () => {
     const contentRoot = path.join(workspace, "content", "posts");
     const publicRoot = path.join(workspace, "public");
     const source = new FakeNotionSource();
+    const logs = createMemoryReporter();
     const options = {
       contentRoot,
       databaseId: "database",
       mode: "overwrite" as const,
       publicRoot,
+      reporter: logs.reporter,
       source,
     };
 
@@ -200,6 +225,9 @@ describe("Notion synchronization rules", () => {
     expect(first).toMatchObject({ created: 1, unchanged: 0 });
     expect(second).toMatchObject({ created: 0, unchanged: 1 });
     expect(await readFile(filePath, "utf8")).toBe(firstContent);
+    expect(logs.info).toContain("📥 从 Notion 获取已发布文章...");
+    expect(logs.info).toContain("📝 处理文章: AI Agent 深度学习指南");
+    expect(logs.info).toContain("  ✅ 内容无变化: ai-agent-34a4342e.mdx");
   });
 
   it("fails before overwriting a manual article", async () => {
@@ -287,6 +315,68 @@ describe("Notion sync helpers", () => {
         ),
       ),
     ).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  it("keeps syncing when a remote article image returns 403", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "notion-images-"));
+    temporaryDirectories.push(workspace);
+    const logs = createMemoryReporter();
+    const remoteImage = "https://pic-out.zhimg.com/example.png";
+
+    const result = await prepareArticleAssets(
+      {
+        body: `![Zhihu image](${remoteImage})`,
+        coverUrl: "https://pic-out.zhimg.com/cover.png",
+        slug: "zhihu-article",
+      },
+      path.join(workspace, "public"),
+      async () => {
+        throw new Error(
+          "Image download from https://pic-out.zhimg.com failed with HTTP 403.",
+        );
+      },
+      logs.reporter,
+    );
+
+    expect(result).toEqual({ body: `![Zhihu image](${remoteImage})` });
+    expect(logs.info).toContain("  🖼️  发现 1 张图片需要下载");
+    expect(logs.warnings).toContain(
+      "  ⚠️  下载失败: https://pic-out.zhimg.com",
+    );
+    expect(logs.warnings).toContain(
+      "  ⚠️  封面图下载失败: https://pic-out.zhimg.com",
+    );
+  });
+
+  it("keeps friend links when an avatar download fails", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "notion-friends-"));
+    temporaryDirectories.push(workspace);
+    const logs = createMemoryReporter();
+
+    const friends = await prepareFriendAvatars(
+      [
+        {
+          avatarUrl: "https://example.org/avatar.png",
+          description: "Friend",
+          name: "Example",
+          url: "https://example.org",
+        },
+      ],
+      path.join(workspace, "public"),
+      async () => {
+        throw new Error("HTTP 403");
+      },
+      logs.reporter,
+    );
+
+    expect(friends).toEqual([
+      {
+        description: "Friend",
+        name: "Example",
+        url: "https://example.org",
+      },
+    ]);
+    expect(logs.warnings).toContain("  ⚠️  头像下载失败: Example");
   });
 
   it("uses the reference HTTP downloader and follows redirects", async () => {

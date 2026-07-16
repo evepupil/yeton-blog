@@ -8,6 +8,11 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 
+import {
+  silentSyncReporter,
+  type SyncReporter,
+} from "@/lib/notion-sync/reporter";
+
 const maximumImageBytes = 10 * 1024 * 1024;
 const maximumRedirects = 5;
 const requestTimeoutMilliseconds = 30_000;
@@ -238,11 +243,24 @@ function escapeImageAlt(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function imageOrigin(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "无效图片地址";
+  }
+}
+
 async function rewriteMarkdownImages(
   markdown: string,
   slug: string,
   directory: string,
   fetchImage: ImageFetcher,
+  reporter: SyncReporter,
 ): Promise<string> {
   const tree = unified().use(remarkParse).parse(markdown);
   const remoteImages: Array<{
@@ -263,18 +281,33 @@ async function rewriteMarkdownImages(
   });
 
   const replacements: Array<{ end: number; start: number; value: string }> = [];
-  const downloadedUrls = new Map<string, string>();
+  const processedUrls = new Map<string, string | null>();
+
+  if (remoteImages.length > 0) {
+    reporter.info(`  🖼️  发现 ${remoteImages.length} 张图片需要下载`);
+  }
 
   for (const image of remoteImages) {
-    let filename = downloadedUrls.get(image.url);
-    if (!filename) {
-      filename = await saveImage(
-        directory,
-        `image-${downloadedUrls.size + 1}`,
-        await fetchImage(image.url),
-      );
-      downloadedUrls.set(image.url, filename);
+    let filename = processedUrls.get(image.url);
+    if (filename === undefined) {
+      const baseName = `image-${processedUrls.size + 1}`;
+      reporter.info(`  ⬇️  下载: ${slug}/${baseName}`);
+      try {
+        filename = await saveImage(
+          directory,
+          baseName,
+          await fetchImage(image.url),
+        );
+        processedUrls.set(image.url, filename);
+        reporter.info(`  ✅ 已保存: ${slug}/${filename}`);
+      } catch (error) {
+        processedUrls.set(image.url, null);
+        reporter.warn(`  ⚠️  下载失败: ${imageOrigin(image.url)}`);
+        reporter.warn(`     ${errorMessage(error)}`);
+        filename = null;
+      }
     }
+    if (filename === null) continue;
     replacements.push({
       end: image.end,
       start: image.start,
@@ -313,6 +346,7 @@ export async function prepareArticleAssets(
   },
   publicRoot: string,
   fetchImage: ImageFetcher = fetchRemoteImage,
+  reporter: SyncReporter = silentSyncReporter,
 ): Promise<{ body: string; coverPath?: string }> {
   const destination = path.join(publicRoot, "images", "notion", article.slug);
   const temporary = `${destination}.sync-${process.pid}`;
@@ -325,15 +359,23 @@ export async function prepareArticleAssets(
       article.slug,
       temporary,
       fetchImage,
+      reporter,
     );
     let coverPath: string | undefined;
     if (article.coverUrl) {
-      const filename = await saveImage(
-        temporary,
-        "cover",
-        await fetchImage(article.coverUrl),
-      );
-      coverPath = `/images/notion/${article.slug}/${filename}`;
+      reporter.info(`  🖼️  下载封面图: ${article.slug}/cover`);
+      try {
+        const filename = await saveImage(
+          temporary,
+          "cover",
+          await fetchImage(article.coverUrl),
+        );
+        coverPath = `/images/notion/${article.slug}/${filename}`;
+        reporter.info(`  ✅ 封面图已保存: ${article.slug}/${filename}`);
+      } catch (error) {
+        reporter.warn(`  ⚠️  封面图下载失败: ${imageOrigin(article.coverUrl)}`);
+        reporter.warn(`     ${errorMessage(error)}`);
+      }
     }
     await replaceDirectory(temporary, destination);
     return { body, coverPath };
@@ -352,11 +394,16 @@ export function createFriendAvatarBaseName(friendUrl: string): string {
 }
 
 export async function prepareFriendAvatars<
-  T extends { readonly avatarUrl?: string; readonly url: string },
+  T extends {
+    readonly avatarUrl?: string;
+    readonly name: string;
+    readonly url: string;
+  },
 >(
   friends: readonly T[],
   publicRoot: string,
   fetchImage: ImageFetcher = fetchRemoteImage,
+  reporter: SyncReporter = silentSyncReporter,
 ): Promise<Array<Omit<T, "avatarUrl"> & { avatar?: string }>> {
   const destination = path.join(publicRoot, "images", "friends");
   const temporary = `${destination}.sync-${process.pid}`;
@@ -371,12 +418,18 @@ export async function prepareFriendAvatars<
         localized.push(details);
         continue;
       }
-      const filename = await saveImage(
-        temporary,
-        createFriendAvatarBaseName(friend.url),
-        await fetchImage(avatarUrl),
-      );
-      localized.push({ ...details, avatar: `/images/friends/${filename}` });
+      try {
+        const filename = await saveImage(
+          temporary,
+          createFriendAvatarBaseName(friend.url),
+          await fetchImage(avatarUrl),
+        );
+        localized.push({ ...details, avatar: `/images/friends/${filename}` });
+      } catch (error) {
+        reporter.warn(`  ⚠️  头像下载失败: ${friend.name}`);
+        reporter.warn(`     ${errorMessage(error)}`);
+        localized.push(details);
+      }
     }
     await replaceDirectory(temporary, destination);
     return localized;
