@@ -52,6 +52,7 @@
 - 公网冒烟从配置读取文章迁移清单，逐条确认 Cloudflare 返回单跳 `301` 和正确目标。
 - Pages 的规则文件使用百分号编码保存中文旧路径，和浏览器实际发送的请求路径保持一致。
 - 为 M8 增加 Cloudflare AI 与 D1 binding；创建 APAC D1 数据库并应用限流表迁移，实现每用户 6 次/分钟、全站 30 次/分钟。
+- Pages Git 项目的 production 已绑定 `AI_RATE_LIMIT_DB`；绑定通过 Cloudflare API 写入一次，后续代码和内容仍由 Git 集成自动部署。
 
 ### 2026-07-15
 
