@@ -4,6 +4,7 @@ import type { SiteLocale } from "@/site.config";
 export {
   siteConfig,
   supportedLocales,
+  type AiSearchConfig,
   type LocalizedText,
   type SiteLocale,
   type SocialPlatform,

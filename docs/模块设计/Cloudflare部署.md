@@ -1,5 +1,15 @@
 # Cloudflare Pages 部署
 
+> **模块定位**：管理静态站点、Pages Functions 与 Cloudflare 生产发布约束
+>
+> **对应代码**：`wrangler.jsonc`、`.github/workflows/`、`public/_headers`、`scripts/smoke-deployment.ts`
+>
+> **所属 M 里程碑**：[M6：Cloudflare Pages 发布](../roadmap.md#阶段-6cloudflare-pages-发布)
+>
+> **当前状态**：已完成
+>
+> **最近更新时间**：2026-07-16
+
 ## 设计
 
 ### 职责
@@ -12,7 +22,7 @@
 | -------------------------------------- | ------------------------------------ |
 | `.github/workflows/quality.yml`        | PR 与 `main` 的代码质量检查          |
 | `.node-version`、`.nvmrc`              | 锁定 Node.js 22.14.0                 |
-| `wrangler.jsonc`                       | Pages 输出目录与本地预览配置         |
+| `wrangler.jsonc`                       | Pages 输出目录、AI 与限流 binding    |
 | `public/_headers`                      | 静态资源缓存和生产安全响应头         |
 | `redirects.config.ts`                  | 旧站路径和文章 slug 的集中映射       |
 | `scripts/generate-redirects.ts`        | 生成 Pages 永久重定向文件            |
@@ -32,6 +42,7 @@
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
+9. AI 搜索使用 Pages Function 与 `AI` binding。每用户和全站限流由两个独立 Rate Limit binding 执行，任一 binding 缺失时接口返回 `503`，避免绕过成本保护。
 
 ## 改动历史
 
@@ -40,6 +51,7 @@
 - 将 `_redirects` 改为集中配置生成，增加 18 篇旧文章 slug 到新 slug 的永久映射，并为带尾斜杠和不带尾斜杠的请求分别生成规则。
 - 公网冒烟从配置读取文章迁移清单，逐条确认 Cloudflare 返回单跳 `301` 和正确目标。
 - Pages 的规则文件使用百分号编码保存中文旧路径，和浏览器实际发送的请求路径保持一致。
+- 为 M8 增加 Cloudflare AI binding，以及每用户 6 次/分钟、全站 30 次/分钟的 Rate Limit binding。
 
 ### 2026-07-15
 
@@ -75,6 +87,14 @@
 | Node.js              | `22.14.0`                                                   |
 | pnpm                 | `10.21.0`                                                   |
 | Environment variable | `NEXT_PUBLIC_SITE_URL`                                      |
+
+Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding：
+
+| Binding                  | 用途                        |
+| ------------------------ | --------------------------- |
+| `AI`                     | 调用 AutoRAG AI Search      |
+| `AI_USER_RATE_LIMITER`   | 单个访问来源每分钟最多 6 次 |
+| `AI_GLOBAL_RATE_LIMITER` | 整个站点每分钟最多 30 次    |
 
 `NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog1.chaosyn.com`。没有自定义域名时可先使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 
@@ -128,6 +148,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - 单测覆盖正式 URL、本地构建跳过和 Pages 构建强制校验。
 - `pnpm build` 检查 `_headers` 已复制到 `out`，并确认生成的 `_redirects` 包含集中配置中的全部规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
+- `wrangler pages functions build` 校验 Pages Function 可以和 AI、限流 binding 一起打包。
 - 公网冒烟已对 deployment 地址、`yeton-blog.pages.dev` 和 `blog1.chaosyn.com` 执行通过。
 
 ## 当前限制

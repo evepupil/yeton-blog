@@ -4,10 +4,12 @@ import { AnalyticsScript } from "@/components/integrations/analytics-script";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
+import { AiSearchEntry } from "@/features/ai-search/ai-search-entry";
 import { ThemeProvider } from "@/features/theme/theme-provider";
 import { buildContentLocaleRoutes } from "@/lib/content/locale-routes";
 import { getAllArticles, getAllBooks } from "@/lib/content/repository";
 import type { SiteLocale } from "@/lib/site-config";
+import { siteConfig } from "@/lib/site-config";
 
 interface SiteDocumentProps {
   readonly children: ReactNode;
@@ -31,6 +33,13 @@ export async function SiteDocument({ children, locale }: SiteDocumentProps) {
             {children}
           </div>
           <SiteFooter />
+          {siteConfig.integrations.aiSearch.enabled ? (
+            <AiSearchEntry
+              endpoint={siteConfig.integrations.aiSearch.apiEndpoint}
+              locale={locale}
+              maxQueryLength={siteConfig.integrations.aiSearch.maxQueryLength}
+            />
+          ) : null}
         </ThemeProvider>
         <AnalyticsScript />
       </body>

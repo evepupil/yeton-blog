@@ -19,6 +19,7 @@ test-results/
 # cloud providers
 .vercel/
 .wrangler/
+_worker.bundle
 
 # editors and operating systems
 .idea/

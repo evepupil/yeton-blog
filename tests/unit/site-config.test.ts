@@ -28,8 +28,9 @@ describe("site configuration", () => {
     });
   });
 
-  it("enables only integrations that have been completed", () => {
+  it("keeps the current integration switches explicit", () => {
     expect(siteConfig.integrations.adsense.enabled).toBe(false);
+    expect(siteConfig.integrations.aiSearch.enabled).toBe(true);
     expect(siteConfig.integrations.analytics.enabled).toBe(true);
     expect(siteConfig.integrations.comments.enabled).toBe(true);
   });

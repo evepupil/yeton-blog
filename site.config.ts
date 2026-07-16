@@ -13,6 +13,18 @@ export interface UmamiAnalyticsConfig {
   readonly websiteId: string;
 }
 
+export interface AiSearchConfig {
+  readonly apiEndpoint: string;
+  readonly autoragName: string;
+  readonly enabled: boolean;
+  readonly maxCitations: number;
+  readonly maxQueryLength: number;
+  readonly model: string;
+  readonly requestTimeoutMs: number;
+  readonly rerankerModel: string;
+  readonly scoreThreshold: number;
+}
+
 interface PublicSiteConfig {
   readonly author: {
     readonly about: LocalizedText;
@@ -41,6 +53,7 @@ interface PublicSiteConfig {
       readonly clientId: string;
       readonly enabled: boolean;
     };
+    readonly aiSearch: AiSearchConfig;
     readonly analytics: UmamiAnalyticsConfig;
     readonly comments: {
       readonly category: string;
@@ -122,6 +135,17 @@ export const siteConfig = {
     adsense: {
       clientId: "ca-pub-1149581082118045",
       enabled: false,
+    },
+    aiSearch: {
+      apiEndpoint: "/api/ai-search",
+      autoragName: "purple-rain-8860",
+      enabled: true,
+      maxCitations: 5,
+      maxQueryLength: 500,
+      model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      requestTimeoutMs: 30_000,
+      rerankerModel: "@cf/baai/bge-reranker-base",
+      scoreThreshold: 0.3,
     },
     analytics: {
       baseUrl: "https://cloud.umami.is",
