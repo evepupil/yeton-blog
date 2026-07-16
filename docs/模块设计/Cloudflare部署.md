@@ -4,7 +4,7 @@
 >
 > **对应代码**：`wrangler.jsonc`、`.github/workflows/`、`public/_headers`、`scripts/smoke-deployment.ts`
 >
-> **所属 M 里程碑**：[M6：Cloudflare Pages 发布](../roadmap.md#阶段-6cloudflare-pages-发布)
+> **所属 M 里程碑**：[M6：Cloudflare Pages 发布](../roadmap.md#阶段-6cloudflare-pages-发布) · [M9：广告、赞助与评论体验](../roadmap.md#阶段-9广告赞助与评论体验)
 >
 > **当前状态**：已完成
 >
@@ -41,7 +41,7 @@
 4. `NEXT_PUBLIC_SITE_URL` 用于 canonical、RSS、sitemap 和分享地址。Cloudflare 项目虽然保存了同名 Production/Preview 变量，Git 构建日志仍显示没有注入构建变量，因此正式域名同时写在 Pages 构建命令中，保证生产构建获得确定地址。
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
-7. CSP 允许站内资源、公共 HTTPS 头像，以及 Giscus 的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；接入统计时必须继续按实际来源收紧配置。
+7. CSP 允许站内资源、公共 HTTPS 图片、Giscus、Umami 和 AdSense 当前需要的脚本、连接与 iframe。Next 和主题初始化需要内联脚本与样式，因此当前保留 `unsafe-inline`；第三方服务增加来源时必须按实际请求补充并继续限制域名。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
 10. `pnpm build` 将 `functions/` 编译为单文件 `out/_worker.js`。这能让 Pages Git 上传阶段直接识别动态接口，`_routes.json` 保证文章和静态资源继续由 Pages 资产服务处理。
@@ -51,6 +51,7 @@
 
 ### 2026-07-16
 
+- 为 M9 放行 AdSense 的脚本、连接和 iframe 域名，并将域名与启用脚本检查加入静态产物门禁。
 - 将 `_redirects` 改为集中配置生成，增加 18 篇旧文章 slug 到新 slug 的永久映射，并为带尾斜杠和不带尾斜杠的请求分别生成规则。
 - 公网冒烟从配置读取文章迁移清单，逐条确认 Cloudflare 返回单跳 `301` 和正确目标。
 - Pages 的规则文件使用百分号编码保存中文旧路径，和浏览器实际发送的请求路径保持一致。

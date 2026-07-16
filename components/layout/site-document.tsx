@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AdSenseScript } from "@/components/integrations/adsense-script";
 import { AnalyticsScript } from "@/components/integrations/analytics-script";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -41,6 +42,7 @@ export async function SiteDocument({ children, locale }: SiteDocumentProps) {
             />
           ) : null}
         </ThemeProvider>
+        <AdSenseScript />
         <AnalyticsScript />
       </body>
     </html>

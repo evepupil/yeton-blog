@@ -5,6 +5,45 @@ export type SiteLocale = (typeof supportedLocales)[number];
 export type LocalizedText = Readonly<Record<SiteLocale, string>>;
 export type SocialPlatform = "github" | "zhihu";
 
+export type AdPlacementName = "article" | "home" | "posts";
+export type AdvertisingProvider = "adsense" | "custom";
+
+export interface CustomAdvertisementConfig {
+  readonly description: LocalizedText;
+  readonly href: string;
+  readonly image: {
+    readonly alt: LocalizedText;
+    readonly src: string;
+  };
+  readonly title: LocalizedText;
+}
+
+export interface AdPlacementConfig {
+  readonly custom: CustomAdvertisementConfig;
+  readonly enabled: boolean;
+  readonly provider: AdvertisingProvider;
+  readonly slotId: string;
+}
+
+export interface AdvertisingConfig {
+  readonly adsenseClientId: string;
+  readonly placements: Readonly<Record<AdPlacementName, AdPlacementConfig>>;
+}
+
+export interface SponsorshipConfig {
+  readonly copy: {
+    readonly close: LocalizedText;
+    readonly description: LocalizedText;
+    readonly modalTitle: LocalizedText;
+    readonly qrCodeAlt: LocalizedText;
+    readonly title: LocalizedText;
+    readonly trigger: LocalizedText;
+    readonly unavailable: LocalizedText;
+  };
+  readonly enabled: boolean;
+  readonly qrCodeSrc: string;
+}
+
 export interface UmamiAnalyticsConfig {
   readonly baseUrl: string;
   readonly enabled: boolean;
@@ -54,10 +93,7 @@ interface PublicSiteConfig {
   readonly copyrightYear: number;
   readonly defaultLocale: SiteLocale;
   readonly integrations: {
-    readonly adsense: {
-      readonly clientId: string;
-      readonly enabled: boolean;
-    };
+    readonly advertising: AdvertisingConfig;
     readonly aiSearch: AiSearchConfig;
     readonly analytics: UmamiAnalyticsConfig;
     readonly comments: {
@@ -68,6 +104,7 @@ interface PublicSiteConfig {
       readonly repo: string;
       readonly repoId: string;
     };
+    readonly sponsorship: SponsorshipConfig;
   };
   readonly locales: readonly SiteLocale[];
   readonly sectionDescriptions: {
@@ -137,9 +174,61 @@ export const siteConfig = {
   copyrightYear: 2026,
   defaultLocale: "zh-CN",
   integrations: {
-    adsense: {
-      clientId: "ca-pub-1149581082118045",
-      enabled: false,
+    advertising: {
+      adsenseClientId: "ca-pub-1149581082118045",
+      placements: {
+        article: {
+          custom: {
+            description: {
+              "zh-CN": "面向技术读者展示你的产品、服务或开源项目。",
+              en: "Introduce your product, service or open-source project to technical readers.",
+            },
+            href: "",
+            image: {
+              alt: { "zh-CN": "广告配图", en: "Advertisement artwork" },
+              src: "",
+            },
+            title: { "zh-CN": "广告合作", en: "Advertise here" },
+          },
+          enabled: false,
+          provider: "adsense",
+          slotId: "6077231481",
+        },
+        home: {
+          custom: {
+            description: {
+              "zh-CN": "面向技术读者展示你的产品、服务或开源项目。",
+              en: "Introduce your product, service or open-source project to technical readers.",
+            },
+            href: "",
+            image: {
+              alt: { "zh-CN": "广告配图", en: "Advertisement artwork" },
+              src: "",
+            },
+            title: { "zh-CN": "广告合作", en: "Advertise here" },
+          },
+          enabled: false,
+          provider: "adsense",
+          slotId: "6077231481",
+        },
+        posts: {
+          custom: {
+            description: {
+              "zh-CN": "面向技术读者展示你的产品、服务或开源项目。",
+              en: "Introduce your product, service or open-source project to technical readers.",
+            },
+            href: "",
+            image: {
+              alt: { "zh-CN": "广告配图", en: "Advertisement artwork" },
+              src: "",
+            },
+            title: { "zh-CN": "广告合作", en: "Advertise here" },
+          },
+          enabled: false,
+          provider: "adsense",
+          slotId: "6077231481",
+        },
+      },
     },
     aiSearch: {
       apiEndpoint: "/api/ai-search",
@@ -171,6 +260,40 @@ export const siteConfig = {
       provider: "giscus",
       repo: "evepupil/yeton-blog",
       repoId: "R_kgDOTY-rvQ",
+    },
+    sponsorship: {
+      copy: {
+        close: {
+          "zh-CN": "关闭赞赏窗口",
+          en: "Close sponsorship dialog",
+        },
+        description: {
+          "zh-CN": "如果这篇文章帮到了你，可以请我喝杯咖啡，支持我继续写下去。",
+          en: "If this article helped, you can support more independent writing.",
+        },
+        modalTitle: {
+          "zh-CN": "微信赞赏",
+          en: "Support via WeChat",
+        },
+        qrCodeAlt: {
+          "zh-CN": "叶桐的微信收款二维码",
+          en: "Yeton's WeChat payment QR code",
+        },
+        title: {
+          "zh-CN": "喜欢这篇文章？",
+          en: "Enjoyed this article?",
+        },
+        trigger: {
+          "zh-CN": "微信赞赏",
+          en: "Support this work",
+        },
+        unavailable: {
+          "zh-CN": "赞赏暂未开放，感谢你的心意。",
+          en: "Sponsorship is not open yet. Thank you for your support.",
+        },
+      },
+      enabled: true,
+      qrCodeSrc: "",
     },
   },
   locales: supportedLocales,

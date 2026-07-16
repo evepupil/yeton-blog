@@ -1,4 +1,5 @@
 import { PageIntro } from "@/components/page/page-intro";
+import { resolveAdPlacement } from "@/lib/monetization/config";
 import { ArticleBrowser } from "@/features/posts/article-browser";
 import { postsContent } from "@/features/posts/posts-content";
 import {
@@ -26,6 +27,7 @@ export async function PostsPage({ locale }: PostsPageProps) {
         title={content.title}
       />
       <ArticleBrowser
+        advertisement={resolveAdPlacement("posts", locale)}
         articles={getPublishedArticlePreviews(articles, locale)}
         locale={locale}
         tags={getTagSummaries(published)}

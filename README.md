@@ -56,7 +56,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - `author`：中英文作者名、签名、首页标题、关于页文案、头像来源和替代文字；`avatar.src` 可填写 `/images/...` 或公开 HTTPS URL
 - `sectionDescriptions`：文章、归档和图书栏目的中英文介绍
 - `socialLinks`：社交平台名称、链接和开关
-- `integrations`：Giscus、Google AdSense 和 Umami 的公开配置与开关
+- `integrations`：Giscus、广告、微信赞赏、Umami 和 AI 搜索的公开配置与开关
 
 这个文件会进入构建产物，只能填写公开值。Notion Token 等私密信息继续放在环境变量中；`NEXT_PUBLIC_SITE_URL` 由部署环境提供，用于区分本地、预览和生产域名。
 
@@ -76,7 +76,7 @@ pnpm sync-content
 
 ## Giscus 评论
 
-文章页已启用 Giscus，使用 `evepupil/yeton-blog` 的 `General` 分类。评论支持点击后加载、跟随站点主题和加载失败重试。更换仓库或分类时，先在 GitHub 开启 Discussions、安装 Giscus App 并选择分类，然后编辑 `site.config.ts` 的 `integrations.comments`：
+文章页已启用 Giscus，使用 `evepupil/yeton-blog` 的 `General` 分类。评论区接近视口后自动加载，支持跟随站点主题和加载失败重试。更换仓库或分类时，先在 GitHub 开启 Discussions、安装 Giscus App 并选择分类，然后编辑 `site.config.ts` 的 `integrations.comments`：
 
 ```ts
 comments: {
@@ -90,6 +90,12 @@ comments: {
 ```
 
 `enabled` 为 `false` 时评论区显示未开放状态；开启后配置不完整会让构建失败，避免发布一个无法工作的评论入口。
+
+## 广告与赞赏
+
+`site.config.ts` 的 `integrations.advertising` 管理首页、文章列表和正文三个广告位。每个位置可以独立关闭，或选择 `adsense` 和 `custom`。自营广告只读取标题、说明、HTTPS/站内链接和可选的 `/images/` 本地图片，不执行广告 HTML。
+
+`integrations.sponsorship` 管理文章末尾的微信赞赏入口。将真实收款码放到 `public/images/`，再把 `qrCodeSrc` 改成对应的 `/images/...` 路径即可开放扫码；路径为空时弹窗显示未开放状态。
 
 ## 内容编写
 

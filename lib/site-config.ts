@@ -4,10 +4,16 @@ import type { SiteLocale } from "@/site.config";
 export {
   siteConfig,
   supportedLocales,
+  type AdPlacementConfig,
+  type AdPlacementName,
+  type AdvertisingConfig,
+  type AdvertisingProvider,
   type AiSearchConfig,
+  type CustomAdvertisementConfig,
   type LocalizedText,
   type SiteLocale,
   type SocialPlatform,
+  type SponsorshipConfig,
   type UmamiAnalyticsConfig,
 } from "@/site.config";
 

@@ -4,11 +4,13 @@ import { Button } from "@heroui/react/button";
 import { EmptyState } from "@heroui/react/empty-state";
 import { Pagination } from "@heroui/react/pagination";
 import { ChevronLeft, ChevronRight, FileSearch } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { Fragment, useSyncExternalStore } from "react";
 
+import { AdPlacement } from "@/features/monetization/ad-placement";
 import { ArticleCard } from "@/features/posts/article-card";
 import { postsContent } from "@/features/posts/posts-content";
 import type { ArticlePreview, TagSummary } from "@/lib/content/types";
+import type { ResolvedAdvertisement } from "@/lib/monetization/config";
 import type { SiteLocale } from "@/lib/site-config";
 
 const articlesPerPage = 4;
@@ -53,12 +55,14 @@ function updateLocation(tag: string, page: number) {
 }
 
 interface ArticleBrowserProps {
+  readonly advertisement: ResolvedAdvertisement | null;
   readonly articles: readonly ArticlePreview[];
   readonly locale: SiteLocale;
   readonly tags: readonly TagSummary[];
 }
 
 export function ArticleBrowser({
+  advertisement,
   articles,
   locale,
   tags,
@@ -139,8 +143,13 @@ export function ArticleBrowser({
 
       <div className="post-grid" id="article-results">
         {visibleArticles.length > 0 ? (
-          visibleArticles.map((article) => (
-            <ArticleCard article={article} key={article.slug} locale={locale} />
+          visibleArticles.map((article, index) => (
+            <Fragment key={article.slug}>
+              <ArticleCard article={article} locale={locale} />
+              {index === 1 ? (
+                <AdPlacement advertisement={advertisement} locale={locale} />
+              ) : null}
+            </Fragment>
           ))
         ) : (
           <EmptyState className="posts-empty-state">

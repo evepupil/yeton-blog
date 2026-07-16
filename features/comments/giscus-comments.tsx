@@ -13,7 +13,6 @@ const commentsContent = {
   "zh-CN": {
     disabled: "评论暂未开放。",
     error: "评论暂时无法加载，正文阅读不受影响。",
-    load: "加载评论",
     loading: "正在加载评论",
     retry: "重新加载",
     title: "评论",
@@ -21,7 +20,6 @@ const commentsContent = {
   en: {
     disabled: "Comments are not open yet.",
     error: "Comments could not load. The article remains available.",
-    load: "Load comments",
     loading: "Loading comments",
     retry: "Try again",
     title: "Comments",
@@ -39,12 +37,36 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
   const content = commentsContent[locale];
   const { resolvedTheme } = useTheme();
   const theme = resolvedTheme === "dark" ? "dark" : "light";
-  const initialTheme = useRef(theme);
+  const sectionRef = useRef<HTMLElement>(null);
+  const latestTheme = useRef(theme);
   const hostRef = useRef<HTMLDivElement>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [status, setStatus] = useState<CommentsStatus>(
     config ? "idle" : "disabled",
   );
+
+  useEffect(() => {
+    if (!config || loadAttempt > 0) return;
+    const section = sectionRef.current;
+    if (!section) return;
+
+    if (!("IntersectionObserver" in window)) {
+      const timeoutId = globalThis.setTimeout(() => setLoadAttempt(1), 0);
+      return () => globalThis.clearTimeout(timeoutId);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        setLoadAttempt(1);
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(section);
+
+    return () => observer.disconnect();
+  }, [config, loadAttempt]);
 
   useEffect(() => {
     if (!config || loadAttempt === 0) return;
@@ -92,7 +114,7 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
     script.dataset.reactionsEnabled = "1";
     script.dataset.emitMetadata = "0";
     script.dataset.inputPosition = "bottom";
-    script.dataset.theme = initialTheme.current;
+    script.dataset.theme = latestTheme.current;
     script.dataset.lang = locale;
     script.dataset.loading = "lazy";
     script.addEventListener("error", fail, { once: true });
@@ -108,6 +130,7 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
   }, [config, loadAttempt, locale]);
 
   useEffect(() => {
+    latestTheme.current = theme;
     if (status !== "ready") return;
     const frame = hostRef.current?.querySelector<HTMLIFrameElement>(
       "iframe.giscus-frame",
@@ -125,6 +148,7 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
       data-giscus-theme={theme}
       data-status={status}
       data-testid="article-comments"
+      ref={sectionRef}
     >
       <header className="article-comments-header">
         <MessageSquareText aria-hidden="true" />
@@ -133,16 +157,6 @@ export function GiscusComments({ config, locale }: GiscusCommentsProps) {
 
       {status === "disabled" ? (
         <p className="article-comments-message">{content.disabled}</p>
-      ) : null}
-      {status === "idle" ? (
-        <Button
-          onPress={() => setLoadAttempt((attempt) => attempt + 1)}
-          size="sm"
-          variant="outline"
-        >
-          <MessageSquareText aria-hidden="true" />
-          {content.load}
-        </Button>
       ) : null}
       {status === "loading" ? (
         <div aria-live="polite" className="article-comments-loading">

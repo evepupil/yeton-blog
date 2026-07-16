@@ -4,6 +4,8 @@ import Image from "next/image";
 
 import { SiteLink } from "@/components/ui/site-link";
 import { GiscusComments } from "@/features/comments/giscus-comments";
+import { AdPlacement } from "@/features/monetization/ad-placement";
+import { SponsorshipSection } from "@/features/monetization/sponsorship-section";
 import { ArticleNavigation } from "@/features/posts/article-navigation";
 import { ArticleToc } from "@/features/posts/article-toc";
 import { MarkdownContent } from "@/features/posts/markdown-content";
@@ -16,6 +18,10 @@ import type {
 } from "@/lib/content/types";
 import { readGiscusConfig } from "@/lib/giscus/config";
 import { getLocalizedPath } from "@/lib/i18n";
+import {
+  resolveAdPlacement,
+  resolveSponsorship,
+} from "@/lib/monetization/config";
 
 interface ArticlePageProps {
   readonly article: Article;
@@ -26,6 +32,8 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
   const content = articleContent[article.locale];
   const postsHref = getLocalizedPath("/posts/", article.locale);
   const giscusConfig = readGiscusConfig();
+  const advertisement = resolveAdPlacement("article", article.locale);
+  const sponsorship = resolveSponsorship(article.locale);
 
   return (
     <main className="article-page">
@@ -71,11 +79,13 @@ export function ArticlePage({ article, navigation }: ArticlePageProps) {
       <div className="shell article-layout">
         <article>
           <MarkdownContent markdown={article.body} />
+          <AdPlacement advertisement={advertisement} locale={article.locale} />
           <ArticleNavigation
             ariaLabel={content.navigation}
             labels={{ next: content.next, previous: content.previous }}
             navigation={navigation}
           />
+          <SponsorshipSection sponsorship={sponsorship} />
           <GiscusComments config={giscusConfig} locale={article.locale} />
         </article>
         <ArticleToc headings={article.headings} title={content.contents} />

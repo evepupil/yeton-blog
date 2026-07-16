@@ -75,7 +75,6 @@
 .post-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 216px;
   align-content: start;
   gap: 24px;
   min-height: 456px;
@@ -681,7 +680,6 @@
 
   .post-grid {
     grid-template-columns: 1fr;
-    grid-auto-rows: 196px;
     min-height: 0;
   }
 

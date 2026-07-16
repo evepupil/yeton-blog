@@ -6,6 +6,7 @@ import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { resolveSiteUrl } from "@/lib/site-config";
 import { resolveUmamiConfig } from "@/lib/analytics/config";
+import { resolveAdSenseClientId } from "@/lib/monetization/config";
 import {
   createRedirectRules,
   serializeRedirectRule,
@@ -15,6 +16,7 @@ import { redirectsConfig } from "@/redirects.config";
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
 const analytics = resolveUmamiConfig();
+const adsenseClientId = resolveAdSenseClientId();
 const requiredFiles = [
   "_headers",
   "_redirects",
@@ -43,10 +45,11 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
   );
   const requiredRules = [
     "Content-Security-Policy:",
-    "frame-src https://giscus.app",
+    "frame-src https://giscus.app https://googleads.g.doubleclick.net https://tpc.googlesyndication.com",
     "img-src 'self' data: https:",
     "https://cloud.umami.is",
-    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is",
+    "https://pagead2.googlesyndication.com",
+    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is https://pagead2.googlesyndication.com",
     "Permissions-Policy:",
     "Referrer-Policy:",
     "X-Content-Type-Options: nosniff",
@@ -260,6 +263,17 @@ async function checkHtmlFile(
       !htmlSource.includes(analytics.scriptUrl))
   ) {
     errors.push(`${relativePath}: missing configured Umami analytics script.`);
+  }
+
+  if (
+    adsenseClientId &&
+    !isNotFoundPage &&
+    (!htmlSource.includes(adsenseClientId) ||
+      !htmlSource.includes(
+        "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js",
+      ))
+  ) {
+    errors.push(`${relativePath}: missing configured AdSense script.`);
   }
 
   if (!html || getHtmlAttribute(html, "lang") !== expectedLocale) {

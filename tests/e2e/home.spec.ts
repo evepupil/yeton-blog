@@ -197,7 +197,7 @@ test("opens a migrated article with contents, navigation and translation", async
   expect(browserErrors).toEqual([]);
 });
 
-test("loads comments on demand and follows the site theme", async ({
+test("loads comments near the viewport and follows the site theme", async ({
   page,
 }) => {
   await page.route("https://giscus.app/client.js", async (route) => {
@@ -231,7 +231,10 @@ test("loads comments on demand and follows the site theme", async ({
   await expect(
     comments.getByRole("heading", { level: 2, name: "评论" }),
   ).toBeVisible();
-  await comments.getByRole("button", { name: "加载评论" }).click();
+  await expect(comments.getByRole("button", { name: "加载评论" })).toHaveCount(
+    0,
+  );
+  await comments.scrollIntoViewIfNeeded();
   const commentsFrame = page.frameLocator("iframe.giscus-frame");
   const frameBody = commentsFrame.locator("body");
   const html = page.locator("html");
@@ -256,7 +259,7 @@ test("keeps the article readable when comments fail to load", async ({
   );
 
   const comments = page.getByTestId("article-comments");
-  await comments.getByRole("button", { name: "Load comments" }).click();
+  await comments.scrollIntoViewIfNeeded();
   await expect(
     comments.getByText(
       "Comments could not load. The article remains available.",
@@ -272,6 +275,32 @@ test("keeps the article readable when comments fail to load", async ({
       name: "NextDevTpl: A Next.js Full-Stack SaaS Template for Indie Developers",
     }),
   ).toBeVisible();
+});
+
+test("shows the sponsorship entry before comments", async ({ page }) => {
+  await page.route("https://giscus.app/client.js", async (route) => {
+    await route.abort("failed");
+  });
+  await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
+
+  const sponsorship = page.getByTestId("article-sponsorship");
+  await sponsorship.scrollIntoViewIfNeeded();
+  await expect(
+    sponsorship.getByRole("heading", { level: 2, name: "喜欢这篇文章？" }),
+  ).toBeVisible();
+  await sponsorship.getByRole("button", { name: "微信赞赏" }).click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "微信赞赏" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("赞赏暂未开放，感谢你的心意。", { exact: true }),
+  ).toBeVisible();
+
+  const sponsorshipBox = await sponsorship.boundingBox();
+  const commentsBox = await page.getByTestId("article-comments").boundingBox();
+  expect(sponsorshipBox).not.toBeNull();
+  expect(commentsBox).not.toBeNull();
+  expect(sponsorshipBox!.y).toBeLessThan(commentsBox!.y);
 });
 
 test("filters and paginates the article list through the URL", async ({
