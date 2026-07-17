@@ -13,7 +13,7 @@ import type { ArticlePreview, TagSummary } from "@/lib/content/types";
 import type { ResolvedAdvertisement } from "@/lib/monetization/config";
 import type { SiteLocale } from "@/lib/site-config";
 
-const articlesPerPage = 4;
+const articlesPerPage = 10;
 const locationChangeEvent = "blog:location-change";
 
 function subscribeToLocation(onStoreChange: () => void) {

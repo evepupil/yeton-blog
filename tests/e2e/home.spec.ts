@@ -558,25 +558,24 @@ test("filters and paginates the article list through the URL", async ({
   await page.goto("/posts/");
 
   await expect(page.getByText("共 19 篇")).toBeVisible();
-  await expect(page.locator(".post-card")).toHaveCount(4);
+  await expect(page.locator(".post-card")).toHaveCount(10);
 
   await page.getByRole("button", { name: /^AI/u }).click();
   await expect(page).toHaveURL(/\?tag=AI$/u);
   await expect(page.getByText("共 5 篇")).toBeVisible();
-  await expect(page.locator(".post-card")).toHaveCount(4);
+  await expect(page.locator(".post-card")).toHaveCount(5);
+  await expect(page.getByRole("button", { name: "下一页" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "全部" }).click();
+  await expect(page).toHaveURL(/\/posts\/$/u);
+  await expect(page.locator(".post-card")).toHaveCount(10);
 
   await page.getByRole("button", { name: "下一页" }).click();
-  await expect(page).toHaveURL(/\?tag=AI&page=2$/u);
-  await expect(page.locator(".post-card")).toHaveCount(1);
-  await expect(
-    page.getByRole("heading", {
-      level: 2,
-      name: "Cloudflare AI Search（AutoRAG）接入实战，个人博客的知识库AI助手",
-    }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\?page=2$/u);
+  await expect(page.locator(".post-card")).toHaveCount(9);
 
   await page.reload();
-  await expect(page.locator(".post-card")).toHaveCount(1);
+  await expect(page.locator(".post-card")).toHaveCount(9);
   expect(browserErrors).toEqual([]);
 });
 
