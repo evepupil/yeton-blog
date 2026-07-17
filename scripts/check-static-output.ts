@@ -6,6 +6,7 @@ import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { resolveSiteUrl } from "@/lib/site-config";
 import {
+  resolveCloudflareWebAnalyticsConfig,
   resolveGoogleAnalyticsConfig,
   resolveUmamiConfig,
 } from "@/lib/analytics/config";
@@ -19,6 +20,7 @@ import { redirectsConfig } from "@/redirects.config";
 const outputDirectory = path.resolve("out");
 const siteUrl = resolveSiteUrl();
 const analytics = resolveUmamiConfig();
+const cloudflareWebAnalytics = resolveCloudflareWebAnalyticsConfig();
 const googleAnalytics = resolveGoogleAnalyticsConfig();
 const adsenseClientId = resolveAdSenseClientId();
 const requiredFiles = [
@@ -52,11 +54,16 @@ async function checkHeadersFile(errors: string[]): Promise<void> {
     "frame-src https://giscus.app https://googleads.g.doubleclick.net https://tpc.googlesyndication.com",
     "img-src 'self' data: https:",
     "https://cloud.umami.is",
+    "https://gateway.umami.is",
+    "https://static.cloudflareinsights.com",
+    "https://cloudflareinsights.com",
     "https://pagead2.googlesyndication.com",
+    "https://ep1.adtrafficquality.google",
     "https://www.google-analytics.com",
     "https://region1.google-analytics.com",
+    "https://analytics.google.com",
     "https://www.googletagmanager.com",
-    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is https://pagead2.googlesyndication.com https://www.googletagmanager.com",
+    "script-src 'self' 'unsafe-inline' https://giscus.app https://cloud.umami.is https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://www.googletagmanager.com",
     "Permissions-Policy:",
     "Referrer-Policy:",
     "X-Content-Type-Options: nosniff",
@@ -270,6 +277,17 @@ async function checkHtmlFile(
       !htmlSource.includes(analytics.scriptUrl))
   ) {
     errors.push(`${relativePath}: missing configured Umami analytics script.`);
+  }
+
+  if (
+    cloudflareWebAnalytics &&
+    !isNotFoundPage &&
+    (!htmlSource.includes(cloudflareWebAnalytics.token) ||
+      !htmlSource.includes(cloudflareWebAnalytics.scriptUrl))
+  ) {
+    errors.push(
+      `${relativePath}: missing configured Cloudflare Web Analytics script.`,
+    );
   }
 
   if (

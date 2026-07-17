@@ -60,6 +60,11 @@ export interface GoogleAnalyticsConfig {
   readonly measurementId: string;
 }
 
+export interface CloudflareWebAnalyticsConfig {
+  readonly enabled: boolean;
+  readonly token: string;
+}
+
 export interface AiSearchConfig {
   readonly apiEndpoint: string;
   readonly autoragName: string;
@@ -104,6 +109,7 @@ interface PublicSiteConfig {
     readonly advertising: AdvertisingConfig;
     readonly aiSearch: AiSearchConfig;
     readonly analytics: UmamiAnalyticsConfig;
+    readonly cloudflareWebAnalytics: CloudflareWebAnalyticsConfig;
     readonly comments: {
       readonly category: string;
       readonly categoryId: string;
@@ -264,6 +270,10 @@ export const siteConfig = {
       showPageViews: true,
       timezone: "Asia/Shanghai",
       websiteId: "526149f7-e7d5-40ac-ae75-50a0c2515abf",
+    },
+    cloudflareWebAnalytics: {
+      enabled: true,
+      token: "34ff13ae70884f10a32cf231fb228bfe",
     },
     comments: {
       category: "General",

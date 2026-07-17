@@ -3,15 +3,20 @@
 import { useEffect } from "react";
 
 interface ExternalScriptProps {
+  readonly cfBeaconToken?: string;
   readonly crossOrigin?: "anonymous";
+  readonly execution?: "async" | "defer";
   readonly id: string;
-  readonly integration: "adsense" | "google-analytics" | "umami";
+  readonly integration:
+    "adsense" | "cloudflare-web-analytics" | "google-analytics" | "umami";
   readonly src: string;
   readonly websiteId?: string;
 }
 
 export function ExternalScript({
+  cfBeaconToken,
   crossOrigin,
+  execution = "async",
   id,
   integration,
   src,
@@ -31,12 +36,16 @@ export function ExternalScript({
     }
 
     const script = document.createElement("script");
-    script.async = true;
+    script.async = execution === "async";
+    script.defer = execution === "defer";
     script.dataset.blogIntegration = integration;
     script.dataset.loadStatus = "loading";
     script.id = id;
     script.src = src;
     if (crossOrigin) script.crossOrigin = crossOrigin;
+    if (cfBeaconToken) {
+      script.dataset.cfBeacon = JSON.stringify({ token: cfBeaconToken });
+    }
     if (websiteId) script.dataset.websiteId = websiteId;
 
     script.addEventListener(
@@ -54,7 +63,7 @@ export function ExternalScript({
       { once: true },
     );
     document.body.append(script);
-  }, [crossOrigin, id, integration, src, websiteId]);
+  }, [cfBeaconToken, crossOrigin, execution, id, integration, src, websiteId]);
 
   return null;
 }

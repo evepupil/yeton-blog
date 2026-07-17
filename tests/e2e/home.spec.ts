@@ -66,6 +66,15 @@ test.beforeEach(async ({ page }) => {
     });
   });
   await page.route(
+    "https://static.cloudflareinsights.com/**",
+    async (route) => {
+      await route.fulfill({
+        body: 'document.documentElement.dataset.cloudflareWebAnalyticsScriptExecuted = "true";',
+        contentType: "application/javascript",
+      });
+    },
+  );
+  await page.route(
     "https://pagead2.googlesyndication.com/**",
     async (route) => {
       await route.fulfill({
@@ -87,12 +96,20 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
   const googleAnalyticsScript = page.waitForRequest(
     "https://www.googletagmanager.com/gtag/js?id=G-D9ZRKT7G85",
   );
+  const cloudflareWebAnalyticsScript = page.waitForRequest(
+    "https://static.cloudflareinsights.com/beacon.min.js",
+  );
   const adsenseScript = page.waitForRequest(
     /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/u,
   );
 
   await page.goto("/");
-  await Promise.all([analyticsScript, googleAnalyticsScript, adsenseScript]);
+  await Promise.all([
+    analyticsScript,
+    cloudflareWebAnalyticsScript,
+    googleAnalyticsScript,
+    adsenseScript,
+  ]);
 
   await expect(page).toHaveTitle("潮思Chaosyn");
   await expect(
@@ -148,6 +165,18 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
     "data-load-status",
     "loaded",
   );
+  await expect(
+    page.locator("#blog-cloudflare-web-analytics-script"),
+  ).toHaveAttribute(
+    "data-cf-beacon",
+    '{"token":"34ff13ae70884f10a32cf231fb228bfe"}',
+  );
+  await expect(
+    page.locator("#blog-cloudflare-web-analytics-script"),
+  ).not.toHaveAttribute("inert");
+  await expect(
+    page.locator("#blog-cloudflare-web-analytics-script"),
+  ).toHaveAttribute("data-load-status", "loaded");
 
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-umami-script-executed", "true");
@@ -156,6 +185,10 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
     "true",
   );
   await expect(html).toHaveAttribute("data-adsense-script-executed", "true");
+  await expect(html).toHaveAttribute(
+    "data-cloudflare-web-analytics-script-executed",
+    "true",
+  );
   await expect(html).toHaveAttribute("data-theme", /^(dark|light)$/u);
   const initialTheme = await html.getAttribute("data-theme");
   await page.getByRole("button", { name: "切换主题" }).click();

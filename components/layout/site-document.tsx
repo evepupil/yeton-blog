@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AdSenseScript } from "@/components/integrations/adsense-script";
 import { AnalyticsScript } from "@/components/integrations/analytics-script";
+import { CloudflareWebAnalyticsScript } from "@/components/integrations/cloudflare-web-analytics-script";
 import { GoogleAnalyticsScript } from "@/components/integrations/google-analytics-script";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -45,6 +46,7 @@ export async function SiteDocument({ children, locale }: SiteDocumentProps) {
         </ThemeProvider>
         <AdSenseScript />
         <AnalyticsScript />
+        <CloudflareWebAnalyticsScript />
         <GoogleAnalyticsScript />
       </body>
     </html>

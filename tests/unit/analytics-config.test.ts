@@ -1,13 +1,38 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveCloudflareWebAnalyticsConfig,
   resolveGoogleAnalyticsConfig,
   resolveUmamiConfig,
 } from "@/lib/analytics/config";
 import type {
+  CloudflareWebAnalyticsConfig,
   GoogleAnalyticsConfig,
   UmamiAnalyticsConfig,
 } from "@/site.config";
+
+describe("Cloudflare Web Analytics configuration", () => {
+  const config: CloudflareWebAnalyticsConfig = {
+    enabled: true,
+    token: "34ff13ae70884f10a32cf231fb228bfe",
+  };
+
+  it("resolves the migrated beacon token", () => {
+    expect(resolveCloudflareWebAnalyticsConfig(config)).toEqual({
+      scriptUrl: "https://static.cloudflareinsights.com/beacon.min.js",
+      token: "34ff13ae70884f10a32cf231fb228bfe",
+    });
+  });
+
+  it("omits disabled analytics and rejects malformed tokens", () => {
+    expect(
+      resolveCloudflareWebAnalyticsConfig({ ...config, enabled: false }),
+    ).toBeNull();
+    expect(() =>
+      resolveCloudflareWebAnalyticsConfig({ ...config, token: "invalid" }),
+    ).toThrow("32 hex characters");
+  });
+});
 
 const enabledConfig: UmamiAnalyticsConfig = {
   apiPath: "/analytics/us/api/",

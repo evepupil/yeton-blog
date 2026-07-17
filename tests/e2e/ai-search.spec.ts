@@ -21,6 +21,21 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://cloud.umami.is/**", async (route) => {
     await route.fulfill({ body: "", contentType: "application/javascript" });
   });
+  await page.route(
+    "https://static.cloudflareinsights.com/**",
+    async (route) => {
+      await route.fulfill({ body: "", contentType: "application/javascript" });
+    },
+  );
+  await page.route("https://www.googletagmanager.com/**", async (route) => {
+    await route.fulfill({ body: "", contentType: "application/javascript" });
+  });
+  await page.route(
+    "https://pagead2.googlesyndication.com/**",
+    async (route) => {
+      await route.fulfill({ body: "", contentType: "application/javascript" });
+    },
+  );
 });
 
 test("asks AI search and opens a cited article", async ({ page }) => {

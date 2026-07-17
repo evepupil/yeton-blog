@@ -1,5 +1,6 @@
 import { siteConfig } from "@/site.config";
 import type {
+  CloudflareWebAnalyticsConfig,
   GoogleAnalyticsConfig,
   UmamiAnalyticsConfig,
 } from "@/site.config";
@@ -19,9 +20,32 @@ export interface ResolvedGoogleAnalyticsConfig {
   readonly scriptUrl: string;
 }
 
+export interface ResolvedCloudflareWebAnalyticsConfig {
+  readonly scriptUrl: string;
+  readonly token: string;
+}
+
 const websiteIdPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu;
 const shareIdPattern = /^[A-Za-z0-9_-]+$/u;
 const measurementIdPattern = /^G-[A-Z0-9]+$/u;
+const cloudflareTokenPattern = /^[a-f0-9]{32}$/iu;
+
+export function resolveCloudflareWebAnalyticsConfig(
+  config: CloudflareWebAnalyticsConfig = siteConfig.integrations
+    .cloudflareWebAnalytics,
+): ResolvedCloudflareWebAnalyticsConfig | null {
+  if (!config.enabled) return null;
+  if (!cloudflareTokenPattern.test(config.token)) {
+    throw new Error(
+      "Cloudflare Web Analytics token must contain 32 hex characters.",
+    );
+  }
+
+  return {
+    scriptUrl: "https://static.cloudflareinsights.com/beacon.min.js",
+    token: config.token,
+  };
+}
 
 function validateTimezone(timezone: string): void {
   try {

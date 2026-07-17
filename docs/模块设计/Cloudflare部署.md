@@ -41,7 +41,7 @@
 4. `NEXT_PUBLIC_SITE_URL` 用于 canonical、RSS、sitemap 和分享地址。Cloudflare 项目虽然保存了同名 Production/Preview 变量，Git 构建日志仍显示没有注入构建变量，因此正式域名同时写在 Pages 构建命令中，保证生产构建获得确定地址。
 5. Node.js 固定为 `22.14.0`，pnpm 固定为 `10.21.0`。Cloudflare 构建命令和本地门禁使用同一份 lockfile。
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
-7. CSP 允许站内资源、公共 HTTPS 图片、Giscus、Umami、Google Analytics 和 AdSense 当前需要的脚本、连接与 iframe。Next、主题与 GA4 初始化需要内联脚本和样式，因此当前保留 `unsafe-inline`；第三方服务增加来源时必须按实际请求补充并继续限制域名。
+7. CSP 允许站内资源、公共 HTTPS 图片、Giscus、Umami、Cloudflare Web Analytics、Google Analytics 和 AdSense 当前需要的脚本、连接与 iframe。Next、主题与 GA4 初始化需要内联脚本和样式，因此当前保留 `unsafe-inline`；第三方服务增加来源时必须按实际请求补充并继续限制域名。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
 9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
 10. `pnpm build` 将 `functions/` 编译为单文件 `out/_worker.js`。这能让 Pages Git 上传阶段直接识别动态接口，`_routes.json` 保证文章和静态资源继续由 Pages 资产服务处理。
@@ -53,6 +53,8 @@
 
 - 修正 5 篇文章中的 8 个旧站内链接，使其直接指向当前 canonical slug；旧地址继续由 `_redirects` 承接外部访问。
 - 根据失败的生产 deployment 确认 `pnpm site:check` 拦截了失效链接；构建准备阶段现在先删除旧 `out`，避免本地单独运行产物检查时误把历史文件当成当前结果。
+- 按生产 F12 请求补齐 Umami gateway、Cloudflare RUM、GA4 收集与 AdSense 质量检查域名，并把来源清单加入静态产物门禁。
+- 代码加载旧项目 Cloudflare beacon token；当前 Pages 项目自动注入的 beacon 需要在 Dashboard 关闭，避免两个统计站点并存。
 
 ### 2026-07-16
 

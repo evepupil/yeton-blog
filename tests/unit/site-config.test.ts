@@ -46,6 +46,7 @@ describe("site configuration", () => {
     });
     expect(siteConfig.integrations.analytics.enabled).toBe(true);
     expect(siteConfig.integrations.analytics.showPageViews).toBe(true);
+    expect(siteConfig.integrations.cloudflareWebAnalytics.enabled).toBe(true);
     expect(siteConfig.integrations.comments.enabled).toBe(true);
     expect(siteConfig.integrations.googleAnalytics.enabled).toBe(true);
     expect(siteConfig.integrations.sponsorship.enabled).toBe(true);
