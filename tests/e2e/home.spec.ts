@@ -55,18 +55,24 @@ test.beforeEach(async ({ page }) => {
       return;
     }
     await route.fulfill({
-      body: "",
+      body: 'document.documentElement.dataset.umamiScriptExecuted = "true";',
       contentType: "application/javascript",
     });
   });
   await page.route("https://www.googletagmanager.com/**", async (route) => {
-    await route.fulfill({ body: "", contentType: "application/javascript" });
+    await route.fulfill({
+      body: 'document.documentElement.dataset.googleAnalyticsScriptExecuted = "true";',
+      contentType: "application/javascript",
+    });
   });
   await page.route(
     "https://pagead2.googlesyndication.com/**",
     async (route) => {
       await route.fulfill({
-        body: "",
+        body: `
+          window.adsbygoogle = window.adsbygoogle || [];
+          document.documentElement.dataset.adsenseScriptExecuted = "true";
+        `,
         contentType: "application/javascript",
       });
     },
@@ -78,9 +84,15 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
   const analyticsScript = page.waitForRequest(
     "https://cloud.umami.is/script.js",
   );
+  const googleAnalyticsScript = page.waitForRequest(
+    "https://www.googletagmanager.com/gtag/js?id=G-D9ZRKT7G85",
+  );
+  const adsenseScript = page.waitForRequest(
+    /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/u,
+  );
 
   await page.goto("/");
-  await analyticsScript;
+  await Promise.all([analyticsScript, googleAnalyticsScript, adsenseScript]);
 
   await expect(page).toHaveTitle("潮思Chaosyn");
   await expect(
@@ -102,6 +114,8 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
       'script[data-website-id="526149f7-e7d5-40ac-ae75-50a0c2515abf"]',
     ),
   ).toHaveCount(1);
+  await expect(page.locator("#blog-umami-script")).not.toHaveAttribute("inert");
+  await expect(page.locator("#blog-umami-script")).toHaveAttribute("async", "");
   await expect(
     page.locator('meta[name="google-adsense-account"]'),
   ).toHaveAttribute("content", "ca-pub-1149581082118045");
@@ -113,11 +127,23 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
       'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]',
     ),
   ).toHaveCount(1);
+  await expect(page.locator("#blog-adsense-script")).not.toHaveAttribute(
+    "inert",
+  );
   await expect(
     page.locator('script[src*="googletagmanager.com/gtag/js?id=G-D9ZRKT7G85"]'),
   ).toHaveCount(1);
+  await expect(
+    page.locator("#blog-google-analytics-script"),
+  ).not.toHaveAttribute("inert");
 
   const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-umami-script-executed", "true");
+  await expect(html).toHaveAttribute(
+    "data-google-analytics-script-executed",
+    "true",
+  );
+  await expect(html).toHaveAttribute("data-adsense-script-executed", "true");
   await expect(html).toHaveAttribute("data-theme", /^(dark|light)$/u);
   const initialTheme = await html.getAttribute("data-theme");
   await page.getByRole("button", { name: "切换主题" }).click();
@@ -449,6 +475,16 @@ test("shows the sponsorship entry before comments", async ({ page }) => {
     await route.abort("failed");
   });
   await page.goto("/posts/nextdevtpl-next-js-saas-30b4342e/");
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          ((window as Window & { adsbygoogle?: unknown[] }).adsbygoogle ?? [])
+            .length,
+      ),
+    )
+    .toBeGreaterThan(0);
 
   const sponsorship = page.getByTestId("article-sponsorship");
   await sponsorship.scrollIntoViewIfNeeded();

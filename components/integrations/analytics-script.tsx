@@ -1,5 +1,4 @@
-import Script from "next/script";
-
+import { ExternalScript } from "@/components/integrations/external-script";
 import { resolveUmamiConfig } from "@/lib/analytics/config";
 
 export function AnalyticsScript() {
@@ -9,10 +8,11 @@ export function AnalyticsScript() {
   }
 
   return (
-    <Script
-      data-website-id={analytics.websiteId}
+    <ExternalScript
+      id="blog-umami-script"
+      integration="umami"
       src={analytics.scriptUrl}
-      strategy="lazyOnload"
+      websiteId={analytics.websiteId}
     />
   );
 }

@@ -1,5 +1,4 @@
-import Script from "next/script";
-
+import { ExternalScript } from "@/components/integrations/external-script";
 import { resolveAdSenseClientId } from "@/lib/monetization/config";
 
 export function AdSenseScript() {
@@ -9,10 +8,11 @@ export function AdSenseScript() {
   }
 
   return (
-    <Script
+    <ExternalScript
       crossOrigin="anonymous"
+      id="blog-adsense-script"
+      integration="adsense"
       src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`}
-      strategy="lazyOnload"
     />
   );
 }
