@@ -21,7 +21,7 @@ translationKey: "cloudflare-worker-反代网站为什么有的网站能用有的
 - 有的网站完全没问题
 - 有的网站连首页都过不去
 
-如果你还没配过基础版反代，可以先看我之前这篇：[Cloudflare Worker反向代理网站教程](https://blog.chaosyn.com/posts/cloudflare-worker%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B/)。
+如果你还没配过基础版反代，可以先看我之前这篇：[Cloudflare Worker反向代理网站教程](https://blog.chaosyn.com/posts/cloudflare-worker-2ad4342e/)。
 
 这次我专门翻了下 Cloudflare 官方文档，结论其实挺明确：
 
@@ -191,7 +191,7 @@ Cloudflare 官方文档写得很清楚：如果 403 页面 **没有 Cloudflare b
 - Worker 一请求裸 IP 就秒回 403
 - 响应时间只有几毫秒
 
-那大概率是另一类问题，可以看我之前写的这篇：[Cloudflare Worker 反代服务器的IP出现403的解决办法](https://blog.chaosyn.com/posts/cloudflare-worker-%E5%8F%8D%E4%BB%A3%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%9A%84ip%E5%87%BA%E7%8E%B0403%E7%9A%84%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/)。
+那大概率是另一类问题，可以看我之前写的这篇：[Cloudflare Worker 反代服务器的IP出现403的解决办法](https://blog.chaosyn.com/posts/cloudflare-worker-ip-403-2e94342e/)。
 
 ---
 

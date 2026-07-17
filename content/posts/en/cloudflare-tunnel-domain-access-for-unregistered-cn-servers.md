@@ -68,4 +68,4 @@ Now your service is accessible through the domain.
 - **SSL mode**: if your origin has no certificate, set SSL/TLS mode to `Flexible` in Cloudflare Dashboard.
 - **Large uploads**: if you upload large files (for example Dify knowledge files), adjust `Client Max Body Size` in Cloudflare rules.
 
-You can combine this with preferred nodes for faster domestic access: [Cloud Flare配置优选节点教程 - 潮思Chaosyn](https://blog.chaosyn.com/posts/cloud-flare%E9%85%8D%E7%BD%AE%E4%BC%98%E9%80%89%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B/)
+You can combine this with preferred nodes for faster domestic access: [Cloud Flare配置优选节点教程 - 潮思Chaosyn](https://blog.chaosyn.com/posts/cloud-flare-2b34342e/)

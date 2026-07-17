@@ -1,12 +1,19 @@
 import { rm } from "node:fs/promises";
 import path from "node:path";
 
-const nextDevDirectory = path.join(process.cwd(), ".next", "dev");
+const generatedDirectories = [
+  path.join(process.cwd(), ".next", "dev"),
+  path.join(process.cwd(), "out"),
+];
 
 async function main() {
-  await rm(nextDevDirectory, { force: true, recursive: true });
+  await Promise.all(
+    generatedDirectories.map((directory) =>
+      rm(directory, { force: true, recursive: true }),
+    ),
+  );
 
-  console.log("Next.js development cache cleared for production build.");
+  console.log("Stale Next.js development cache and static output cleared.");
 }
 
 main().catch((error: unknown) => {

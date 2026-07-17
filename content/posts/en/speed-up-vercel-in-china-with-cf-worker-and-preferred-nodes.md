@@ -20,7 +20,7 @@ Note: in the following, assume users access accelerated domain `B.xxx.com`, whil
 
 ## Cloudflare reverse proxy
 
-I already covered details here: [Cloudflare Worker反向代理网站教程 - 潮思Chaosyn](https://blog.chaosyn.com/posts/cloudflare-worker%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B/)
+I already covered details here: [Cloudflare Worker反向代理网站教程 - 潮思Chaosyn](https://blog.chaosyn.com/posts/cloudflare-worker-2ad4342e/)
 
 Simplified steps:
 
@@ -40,7 +40,7 @@ Simplified steps:
 
 ## Cloudflare preferred nodes
 
-Detailed guide is here: [https://blog.chaosyn.com/posts/cloud-flare配置优选节点教程/](https://blog.chaosyn.com/posts/cloud-flare%E9%85%8D%E7%BD%AE%E4%BC%98%E9%80%89%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B/)
+Detailed guide is here: [https://blog.chaosyn.com/posts/cloud-flare-2b34342e/](https://blog.chaosyn.com/posts/cloud-flare-2b34342e/)
 
 Simplified steps:
 

@@ -8,7 +8,7 @@
 >
 > **当前状态**：已完成
 >
-> **最近更新时间**：2026-07-16
+> **最近更新时间**：2026-07-17
 
 ## 设计
 
@@ -48,6 +48,11 @@
 11. Pages 项目名是 `yeton-blog`，仓库 Wrangler 名称保留应用名 `hero-ui-blog`。production binding 以 Dashboard 为准，避免 Git 上传器把仓库配置切成只发布静态产物的模式。
 
 ## 改动历史
+
+### 2026-07-17
+
+- 修正 5 篇文章中的 8 个旧站内链接，使其直接指向当前 canonical slug；旧地址继续由 `_redirects` 承接外部访问。
+- 根据失败的生产 deployment 确认 `pnpm site:check` 拦截了失效链接；构建准备阶段现在先删除旧 `out`，避免本地单独运行产物检查时误把历史文件当成当前结果。
 
 ### 2026-07-16
 
@@ -117,7 +122,7 @@ pnpm ai-search:migrate
 1. Pull Request 通过 GitHub `Quality` 检查。
 2. 合并到 `main` 后，Cloudflare Pages 的 Git 集成检测到新 commit。
 3. Cloudflare 安装锁定依赖并运行配置的构建命令；命令先把正式域名传给 `pnpm build`。
-4. 构建脚本先从 `redirects.config.ts` 生成 `_redirects`，再检测 `CF_PAGES=1`、校验传入的 `NEXT_PUBLIC_SITE_URL`，随后生成静态页面和 `out/_worker.js` 并检查完整产物。
+4. 构建脚本先从 `redirects.config.ts` 生成 `_redirects`，再检测 `CF_PAGES=1`、校验传入的 `NEXT_PUBLIC_SITE_URL`，清理历史 `out` 后生成静态页面和 `out/_worker.js` 并检查完整产物。
 5. Cloudflare 发布静态产物并保留 deployment 历史。
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
