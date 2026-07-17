@@ -116,6 +116,10 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
   ).toHaveCount(1);
   await expect(page.locator("#blog-umami-script")).not.toHaveAttribute("inert");
   await expect(page.locator("#blog-umami-script")).toHaveAttribute("async", "");
+  await expect(page.locator("#blog-umami-script")).toHaveAttribute(
+    "data-load-status",
+    "loaded",
+  );
   await expect(
     page.locator('meta[name="google-adsense-account"]'),
   ).toHaveAttribute("content", "ca-pub-1149581082118045");
@@ -130,12 +134,20 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
   await expect(page.locator("#blog-adsense-script")).not.toHaveAttribute(
     "inert",
   );
+  await expect(page.locator("#blog-adsense-script")).toHaveAttribute(
+    "data-load-status",
+    "loaded",
+  );
   await expect(
     page.locator('script[src*="googletagmanager.com/gtag/js?id=G-D9ZRKT7G85"]'),
   ).toHaveCount(1);
   await expect(
     page.locator("#blog-google-analytics-script"),
   ).not.toHaveAttribute("inert");
+  await expect(page.locator("#blog-google-analytics-script")).toHaveAttribute(
+    "data-load-status",
+    "loaded",
+  );
 
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-umami-script-executed", "true");
