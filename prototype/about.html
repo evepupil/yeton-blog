@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="潮思Chaosyn 关于页面原型，通过代码、AI 使用、阅读与技术栈展示叶桐的近期状态。"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>关于叶桐 / 潮思Chaosyn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="about.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="主导航">
+        <a class="brand" href="index.html#home" aria-label="返回首页">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span class="brand-copy">
+            <strong>潮思Chaosyn</strong>
+            <small>CHAOSYN</small>
+          </span>
+        </a>
+
+        <div class="desktop-nav">
+          <a href="index.html#home">首页</a>
+          <a href="index.html#posts">文章</a>
+          <a href="index.html#archive">归档</a>
+          <a href="index.html#books">图书</a>
+          <a href="../out/links/index.html">友链</a>
+          <a class="is-active" href="about.html" aria-current="page">关于</a>
+        </div>
+
+        <div class="nav-actions">
+          <button class="icon-button" type="button" aria-label="搜索">
+            <i data-lucide="search" aria-hidden="true"></i>
+          </button>
+          <button
+            class="icon-button"
+            id="theme-button"
+            type="button"
+            aria-label="切换深色模式"
+          >
+            <i data-lucide="moon" aria-hidden="true"></i>
+          </button>
+          <button
+            class="icon-button mobile-menu-button"
+            id="mobile-menu-button"
+            type="button"
+            aria-label="打开菜单"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+          >
+            <i data-lucide="menu" aria-hidden="true"></i>
+          </button>
+        </div>
+      </nav>
+
+      <nav class="mobile-nav" id="mobile-nav" aria-label="移动导航" hidden>
+        <a href="index.html#home">首页</a>
+        <a href="index.html#posts">文章</a>
+        <a href="index.html#archive">归档</a>
+        <a href="index.html#books">图书</a>
+        <a href="../out/links/index.html">友链</a>
+        <a class="is-active" href="about.html" aria-current="page">关于</a>
+      </nav>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      <section class="about-hero shell" aria-labelledby="about-title">
+        <div class="about-intro">
+          <div class="page-meta">
+            <span class="section-index">05</span>
+            <span>数据型关于页原型 · 2026.07</span>
+          </div>
+          <h1 id="about-title">关于叶桐</h1>
+          <p class="about-lead">
+            我关注 AI 工程化、Cloudflare、Web
+            开发与独立项目。比起写一份正式自传，我更想用持续更新的代码、阅读和创作记录，说明最近在做什么。
+          </p>
+        </div>
+
+        <aside class="identity" aria-label="叶桐的个人资料">
+          <img
+            class="avatar"
+            src="../public/images/profile-avatar.jpg"
+            alt="叶桐的头像"
+            width="168"
+            height="168"
+          />
+          <div class="identity-copy">
+            <div>
+              <h2>叶桐</h2>
+              <p>無くした日々にさよなら</p>
+            </div>
+            <nav class="social-links" aria-label="社交媒体">
+              <a href="https://github.com/evepupil">
+                <i data-lucide="github" aria-hidden="true"></i>
+                GitHub
+              </a>
+              <a href="https://www.zhihu.com/people/ye-tong-95-79">
+                <i data-lucide="message-circle" aria-hidden="true"></i>
+                知乎
+              </a>
+              <a href="rss.xml">
+                <i data-lucide="rss" aria-hidden="true"></i>
+                RSS
+              </a>
+            </nav>
+          </div>
+        </aside>
+      </section>
+
+      <section class="focus-band">
+        <div class="shell focus-grid">
+          <div class="focus-heading">
+            <span>NOW</span>
+            <h2>最近关注</h2>
+          </div>
+          <ul class="focus-list">
+            <li>
+              <span>研究</span>
+              <strong>AI 工程化与多代理协作</strong>
+            </li>
+            <li>
+              <span>构建</span>
+              <strong>TokenBoard、博客与自己的工具</strong>
+            </li>
+            <li>
+              <span>阅读</span>
+              <strong>由微信读书同步当前书籍</strong>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="activity-section shell" aria-labelledby="activity-title">
+        <header class="section-heading">
+          <div>
+            <span class="section-index">01</span>
+            <h2 id="activity-title">最近 365 天</h2>
+          </div>
+          <p>代码与 AI 使用留下的两条轨迹</p>
+        </header>
+
+        <div class="activity-summary" aria-label="活动数据摘要">
+          <div>
+            <span>GitHub 活跃天数</span>
+            <strong>214</strong>
+          </div>
+          <div>
+            <span>本月 AI Token</span>
+            <strong>128.6M</strong>
+          </div>
+          <div>
+            <span>主要来源</span>
+            <strong>Claude · Codex</strong>
+          </div>
+          <small>原型示意数据</small>
+        </div>
+
+        <article class="timeline-block" aria-labelledby="github-title">
+          <div class="chart-heading">
+            <div>
+              <h3 id="github-title">
+                <i data-lucide="github" aria-hidden="true"></i>
+                GitHub Contributions
+              </h3>
+              <p>@evepupil · 过去一年</p>
+            </div>
+            <div class="heat-legend" aria-label="贡献活跃度图例">
+              <span>少</span>
+              <i class="level-0"></i>
+              <i class="level-1"></i>
+              <i class="level-2"></i>
+              <i class="level-3"></i>
+              <i class="level-4"></i>
+              <span>多</span>
+            </div>
+          </div>
+          <div class="heatmap-shell">
+            <div
+              class="month-labels"
+              id="month-labels"
+              aria-hidden="true"
+            ></div>
+            <div
+              class="heatmap"
+              id="github-heatmap"
+              role="img"
+              aria-label="GitHub 过去一年的贡献热力图，原型示意数据"
+            ></div>
+          </div>
+        </article>
+
+        <article
+          class="timeline-block token-block"
+          aria-labelledby="token-title"
+        >
+          <div class="chart-heading">
+            <div>
+              <h3 id="token-title">
+                <i data-lucide="sparkles" aria-hidden="true"></i>
+                AI Token Usage
+              </h3>
+              <p>TokenBoard API · 最近 30 天</p>
+            </div>
+            <div class="token-legend" aria-label="Token 来源图例">
+              <span><i class="source-claude"></i>Claude</span>
+              <span><i class="source-codex"></i>Codex</span>
+            </div>
+          </div>
+          <div
+            class="token-chart"
+            id="token-chart"
+            role="img"
+            aria-label="最近三十天 Claude 和 Codex Token 用量堆叠柱状图，原型示意数据"
+          ></div>
+          <div class="chart-axis" aria-hidden="true">
+            <span>06.21</span>
+            <span>07.01</span>
+            <span>07.10</span>
+            <span>07.20</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="profile-data shell" aria-label="阅读与技术栈">
+        <article class="reading-section" aria-labelledby="reading-title">
+          <header class="section-heading compact">
+            <div>
+              <span class="section-index">02</span>
+              <h2 id="reading-title">微信读书</h2>
+            </div>
+            <p>示意书架</p>
+          </header>
+
+          <div class="reading-stats" aria-label="年度阅读数据">
+            <div><strong>32h 18m</strong><span>今年阅读</span></div>
+            <div><strong>6</strong><span>读完</span></div>
+            <div><strong>21</strong><span>阅读天数</span></div>
+          </div>
+
+          <div class="book-shelf">
+            <article class="book-row">
+              <div class="book-cover cover-green" aria-hidden="true">
+                <span>AI</span>
+                <strong>ENGINEERING</strong>
+              </div>
+              <div>
+                <span class="book-state">当前在读</span>
+                <h3>AI 工程化学习路线</h3>
+                <p>从 Prompt 到 Subagent，整理可复用的工程方法。</p>
+              </div>
+            </article>
+            <article class="book-row">
+              <div class="book-cover cover-coral" aria-hidden="true">
+                <span>CLAUDE</span>
+                <strong>CODE</strong>
+              </div>
+              <div>
+                <span class="book-state">最近读完</span>
+                <h3>Claude Code 高级使用</h3>
+                <p>上下文、工具、自动化与多代理协作。</p>
+              </div>
+            </article>
+            <article class="book-row">
+              <div class="book-cover cover-yellow" aria-hidden="true">
+                <span>日本語</span>
+                <strong>文法</strong>
+              </div>
+              <div>
+                <span class="book-state">书架收藏</span>
+                <h3>日语语法指南</h3>
+                <p>从日语的思维方式理解语法结构。</p>
+              </div>
+            </article>
+          </div>
+        </article>
+
+        <article class="stack-section" aria-labelledby="stack-title">
+          <header class="section-heading compact">
+            <div>
+              <span class="section-index">03</span>
+              <h2 id="stack-title">技术雷达</h2>
+            </div>
+            <p>使用状态由配置维护</p>
+          </header>
+
+          <div class="radar-wrap">
+            <svg
+              class="tech-radar"
+              viewBox="0 0 560 440"
+              role="img"
+              aria-labelledby="radar-svg-title radar-svg-description"
+            >
+              <title id="radar-svg-title">叶桐的技术栈雷达</title>
+              <desc id="radar-svg-description">
+                技术按 Adopt、Trial、Assess 三个采用阶段分布。
+              </desc>
+              <circle
+                class="radar-ring assess-ring"
+                cx="280"
+                cy="220"
+                r="186"
+              />
+              <circle class="radar-ring trial-ring" cx="280" cy="220" r="126" />
+              <circle class="radar-ring adopt-ring" cx="280" cy="220" r="68" />
+              <line class="radar-axis" x1="280" y1="34" x2="280" y2="406" />
+              <line class="radar-axis" x1="94" y1="220" x2="466" y2="220" />
+
+              <text class="ring-label" x="280" y="225">ADOPT</text>
+              <text class="ring-label" x="280" y="105">TRIAL</text>
+              <text class="ring-label" x="280" y="48">ASSESS</text>
+
+              <g class="radar-point point-adopt" transform="translate(254 186)">
+                <circle r="6" />
+                <text x="-10" y="-12">TypeScript</text>
+              </g>
+              <g class="radar-point point-adopt" transform="translate(326 204)">
+                <circle r="6" />
+                <text x="12" y="4">Cloudflare</text>
+              </g>
+              <g class="radar-point point-adopt" transform="translate(278 266)">
+                <circle r="6" />
+                <text x="-20" y="24">Next.js</text>
+              </g>
+              <g class="radar-point point-trial" transform="translate(202 162)">
+                <circle r="6" />
+                <text x="-64" y="-10">AI Agent</text>
+              </g>
+              <g class="radar-point point-trial" transform="translate(378 152)">
+                <circle r="6" />
+                <text x="12" y="-8">RAG</text>
+              </g>
+              <g class="radar-point point-trial" transform="translate(372 292)">
+                <circle r="6" />
+                <text x="12" y="18">MCP</text>
+              </g>
+              <g class="radar-point point-trial" transform="translate(188 300)">
+                <circle r="6" />
+                <text x="-48" y="22">D1</text>
+              </g>
+              <g class="radar-point point-assess" transform="translate(178 82)">
+                <circle r="6" />
+                <text x="-52" y="-10">HonoX</text>
+              </g>
+              <g
+                class="radar-point point-assess"
+                transform="translate(424 328)"
+              >
+                <circle r="6" />
+                <text x="10" y="20">Multi-agent</text>
+              </g>
+            </svg>
+          </div>
+
+          <dl class="radar-legend">
+            <div>
+              <dt>Adopt</dt>
+              <dd>日常稳定使用</dd>
+            </div>
+            <div>
+              <dt>Trial</dt>
+              <dd>正在项目中尝试</dd>
+            </div>
+            <div>
+              <dt>Assess</dt>
+              <dd>持续了解和评估</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="data-section shell" aria-labelledby="data-title">
+        <header class="section-heading">
+          <div>
+            <span class="section-index">04</span>
+            <h2 id="data-title">数据与本站</h2>
+          </div>
+          <p>每项数据独立更新，失败时保留上次结果</p>
+        </header>
+        <div class="source-list">
+          <div>
+            <i data-lucide="github" aria-hidden="true"></i>
+            <strong>GitHub</strong>
+            <span>贡献日历</span>
+            <small>每天更新</small>
+          </div>
+          <div>
+            <i data-lucide="sparkles" aria-hidden="true"></i>
+            <strong>TokenBoard</strong>
+            <span>公开汇总 API</span>
+            <small>近实时</small>
+          </div>
+          <div>
+            <i data-lucide="book-open" aria-hidden="true"></i>
+            <strong>微信读书</strong>
+            <span>阅读与书架</span>
+            <small>每天更新</small>
+          </div>
+          <div>
+            <i data-lucide="radar" aria-hidden="true"></i>
+            <strong>技术栈</strong>
+            <span>公开配置</span>
+            <small>手动维护</small>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <strong>潮思Chaosyn</strong>
+          <p>技术探索与思维进化</p>
+        </div>
+        <p>原型中的统计值仅用于确认布局，正式页面读取真实数据。</p>
+        <span>© 2026 CHAOSYN</span>
+      </div>
+    </footer>
+
+    <div class="chart-tooltip" id="chart-tooltip" role="status" hidden></div>
+
+    <script src="assets/lucide.min.js"></script>
+    <script src="about.js"></script>
+  </body>
+</html>
