@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { StaticPage } from "@/features/static-page/static-page";
+import { AboutPageView } from "@/features/about/about-page";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getLocalizedSiteConfig } from "@/lib/site-config";
 
@@ -14,11 +14,5 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default function EnglishAboutPage() {
-  return (
-    <StaticPage
-      description={identity.about}
-      index="05"
-      title={identity.aboutTitle}
-    />
-  );
+  return <AboutPageView locale="en" />;
 }

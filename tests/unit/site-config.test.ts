@@ -50,6 +50,14 @@ describe("site configuration", () => {
     expect(siteConfig.integrations.comments.enabled).toBe(true);
     expect(siteConfig.integrations.googleAnalytics.enabled).toBe(true);
     expect(siteConfig.integrations.sponsorship.enabled).toBe(true);
+    expect(siteConfig.profileStatus.github).toEqual({
+      enabled: true,
+      username: "evepupil",
+    });
+    expect(siteConfig.profileStatus.tokenBoard.publicJsonUrl).toBe(
+      "https://tokenboard.chaosyn.com/api/public/yeton-buvkzder.json",
+    );
+    expect(siteConfig.profileStatus.technologyRadar).toHaveLength(9);
   });
 
   it("uses a local URL when the deployment URL is absent", () => {

@@ -1,0 +1,108 @@
+import type { SiteLocale } from "@/lib/site-config";
+
+export const aboutContent = {
+  "zh-CN": {
+    activity: {
+      description: "代码与 AI 使用留下的两条轨迹",
+      githubActiveDays: "GitHub 活跃天数",
+      githubEmpty: "GitHub 贡献数据暂时不可用",
+      githubPeriod: "过去一年",
+      githubTitle: "GitHub Contributions",
+      heading: "最近 365 天",
+      less: "少",
+      loading: "正在读取公开数据",
+      monthTokens: "本月 AI Token",
+      more: "多",
+      primarySources: "主要来源",
+      tokenEmpty: "TokenBoard 数据暂时不可用",
+      tokenModels: "常用模型",
+      tokenSources: "来源分布",
+      tokenTitle: "AI Token Usage",
+      tokenTotal: "累计 Token",
+      todayTokens: "今日 Token",
+    },
+    data: {
+      description: "数据源与更新方式",
+      heading: "数据与本站",
+      sources: [
+        ["GitHub", "公开贡献日历", "缓存 30 分钟"],
+        ["TokenBoard", "公开汇总 API", "缓存 30 分钟"],
+        ["微信读书", "本地同步文件", "等待首次同步"],
+        ["技术栈", "站点公开配置", "手动维护"],
+      ],
+    },
+    heroMeta: "个人状态 · 公开数据",
+    profileLabel: "叶桐的个人资料",
+    reading: {
+      activeDays: "阅读天数",
+      description: "阅读与书架",
+      emptyDescription:
+        "接入可靠的数据源后，这里会显示阅读时长、读完数量和近期书架。",
+      emptyTitle: "等待首次微信读书同步",
+      finishedBooks: "读完",
+      heading: "微信读书",
+      totalMinutes: "今年阅读",
+    },
+    radar: {
+      description: "使用状态由配置维护",
+      heading: "技术雷达",
+      stages: {
+        adopt: ["Adopt", "日常稳定使用"],
+        assess: ["Assess", "持续了解和评估"],
+        trial: ["Trial", "正在项目中尝试"],
+      },
+    },
+  },
+  en: {
+    activity: {
+      description: "Two traces left by code and AI work",
+      githubActiveDays: "Active GitHub days",
+      githubEmpty: "GitHub contribution data is temporarily unavailable",
+      githubPeriod: "Past year",
+      githubTitle: "GitHub Contributions",
+      heading: "The last 365 days",
+      less: "Less",
+      loading: "Loading public activity",
+      monthTokens: "AI tokens this month",
+      more: "More",
+      primarySources: "Primary sources",
+      tokenEmpty: "TokenBoard data is temporarily unavailable",
+      tokenModels: "Top models",
+      tokenSources: "Source split",
+      tokenTitle: "AI Token Usage",
+      tokenTotal: "All-time tokens",
+      todayTokens: "Tokens today",
+    },
+    data: {
+      description: "Sources and update cadence",
+      heading: "Data and this site",
+      sources: [
+        ["GitHub", "Public contribution calendar", "30-minute cache"],
+        ["TokenBoard", "Public summary API", "30-minute cache"],
+        ["WeChat Reading", "Local sync file", "Awaiting first sync"],
+        ["Technology", "Public site configuration", "Maintained manually"],
+      ],
+    },
+    heroMeta: "Personal status · Public data",
+    profileLabel: "Yeton profile",
+    reading: {
+      activeDays: "Reading days",
+      description: "Reading and bookshelf",
+      emptyDescription:
+        "Reading time, completed books and the recent shelf will appear after a reliable data source is connected.",
+      emptyTitle: "Waiting for the first WeChat Reading sync",
+      finishedBooks: "Finished",
+      heading: "WeChat Reading",
+      totalMinutes: "Read this year",
+    },
+    radar: {
+      description: "Adoption stages live in site configuration",
+      heading: "Technology radar",
+      stages: {
+        adopt: ["Adopt", "Used confidently day to day"],
+        assess: ["Assess", "Following and evaluating"],
+        trial: ["Trial", "Being tried in active projects"],
+      },
+    },
+  },
+} as const satisfies Record<SiteLocale, unknown>;

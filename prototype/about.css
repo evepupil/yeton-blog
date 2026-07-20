@@ -329,58 +329,6 @@ svg {
   color: var(--accent);
 }
 
-.focus-band {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.focus-grid {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 56px;
-  padding-block: 32px;
-}
-
-.focus-heading span {
-  color: color-mix(in srgb, var(--bg) 62%, transparent);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.focus-heading h2 {
-  margin: 2px 0 0;
-  font-family: var(--serif);
-  font-size: 22px;
-}
-
-.focus-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.focus-list li {
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  padding-left: 22px;
-  border-left: 1px solid color-mix(in srgb, var(--bg) 24%, transparent);
-}
-
-.focus-list span {
-  color: color-mix(in srgb, var(--bg) 62%, transparent);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.focus-list strong {
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .activity-section,
 .data-section {
   padding-block: 78px 88px;
@@ -970,21 +918,6 @@ svg {
 
   .social-links {
     gap: 8px 14px;
-  }
-
-  .focus-grid {
-    grid-template-columns: 1fr;
-    gap: 18px;
-    padding-block: 26px;
-  }
-
-  .focus-list {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .focus-list li {
-    padding-left: 15px;
   }
 
   .activity-section,

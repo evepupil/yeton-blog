@@ -247,6 +247,80 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("shows the data-driven about page in both languages", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
+  const days = Array.from({ length: 35 }, (_, index) => ({
+    count: index % 5,
+    date: new Date(Date.UTC(2026, 5, 16 + index)).toISOString().slice(0, 10),
+    level: (index % 5) as 0 | 1 | 2 | 3 | 4,
+  }));
+
+  await page.route("**/api/about-status", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        generatedAt: "2026-07-20T08:00:00.000Z",
+        github: {
+          activeDays: 28,
+          days,
+          totalContributions: 70,
+          username: "evepupil",
+        },
+        tokenBoard: {
+          monthTokens: 128_600_000,
+          sourceSplit: [
+            { source: "claude", totalTokens: 80_000_000 },
+            { source: "codex", totalTokens: 48_600_000 },
+          ],
+          todayTokens: 2_400_000,
+          topModels: [
+            { model: "claude-sonnet", totalTokens: 60_000_000 },
+            { model: "gpt-5", totalTokens: 42_000_000 },
+          ],
+          totalTokens: 900_000_000,
+        },
+      }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.goto("/about/");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "关于叶桐" }),
+  ).toBeVisible();
+  await expect(page.getByText("128.6M", { exact: true })).toBeVisible();
+  await expect(page.locator(".about-heatmap-cell")).toHaveCount(35);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "等待首次微信读书同步",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
+  await expect(page.getByText("Multi-agent", { exact: true })).toBeVisible();
+  await expect(page.locator(".focus-band")).toHaveCount(0);
+
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.reload();
+  await expect(page.locator(".about-heatmap-cell").last()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+
+  await page.goto("/en/about/");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "About Yeton" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "The last 365 days" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Technology radar" }),
+  ).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
 test("opens and closes the mobile navigation", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });

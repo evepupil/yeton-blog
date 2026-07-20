@@ -4,6 +4,7 @@ export const supportedLocales = ["zh-CN", "en"] as const;
 export type SiteLocale = (typeof supportedLocales)[number];
 export type LocalizedText = Readonly<Record<SiteLocale, string>>;
 export type SocialPlatform = "github" | "zhihu";
+export type TechnologyStage = "adopt" | "assess" | "trial";
 
 export type AdPlacementName = "article" | "home" | "posts";
 export type AdvertisingProvider = "adsense" | "custom";
@@ -82,6 +83,25 @@ export interface AiSearchConfig {
   readonly scoreThreshold: number;
 }
 
+export interface ProfileStatusConfig {
+  readonly github: {
+    readonly enabled: boolean;
+    readonly username: string;
+  };
+  readonly reading: {
+    readonly enabled: boolean;
+    readonly profileUrl: string;
+  };
+  readonly technologyRadar: readonly {
+    readonly name: string;
+    readonly stage: TechnologyStage;
+  }[];
+  readonly tokenBoard: {
+    readonly enabled: boolean;
+    readonly publicJsonUrl: string;
+  };
+}
+
 interface PublicSiteConfig {
   readonly author: {
     readonly about: LocalizedText;
@@ -122,6 +142,7 @@ interface PublicSiteConfig {
     readonly sponsorship: SponsorshipConfig;
   };
   readonly locales: readonly SiteLocale[];
+  readonly profileStatus: ProfileStatusConfig;
   readonly sectionDescriptions: {
     readonly archives: LocalizedText;
     readonly books: LocalizedText;
@@ -140,8 +161,8 @@ export const siteConfig = {
   author: {
     about: {
       "zh-CN":
-        "这里记录 Serverless、AI 应用、前后端开发与独立项目实践。本站使用 Umami 与 Google Analytics 了解访问情况。",
-      en: "Notes on serverless systems, AI applications, web development and independent projects. This site uses Umami and Google Analytics to understand traffic.",
+        "我关注 AI 工程化、Cloudflare、Web 开发与独立项目。比起写一份正式自传，我更想用持续更新的代码、阅读和创作记录，说明最近在做什么。",
+      en: "I work around AI engineering, Cloudflare, web development and independent products. Rather than a formal biography, this page uses living records of code, reading and making to show what I have been doing lately.",
     },
     aboutTitle: {
       "zh-CN": "关于叶桐",
@@ -323,6 +344,32 @@ export const siteConfig = {
     },
   },
   locales: supportedLocales,
+  profileStatus: {
+    github: {
+      enabled: true,
+      username: "evepupil",
+    },
+    reading: {
+      enabled: true,
+      profileUrl: "",
+    },
+    technologyRadar: [
+      { name: "TypeScript", stage: "adopt" },
+      { name: "Cloudflare", stage: "adopt" },
+      { name: "Next.js", stage: "adopt" },
+      { name: "AI Agent", stage: "trial" },
+      { name: "RAG", stage: "trial" },
+      { name: "MCP", stage: "trial" },
+      { name: "D1", stage: "trial" },
+      { name: "HonoX", stage: "assess" },
+      { name: "Multi-agent", stage: "assess" },
+    ],
+    tokenBoard: {
+      enabled: true,
+      publicJsonUrl:
+        "https://tokenboard.chaosyn.com/api/public/yeton-buvkzder.json",
+    },
+  },
   sectionDescriptions: {
     archives: {
       "zh-CN": "按年份查看潮思Chaosyn已经发布的文章。",

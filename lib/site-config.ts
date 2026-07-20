@@ -12,9 +12,11 @@ export {
   type CustomAdvertisementConfig,
   type GoogleAnalyticsConfig,
   type LocalizedText,
+  type ProfileStatusConfig,
   type SiteLocale,
   type SocialPlatform,
   type SponsorshipConfig,
+  type TechnologyStage,
   type UmamiAnalyticsConfig,
 } from "@/site.config";
 
