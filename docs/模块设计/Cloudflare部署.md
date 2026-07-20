@@ -8,7 +8,7 @@
 >
 > **当前状态**：已完成
 >
-> **最近更新时间**：2026-07-17
+> **最近更新时间**：2026-07-20
 
 ## 设计
 
@@ -43,11 +43,16 @@
 6. `public/_headers` 为 HTML 设置立即校验缓存，为带内容哈希的 Next 静态资源设置一年 immutable 缓存；图片、搜索索引和订阅文件使用较短缓存。
 7. CSP 允许站内资源、公共 HTTPS 图片、Giscus、Umami、Cloudflare Web Analytics、Google Analytics 和 AdSense 当前需要的脚本、连接与 iframe。Next、主题与 GA4 初始化需要内联脚本和样式，因此当前保留 `unsafe-inline`；第三方服务增加来源时必须按实际请求补充并继续限制域名。
 8. 旧站路径迁移在 `redirects.config.ts` 维护，构建时生成 Pages `_redirects` 并返回单跳 `301`。正式域名切换使用 Dashboard hostname Redirect Rule，避免同一份路径规则在 canonical 域名上循环。
-9. AI 搜索使用 Pages Function、`AI` binding 和 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。
+9. AI 搜索使用 Pages Function、`AI` binding 和共享 `APP_DB` 的 D1 原子计数。Cloudflare Pages 不支持 Workers 原生 Rate Limit binding，因此每用户和全站阈值在同一个 D1 批次中更新；AI 或 D1 binding 缺失时接口返回 `503`。KV 的最终一致读取和同 key 写入限制无法可靠承载并发自增。
 10. `pnpm build` 将 `functions/` 编译为单文件 `out/_worker.js`。这能让 Pages Git 上传阶段直接识别动态接口，`_routes.json` 保证文章和静态资源继续由 Pages 资产服务处理。
 11. Pages 项目名是 `yeton-blog`，仓库 Wrangler 名称保留应用名 `hero-ui-blog`。production binding 以 Dashboard 为准，避免 Git 上传器把仓库配置切成只发布静态产物的模式。
 
 ## 改动历史
+
+### 2026-07-20
+
+- 新建中性的 APAC D1 数据库 `yeton-blog-data`，将生产与预览 binding 统一为 `APP_DB`，迁移目录调整为 `migrations/database`。
+- 新库完成限流表迁移和生产切换验证后删除用途单一的旧数据库 `yeton-blog-ai-rate-limit`。
 
 ### 2026-07-17
 
@@ -104,18 +109,18 @@
 
 Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding：
 
-| Binding            | 用途                               |
-| ------------------ | ---------------------------------- |
-| `AI`               | 调用 AutoRAG AI Search             |
-| `AI_RATE_LIMIT_DB` | 原子记录单个来源和全站每分钟请求数 |
+| Binding  | 用途                                 |
+| -------- | ------------------------------------ |
+| `AI`     | 调用 AutoRAG AI Search               |
+| `APP_DB` | 保存 AI 限流及后续个人状态等应用数据 |
 
 首次部署或新建环境时执行：
 
 ```bash
-pnpm ai-search:migrate
+pnpm db:migrate
 ```
 
-迁移目标是 `yeton-blog-ai-rate-limit`。数据库 ID 保存在 `wrangler.jsonc`，它是公开资源标识，不是访问凭据。
+迁移目标是共享数据库 `yeton-blog-data`。数据库 ID 保存在 `wrangler.jsonc`，它是公开资源标识，不是访问凭据；新增业务表继续按编号追加到 `migrations/database/`。
 
 `NEXT_PUBLIC_SITE_URL` 当前填写 `https://blog.chaosyn.com`。没有自定义域名时可使用该项目的正式 `pages.dev` 地址。它不能使用 localhost、`example.com`、子路径、查询参数或 hash。
 

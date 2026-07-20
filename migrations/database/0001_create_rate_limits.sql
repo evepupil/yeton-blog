@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS ai_rate_limits (
   updated_at INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS ai_rate_limits_updated_at_idx
+CREATE INDEX IF NOT EXISTS idx_ai_rate_limits_updated_at
   ON ai_rate_limits (updated_at);

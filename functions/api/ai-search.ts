@@ -56,7 +56,7 @@ interface AiBinding {
 
 export interface AiSearchEnv {
   readonly AI?: AiBinding;
-  readonly AI_RATE_LIMIT_DB?: AiRateLimitDatabase;
+  readonly APP_DB?: AiRateLimitDatabase;
 }
 
 interface PagesFunctionContext {
@@ -258,7 +258,7 @@ export async function onRequestPost({
   if (!request.headers.get("Content-Type")?.includes("application/json")) {
     return errorResponse("INVALID_REQUEST", 415, requestId, false);
   }
-  if (!env.AI || !env.AI_RATE_LIMIT_DB) {
+  if (!env.AI || !env.APP_DB) {
     return errorResponse("SERVICE_UNAVAILABLE", 503, requestId, true);
   }
 
@@ -281,7 +281,7 @@ export async function onRequestPost({
   try {
     const rateLimit = await consumeAiRateLimit({
       clientKey: getClientKey(request),
-      database: env.AI_RATE_LIMIT_DB,
+      database: env.APP_DB,
       globalLimit: config.rateLimit.globalRequests,
       userLimit: config.rateLimit.userRequests,
       windowSeconds: config.rateLimit.windowSeconds,
@@ -296,7 +296,7 @@ export async function onRequestPost({
 
     if (requestId.startsWith("00") && waitUntil) {
       waitUntil(
-        cleanupOldAiRateLimits(env.AI_RATE_LIMIT_DB).catch((error: unknown) => {
+        cleanupOldAiRateLimits(env.APP_DB).catch((error: unknown) => {
           logEvent("error", "ai_search_rate_limit_cleanup_error", requestId, {
             reason: error instanceof Error ? error.name : "unknown",
           });

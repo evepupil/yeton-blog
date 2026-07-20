@@ -8,10 +8,10 @@
   },
   "d1_databases": [
     {
-      "binding": "AI_RATE_LIMIT_DB",
-      "database_name": "yeton-blog-ai-rate-limit",
-      "database_id": "9fe3c93e-3875-42de-b53a-3e514681ba6f",
-      "migrations_dir": "migrations/ai-search",
+      "binding": "APP_DB",
+      "database_name": "yeton-blog-data",
+      "database_id": "a9c154d5-2039-483e-aa58-33eac5bb186a",
+      "migrations_dir": "migrations/database",
     },
   ],
 }

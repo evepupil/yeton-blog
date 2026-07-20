@@ -78,7 +78,7 @@ function createEnv(options?: {
     batch,
     env: {
       AI: { autorag: () => ({ aiSearch, search }) },
-      AI_RATE_LIMIT_DB: database,
+      APP_DB: database,
     },
     search,
   };
