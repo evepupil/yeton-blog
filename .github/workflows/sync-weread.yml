@@ -1,0 +1,60 @@
+name: Sync WeRead status
+
+on:
+  schedule:
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-weread-status
+  cancel-in-progress: false
+
+jobs:
+  sync-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Synchronize WeRead status
+        env:
+          WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
+        run: pnpm sync-weread
+
+      - name: Commit synchronized status
+        shell: bash
+        run: |
+          git add -A -- data/reading-status.json
+          if [[ -d public/images/reading ]]; then
+            git add -A -- public/images/reading
+          fi
+          if git diff --cached --quiet; then
+            echo "No WeRead status changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(about): sync WeRead status"
+          git pull --rebase origin main
+          git push origin HEAD:main

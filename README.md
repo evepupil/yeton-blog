@@ -28,6 +28,7 @@
 - 友链：`docs/模块设计/友链.md`
 - AI 搜索：`docs/模块设计/AI搜索.md`
 - 商业化与赞助：`docs/模块设计/商业化与赞助.md`
+- 数据型关于页：`docs/模块设计/数据型关于页.md`
 
 ## 环境要求
 
@@ -42,6 +43,7 @@ pnpm dev
 pnpm content:check
 pnpm sync-notion
 pnpm sync-friends
+pnpm sync-weread
 pnpm search:build
 pnpm site:check
 pnpm build
@@ -76,6 +78,18 @@ pnpm sync-content
 ```
 
 默认模式会更新 Notion 管理的文章并清理已经不在发布列表中的同步文章。`new` 只添加新文章，`append` 添加并更新且不清理。手写文章发生 slug 冲突时同步会失败，原文件不会被覆盖。GitHub 的 `Sync Notion content` Action 每天北京时间 0 点运行，有变化时提交到 `main`，随后由 Cloudflare Pages 自动部署。
+
+## 微信读书同步
+
+在 `.env.local` 配置官方 Agent Gateway 提供的 `WEREAD_API_KEY`，格式为 `wrk-...`，然后执行：
+
+```bash
+pnpm sync-weread
+```
+
+脚本会同步本年度阅读时长、活跃天数、读完数量和最近 3 本公开阅读书籍，并将封面保存到 `public/images/reading/`。私密书籍会在生成公开文件前过滤。单张封面下载失败时页面使用占位图；接口、鉴权或数据校验失败时保留上一次成功数据。
+
+GitHub 的 `Sync WeRead status` Action 每天北京时间 0:30 运行，也支持手动触发。仓库 Secret 没有配置 `WEREAD_API_KEY` 时任务会成功跳过，不修改文件，页面继续显示等待接入状态。Key 配好并首次同步成功后，Action 会提交 `data/reading-status.json` 和本地封面，Cloudflare Pages 随仓库更新自动部署。
 
 ## Giscus 评论
 
