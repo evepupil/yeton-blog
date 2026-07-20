@@ -3,6 +3,7 @@ import { format } from "prettier";
 
 import { analyzeMarkdown } from "@/lib/content/markdown";
 import { articleFrontmatterSchema } from "@/lib/content/schema";
+import { rewriteInternalPostLinks } from "@/lib/notion-sync/links";
 import {
   readDate,
   readFileUrl,
@@ -72,7 +73,8 @@ export function mapNotionArticle(
   body: string,
   existing?: NotionArticleState,
 ): NotionArticleMetadata {
-  if (!body.trim()) {
+  const normalizedBody = rewriteInternalPostLinks(body.trim());
+  if (!normalizedBody) {
     throw new Error(`Notion page ${page.id} has an empty article body.`);
   }
   const title = required(readTitle(page.properties, "Title"), "Title", page.id);
@@ -106,7 +108,7 @@ export function mapNotionArticle(
   const frontmatter = articleFrontmatterSchema.parse({
     title,
     description: createDescription(
-      body.trim(),
+      normalizedBody,
       readRichText(page.properties, "Description"),
     ),
     published,
@@ -124,7 +126,7 @@ export function mapNotionArticle(
   }
 
   return {
-    body: body.trim(),
+    body: normalizedBody,
     coverUrl: readFileUrl(page.properties, "Featured Image"),
     frontmatter: {
       ...frontmatter,

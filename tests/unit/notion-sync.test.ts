@@ -27,6 +27,7 @@ import {
   prepareFriendAvatars,
   resolveImageExtension,
 } from "@/lib/notion-sync/images";
+import { rewriteInternalPostLinks } from "@/lib/notion-sync/links";
 import type { SyncReporter } from "@/lib/notion-sync/reporter";
 import { createNotionSlug } from "@/lib/notion-sync/slug";
 import { getArticlePath } from "@/lib/notion-sync/store";
@@ -315,6 +316,24 @@ describe("Notion synchronization rules", () => {
 });
 
 describe("Notion sync helpers", () => {
+  it("rewrites legacy internal post links to canonical slugs", () => {
+    const markdown = [
+      "[反向代理](https://blog.chaosyn.com/posts/cloudflare-worker%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B/)",
+      "[优选节点](/posts/cloud-flare配置优选节点教程/?from=notion#setup)",
+      "[外站](https://example.org/posts/cloudflare-worker反向代理网站教程/)",
+      "`https://blog.chaosyn.com/posts/cloudflare-worker反向代理网站教程/`",
+    ].join("\n\n");
+
+    expect(rewriteInternalPostLinks(markdown)).toBe(
+      [
+        "[反向代理](/posts/cloudflare-worker-2ad4342e/)",
+        "[优选节点](/posts/cloud-flare-2b34342e/?from=notion#setup)",
+        "[外站](https://example.org/posts/cloudflare-worker反向代理网站教程/)",
+        "`https://blog.chaosyn.com/posts/cloudflare-worker反向代理网站教程/`",
+      ].join("\n\n"),
+    );
+  });
+
   it("normalizes explicit slugs and validates modes", () => {
     expect(createNotionSlug("Ignored", pageId, "My First Post")).toBe(
       "my-first-post",

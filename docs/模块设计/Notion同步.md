@@ -8,7 +8,7 @@
 >
 > **当前状态**：已完成
 >
-> **最近更新时间**：2026-07-16
+> **最近更新时间**：2026-07-20
 
 ## 设计
 
@@ -22,6 +22,7 @@
 | ----------------------------------- | ----------------------------------------------- |
 | `lib/notion-sync/properties.ts`     | 按 Notion 属性类型读取字段                      |
 | `lib/notion-sync/article.ts`        | 文章字段映射、摘要和 frontmatter 生成           |
+| `lib/notion-sync/links.ts`          | 旧站文章链接到 canonical slug 的规范化          |
 | `lib/notion-sync/friends.ts`        | 友链字段映射                                    |
 | `lib/notion-sync/images.ts`         | 图片校验、限流下载、Markdown 链接替换与目录切换 |
 | `lib/notion-sync/store.ts`          | 文章归属识别、幂等写入和过期内容清理            |
@@ -41,8 +42,15 @@
 5. 正文图、封面和友链头像下载到 `public/`。下载传输沿用参考项目已在线验证的 Node.js 原生 HTTP/HTTPS 请求与手动重定向，不附加自定义请求头；只接受 HTTP/HTTPS 和 JPEG、PNG、GIF、WebP、AVIF，单张图片上限 10 MB，超时为 30 秒。
 6. 图片先写临时目录，处理完成后替换正式目录。单张正文图片失败时沿用参考脚本的规则：打印中文警告、保留远程地址并继续；封面失败时省略封面，友链头像失败时交给页面首字母回退。Notion 查询、字段校验、文件冲突等内容错误仍会终止 Action。
 7. 默认 `overwrite` 在成功获取至少一篇发布文章后才清理过期 Notion 文章。发布查询返回空列表时保留现有文章，避免字段或权限错误造成批量删除。
+8. Notion 正文中的旧站文章链接使用 Markdown AST 识别，再按 `redirects.config.ts` 改写为当前站内 canonical 路径。外站链接、代码片段和未迁移路径保持原样，避免定时同步重新写回旧 slug。
 
 ## 改动历史
+
+### 2026-07-20
+
+- 修复 Notion 定时同步把 3 个 canonical 站内链接覆盖成旧站 slug，导致静态产物完整性检查失败。
+- 新增 Markdown 链接规范化：识别旧域名和根相对旧文章路径，复用集中重定向映射生成当前站内地址。
+- 增加百分号编码、查询参数、hash、外站链接和代码片段回归测试，保证只改写真正的旧站文章链接。
 
 ### 2026-07-16
 
@@ -93,10 +101,11 @@
 1. CLI 读取 `.env.local`，校验 Token 和数据库 ID，不输出 Token。
 2. 客户端分页查询文章，按 `Published Date` 倒序读取，并逐页转换 Markdown。
 3. 同步器先按 `notionPageId` 扫描现有 Notion 文件；映射函数校验标题、日期、标签和语言，Notion 未显式填写 `Slug` 时复用现有文件名，再生成本站 frontmatter。
-4. Markdown AST 找出远程图片，逐张打印下载结果；成功时保存到临时目录并改为 `/images/notion/...` 站内路径，失败时保留远程地址并继续。
-5. 文件层检查目标是否属于 Notion。手写文件冲突会报错，Notion 文件按模式新增、更新或跳过。
-6. 默认模式清理不再发布的 Notion 文件与对应图片，随后 `pnpm content:check` 再做整站内容校验。
-7. Action 只暂存 `content/posts`、`data/friends.json` 和 `public/images` 的同步结果。无变化直接结束，有变化时普通提交并 push 到 `main`。
+4. Markdown AST 找出旧站文章链接，按集中重定向映射改写为当前 canonical 站内路径。
+5. Markdown AST 找出远程图片，逐张打印下载结果；成功时保存到临时目录并改为 `/images/notion/...` 站内路径，失败时保留远程地址并继续。
+6. 文件层检查目标是否属于 Notion。手写文件冲突会报错，Notion 文件按模式新增、更新或跳过。
+7. 默认模式清理不再发布的 Notion 文件与对应图片，随后 `pnpm content:check` 再做整站内容校验。
+8. Action 只暂存 `content/posts`、`data/friends.json` 和 `public/images` 的同步结果。无变化直接结束，有变化时普通提交并 push 到 `main`。
 
 ### 命令
 
@@ -114,12 +123,14 @@ pnpm sync-content
 - 临时目录测试连续执行两次相同同步，第二次必须报告 `unchanged`，文件内容保持一致。
 - slug 稳定性测试修改同一 Notion 页面标题，确认同步仍更新原文件、保留本地译文键且不会生成第二个路径。
 - 手写文件冲突测试确认同步报错且原正文保留。
+- 链接测试确认旧域名、百分号编码和根相对旧文章路径会改到 canonical slug，外站链接和代码片段不会变化。
 - 图片测试验证类型识别、确定性命名、下载落盘、Markdown 站内路径替换，以及正文、封面和友链头像遇到 403 时继续同步。
 
 ## 当前限制
 
 - GitHub Action 已使用真实 Notion secrets 完成文章与友链同步，重复文章、图片 403 和固定 slug 问题均已验证修正；本地机器是否存在 secrets 不影响定时流程。
 - Notion 属性名和类型必须与上文一致；后续如调整数据库，应先更新映射和测试。
+- 文章 canonical slug 变化时必须同步维护 `redirects.config.ts`；Notion 链接规范化和旧 URL 跳转共用这份映射。
 - 下载失败的正文图片会继续使用原远程地址，远端图床仍可能限制浏览器访问；同步日志会显示来源域名，便于后续把问题图片迁移到可下载的图床。
 - 友链 JSON 与头像会直接进入中英文友链页面；浏览器加载头像失败时显示站名首字母。
 - Giscus 和 Umami 访问统计已经接入；本模块只负责同步内容，不读取或写入这些服务的数据。
