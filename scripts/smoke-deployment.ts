@@ -258,6 +258,12 @@ async function main() {
       locale: "zh-CN",
       path: "/deployment-smoke-missing/",
     },
+    {
+      expectedStatus: 404,
+      kind: "html",
+      locale: "en",
+      path: "/en/deployment-smoke-missing/",
+    },
   ];
   const results = await Promise.all(
     checks.map((check) => runCheck(baseUrl, check)),

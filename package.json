@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm redirects:build && pnpm cloudflare:check && pnpm content:check && pnpm search:build && tsx scripts/prepare-next-build.ts && next build && pnpm functions:build && pnpm site:check",
+    "build": "pnpm redirects:build && pnpm cloudflare:check && pnpm content:check && pnpm search:build && tsx scripts/prepare-next-build.ts && next build && pnpm pages:prepare && pnpm functions:build && pnpm site:check",
     "preview": "wrangler pages dev out",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -25,6 +25,7 @@
     "sync-weread": "tsx scripts/sync-weread.ts",
     "db:migrate": "wrangler d1 migrations apply yeton-blog-data --remote",
     "functions:build": "tsx scripts/build-pages-functions.ts",
+    "pages:prepare": "tsx scripts/prepare-pages-output.ts",
     "redirects:build": "tsx scripts/generate-redirects.ts",
     "search:build": "tsx scripts/generate-search-index.ts",
     "site:check": "tsx scripts/check-static-output.ts",

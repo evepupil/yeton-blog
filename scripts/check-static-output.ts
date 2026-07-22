@@ -29,6 +29,7 @@ const requiredFiles = [
   "_routes.json",
   "_worker.js",
   "404.html",
+  "en/404.html",
   "en/404/index.html",
   "en/links/index.html",
   "en/rss.xml",
@@ -268,6 +269,7 @@ async function checkHtmlFile(
   const isNotFoundPage =
     relativePath === "404.html" ||
     relativePath === "404/index.html" ||
+    relativePath === "en/404.html" ||
     relativePath === "en/404/index.html";
 
   if (

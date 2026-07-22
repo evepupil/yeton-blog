@@ -1,5 +1,15 @@
 # 搜索、SEO 与站点完整性
 
+> **模块定位**：管理站内搜索、SEO 元数据、订阅文件、错误页与静态产物完整性
+>
+> **对应代码**：`features/search/`、`lib/search/`、`lib/seo/`、`lib/deployment/localized-not-found.ts`、`scripts/generate-search-index.ts`、`scripts/prepare-pages-output.ts`、`scripts/check-static-output.ts`
+>
+> **所属 M 里程碑**：[M5：搜索、SEO 与站点完整性](../roadmap.md#阶段-5搜索seo-与站点完整性)
+>
+> **当前状态**：已完成
+>
+> **最近更新时间**：2026-07-22
+
 ## 设计
 
 ### 职责
@@ -21,6 +31,7 @@
 | `lib/redirects/`                   | 映射校验、规则展开和 `_redirects` 序列化    |
 | `scripts/generate-redirects.ts`    | 构建 Cloudflare Pages 永久跳转文件          |
 | `scripts/check-static-output.ts`   | 检查最终 `out` 目录                         |
+| `scripts/prepare-pages-output.ts`  | 生成 Pages 按目录查找的本地化 404 文件      |
 | `public/_redirects`                | 从集中配置生成的永久跳转文件                |
 | `app/(zh)/rss.xml/route.ts`        | 中文 RSS 静态 Route Handler                 |
 | `app/(en)/en/rss.xml/route.ts`     | 英文 RSS 静态 Route Handler                 |
@@ -37,8 +48,14 @@
 7. `pnpm build` 的最后一步解析真实产物。HTML、XML 和 JSON 使用结构化解析器检查，坏链接、缺资源、错误语言或缺少 SEO 字段都会让构建失败。
 8. 当前路由继续作为 canonical。旧站路径使用一跳 `301` 合并到对应新页面，不让兼容路径进入 sitemap 或 hreflang。
 9. `redirects.config.ts` 是重定向的唯一配置入口。文章换 slug 时删除旧正文、保留新正文，并把旧、新 slug 加入映射；构建会同时生成带尾斜杠和不带尾斜杠的旧地址规则，并把中文路径转成 Cloudflare 实际匹配的百分号编码。
+10. Cloudflare Pages 会沿请求目录向上寻找最近的 `404.html`。构建在 `out/en/404.html` 额外保存英文错误页，因此缺失的 `/en/*` 返回英文内容和 404 状态；根目录缺失地址继续使用中文 `out/404.html`。
 
 ## 改动历史
+
+### 2026-07-22
+
+- 构建增加 `out/en/404.html`，让 Cloudflare Pages 为任意缺失的 `/en/*` 地址返回英文 404。
+- 静态产物检查验证英文错误页文件，端到端测试验证页面内容，部署后冒烟覆盖真实缺失的英文地址与 404 状态。
 
 ### 2026-07-16
 
@@ -83,7 +100,7 @@
 
 `pnpm build` 依次执行内容校验、搜索索引、Next 静态导出和 `pnpm site:check`。产物检查会确认：
 
-- 必需的 RSS、sitemap、robots、404 和搜索索引文件存在；
+- 必需的 RSS、sitemap、robots、中英文 404 和搜索索引文件存在；
 - 每个正常页面具有正确 `lang`、唯一 canonical、当前语言 hreflang、Open Graph 图片和 Twitter Card；
 - 文章页包含可解析的 JSON-LD；404 页包含 `noindex`；
 - HTML、RSS 和 sitemap 中的站内地址都能映射到 `out` 中的文件或目录；
@@ -108,7 +125,7 @@
 ## 测试方法
 
 - Vitest 覆盖分词、语言隔离、标题/标签/正文命中、RSS 草稿过滤、图书章节 sitemap、译文关系、canonical 和 JSON-LD。
-- Playwright 覆盖中英文搜索、搜索结果导航、关键元数据、全局 404、英文 404 和关闭 JavaScript 后的阅读路径。
+- Playwright 覆盖中英文搜索、搜索结果导航、关键元数据、中英文 404 页面和关闭 JavaScript 后的阅读路径；`serve` 不模拟 Pages 的目录级错误页查找，真实缺失的英文地址由部署冒烟验证。
 - Vitest 覆盖映射展开、重复来源、重定向链和相同源目标校验。
 - `pnpm build` 重新生成 `_redirects` 并检查全部配置规则；部署后冒烟验证 18 个旧文章地址返回单跳 `301` 和正确目标。
 - 应用内浏览器检查搜索弹窗、结果状态、文章跳转和控制台错误。
@@ -116,5 +133,4 @@
 ## 当前限制
 
 - 搜索索引随站点构建更新，没有在线增量索引。
-- Cloudflare Pages 对未知地址统一使用根目录 `404.html`，所以任意未知 `/en/*` 地址仍会落到中文全局 404；显式 `/en/404/` 已提供英文页面。
 - canonical、RSS 和 sitemap 已使用 Pages 构建命令传入的 `NEXT_PUBLIC_SITE_URL`；正式域名切换时必须同步修改该值并重新提交 sitemap。
