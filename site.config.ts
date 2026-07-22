@@ -340,7 +340,7 @@ export const siteConfig = {
         },
       },
       enabled: true,
-      qrCodeSrc: "",
+      qrCodeSrc: "/images/sponsorship/wechat-qr.png",
     },
   },
   locales: supportedLocales,

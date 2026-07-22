@@ -615,7 +615,7 @@ test("shows the sponsorship entry before comments", async ({ page }) => {
     page.getByRole("heading", { level: 2, name: "微信赞赏" }),
   ).toBeVisible();
   await expect(
-    page.getByText("赞赏暂未开放，感谢你的心意。", { exact: true }),
+    page.getByRole("img", { name: "叶桐的微信收款二维码" }),
   ).toBeVisible();
 
   const sponsorshipBox = await sponsorship.boundingBox();

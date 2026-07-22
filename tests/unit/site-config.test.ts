@@ -50,6 +50,9 @@ describe("site configuration", () => {
     expect(siteConfig.integrations.comments.enabled).toBe(true);
     expect(siteConfig.integrations.googleAnalytics.enabled).toBe(true);
     expect(siteConfig.integrations.sponsorship.enabled).toBe(true);
+    expect(siteConfig.integrations.sponsorship.qrCodeSrc).toBe(
+      "/images/sponsorship/wechat-qr.png",
+    );
     expect(siteConfig.profileStatus.github).toEqual({
       enabled: true,
       username: "evepupil",
