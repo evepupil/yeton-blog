@@ -1,7 +1,26 @@
 {
-  "activeDays": null,
-  "books": [],
-  "finishedBooks": null,
-  "totalMinutes": null,
-  "updatedAt": null
+  "activeDays": 180,
+  "books": [
+    {
+      "author": "彼得·考夫曼",
+      "cover": "/images/reading/b33c32b6376442a6.jpg",
+      "state": "reading",
+      "title": "穷查理宝典：查理·芒格智慧箴言录（全新增订本）"
+    },
+    {
+      "author": "丹尼尔·卡尼曼",
+      "cover": "/images/reading/ad5b67b2f3511128.jpg",
+      "state": "reading",
+      "title": "思考，快与慢"
+    },
+    {
+      "author": "埃里克·乔根森",
+      "cover": "/images/reading/033ab141f95e4af7.jpg",
+      "state": "finished",
+      "title": "纳瓦尔宝典"
+    }
+  ],
+  "finishedBooks": 12,
+  "totalMinutes": 3399,
+  "updatedAt": "2026-07-22T06:51:14.492Z"
 }
