@@ -70,6 +70,7 @@ export interface AiSearchConfig {
   readonly apiEndpoint: string;
   readonly autoragName: string;
   readonly enabled: boolean;
+  readonly fallbackScoreThreshold: number;
   readonly maxCitations: number;
   readonly maxQueryLength: number;
   readonly maxRetrievalResults: number;
@@ -271,9 +272,10 @@ export const siteConfig = {
       apiEndpoint: "/api/ai-search",
       autoragName: "purple-rain-8860",
       enabled: true,
+      fallbackScoreThreshold: 0.5,
       maxCitations: 5,
       maxQueryLength: 500,
-      maxRetrievalResults: 10,
+      maxRetrievalResults: 15,
       model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
       rateLimit: {
         globalRequests: 30,
@@ -282,7 +284,7 @@ export const siteConfig = {
       },
       requestTimeoutMs: 30_000,
       rerankerModel: "@cf/baai/bge-reranker-base",
-      scoreThreshold: 0.15,
+      scoreThreshold: 0.3,
     },
     analytics: {
       apiPath: "/analytics/us/api/",

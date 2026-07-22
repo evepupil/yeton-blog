@@ -105,16 +105,16 @@ describe("AI search Pages Function", () => {
     expect(batch).toHaveBeenCalledOnce();
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
-        max_num_results: 10,
+        max_num_results: 15,
         query: "Cloudflare AI",
-        ranking_options: { score_threshold: 0.15 },
+        ranking_options: { score_threshold: 0.3 },
       }),
     );
     expect(aiSearch).toHaveBeenCalledWith(
       expect.objectContaining({
-        max_num_results: 10,
+        max_num_results: 15,
         query: "Cloudflare AI",
-        ranking_options: { score_threshold: 0.15 },
+        ranking_options: { score_threshold: 0.3 },
         stream: true,
       }),
     );
@@ -154,14 +154,15 @@ describe("AI search Pages Function", () => {
       retryable: false,
     });
     expect(aiSearch).not.toHaveBeenCalled();
+    expect(search).toHaveBeenCalledTimes(2);
   });
 
   it("accepts a reranked overview page above the local citation threshold", async () => {
     const { aiSearch, env, search } = createEnv();
-    search.mockResolvedValue({
+    search.mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({
       data: [
         {
-          score: 0.18,
+          score: 0.51,
           title: "潮思Chaosyn",
           url: "https://blog.chaosyn.com/",
         },
@@ -175,6 +176,19 @@ describe("AI search Pages Function", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('\"href\":\"/\"');
+    expect(search).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        ranking_options: { score_threshold: 0.5 },
+        reranking: { enabled: false },
+      }),
+    );
+    expect(aiSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ranking_options: { score_threshold: 0.5 },
+        reranking: { enabled: false },
+      }),
+    );
     expect(aiSearch).toHaveBeenCalledOnce();
   });
 

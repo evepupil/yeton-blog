@@ -36,8 +36,8 @@ interface AutoRagRetrievalOptions {
     readonly score_threshold: number;
   };
   readonly reranking: {
-    readonly enabled: true;
-    readonly model: string;
+    readonly enabled: boolean;
+    readonly model?: string;
   };
   readonly rewrite_query: true;
 }
@@ -305,7 +305,7 @@ export async function onRequestPost({
     }
 
     const autorag = env.AI.autorag(config.autoragName);
-    const retrievalOptions = {
+    const rankedRetrievalOptions = {
       max_num_results: config.maxRetrievalResults,
       query: validation.query,
       ranking_options: {
@@ -317,22 +317,46 @@ export async function onRequestPost({
       },
       rewrite_query: true,
     } as const satisfies AutoRagRetrievalOptions;
-    const searchResult = await withTimeout(
-      autorag.search(retrievalOptions),
+    let activeRetrievalOptions: AutoRagRetrievalOptions =
+      rankedRetrievalOptions;
+    let searchResult = await withTimeout(
+      autorag.search(rankedRetrievalOptions),
       config.requestTimeoutMs,
     );
-    const citations = mapAutoRagCitations(
+    let citations = mapAutoRagCitations(
       extractAutoRagSources(searchResult),
       config.maxCitations,
       config.scoreThreshold,
     );
+    if (citations.length === 0) {
+      const fallbackRetrievalOptions = {
+        ...rankedRetrievalOptions,
+        ranking_options: {
+          score_threshold: config.fallbackScoreThreshold,
+        },
+        reranking: { enabled: false },
+      } as const satisfies AutoRagRetrievalOptions;
+      searchResult = await withTimeout(
+        autorag.search(fallbackRetrievalOptions),
+        config.requestTimeoutMs,
+      );
+      citations = mapAutoRagCitations(
+        extractAutoRagSources(searchResult),
+        config.maxCitations,
+        config.fallbackScoreThreshold,
+      );
+      activeRetrievalOptions = fallbackRetrievalOptions;
+      logEvent("info", "ai_search_retrieval_fallback", requestId, {
+        citationCount: citations.length,
+      });
+    }
     if (citations.length === 0) {
       return errorResponse("NO_CITATIONS", 422, requestId, false);
     }
 
     const upstreamResponse = await withTimeout(
       autorag.aiSearch({
-        ...retrievalOptions,
+        ...activeRetrievalOptions,
         model: config.model,
         stream: true,
       }),
