@@ -292,9 +292,11 @@ test("shows the data-driven about page in both languages", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 3,
-      name: "等待首次微信读书同步",
+      name: "穷查理宝典：查理·芒格智慧箴言录（全新增订本）",
     }),
   ).toBeVisible();
+  await expect(page.getByText("56 小时 39 分", { exact: true })).toBeVisible();
+  await expect(page.getByText("180", { exact: true })).toBeVisible();
   await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
   await expect(page.getByText("Multi-agent", { exact: true })).toBeVisible();
   await expect(page.locator(".focus-band")).toHaveCount(0);

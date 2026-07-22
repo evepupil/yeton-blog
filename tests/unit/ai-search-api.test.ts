@@ -105,14 +105,16 @@ describe("AI search Pages Function", () => {
     expect(batch).toHaveBeenCalledOnce();
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
-        max_num_results: 5,
+        max_num_results: 10,
         query: "Cloudflare AI",
+        ranking_options: { score_threshold: 0.15 },
       }),
     );
     expect(aiSearch).toHaveBeenCalledWith(
       expect.objectContaining({
-        max_num_results: 5,
+        max_num_results: 10,
         query: "Cloudflare AI",
+        ranking_options: { score_threshold: 0.15 },
         stream: true,
       }),
     );
@@ -151,6 +153,48 @@ describe("AI search Pages Function", () => {
       code: "NO_CITATIONS",
       retryable: false,
     });
+    expect(aiSearch).not.toHaveBeenCalled();
+  });
+
+  it("accepts a reranked overview page above the local citation threshold", async () => {
+    const { aiSearch, env, search } = createEnv();
+    search.mockResolvedValue({
+      data: [
+        {
+          score: 0.18,
+          title: "潮思Chaosyn",
+          url: "https://blog.chaosyn.com/",
+        },
+      ],
+    });
+
+    const response = await onRequestPost({
+      env,
+      request: createRequest({ query: "这个博客主要写什么？" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('\"href\":\"/\"');
+    expect(aiSearch).toHaveBeenCalledOnce();
+  });
+
+  it("does not generate from low-scoring reranked sources", async () => {
+    const { aiSearch, env, search } = createEnv();
+    search.mockResolvedValue({
+      data: [
+        {
+          filename: "content/posts/zh/unrelated.md",
+          score: 0.14,
+        },
+      ],
+    });
+
+    const response = await onRequestPost({
+      env,
+      request: createRequest(),
+    });
+
+    expect(response.status).toBe(422);
     expect(aiSearch).not.toHaveBeenCalled();
   });
 

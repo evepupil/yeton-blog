@@ -306,7 +306,7 @@ export async function onRequestPost({
 
     const autorag = env.AI.autorag(config.autoragName);
     const retrievalOptions = {
-      max_num_results: config.maxCitations,
+      max_num_results: config.maxRetrievalResults,
       query: validation.query,
       ranking_options: {
         score_threshold: config.scoreThreshold,
@@ -324,6 +324,7 @@ export async function onRequestPost({
     const citations = mapAutoRagCitations(
       extractAutoRagSources(searchResult),
       config.maxCitations,
+      config.scoreThreshold,
     );
     if (citations.length === 0) {
       return errorResponse("NO_CITATIONS", 422, requestId, false);

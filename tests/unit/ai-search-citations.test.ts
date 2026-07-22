@@ -40,6 +40,22 @@ describe("AI search citation mapping", () => {
     );
   });
 
+  it("maps overview, book and tag pages without treating them as articles", () => {
+    expect(resolveCitationHref("https://blog.chaosyn.com/")).toBe("/");
+    expect(resolveCitationHref("https://blog.chaosyn.com/en/about/")).toBe(
+      "/en/about/",
+    );
+    expect(resolveCitationHref("/books/cloudflare-guide/index.html")).toBe(
+      "/books/cloudflare-guide/",
+    );
+    expect(resolveCitationHref("/tags/Cloudflare/")).toBe("/tags/Cloudflare/");
+    expect(
+      resolveCitationHref(
+        "content/books/zh/cloudflare-guide/getting-started.md",
+      ),
+    ).toBe("/books/cloudflare-guide/getting-started/");
+  });
+
   it("uses source URLs when filenames cannot identify a blog article", () => {
     expect(
       mapAutoRagCitations(
@@ -125,6 +141,20 @@ describe("AI search citation mapping", () => {
         title: "cloudflare workers ai",
       },
     ]);
+  });
+
+  it("filters numeric reranker scores below the local trust threshold", () => {
+    expect(
+      mapAutoRagCitations(
+        [
+          { filename: "low-score.md", score: 0.14 },
+          { filename: "accepted.md", score: 0.18 },
+          { filename: "score-unavailable.md" },
+        ],
+        5,
+        0.15,
+      ).map(({ href }) => href),
+    ).toEqual(["/posts/accepted/", "/posts/score-unavailable/"]);
   });
 
   it("extracts sources from direct and wrapped AutoRAG search results", () => {

@@ -38,6 +38,42 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test("keeps the AI drawer proportional on desktop and full-width on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开 AI 搜索" }).click();
+
+  const content = page.locator(".ai-search-content");
+  const dialog = page.locator(".ai-search-dialog");
+  const form = page.locator(".ai-search-form");
+  const textarea = page.getByRole("textbox", { name: "向 AI 搜索提问" });
+  const desktopContentBox = await content.boundingBox();
+  const desktopDialogBox = await dialog.boundingBox();
+  const desktopFormBox = await form.boundingBox();
+  const desktopTextareaBox = await textarea.boundingBox();
+
+  expect(desktopContentBox?.width).toBeGreaterThanOrEqual(1279);
+  expect(desktopDialogBox?.width).toBeGreaterThanOrEqual(450);
+  expect(desktopDialogBox?.width).toBeLessThanOrEqual(461);
+  expect(desktopDialogBox?.x).toBeGreaterThan(800);
+  expect(desktopFormBox?.width).toBeGreaterThan(400);
+  expect(desktopTextareaBox?.width).toBeGreaterThan(330);
+
+  await page.setViewportSize({ height: 844, width: 390 });
+  const mobileContentBox = await content.boundingBox();
+  const mobileDialogBox = await dialog.boundingBox();
+  const mobileFormBox = await form.boundingBox();
+  const mobileTextareaBox = await textarea.boundingBox();
+
+  expect(mobileContentBox?.width).toBeGreaterThanOrEqual(389);
+  expect(mobileDialogBox?.x).toBe(0);
+  expect(mobileDialogBox?.width).toBeGreaterThanOrEqual(389);
+  expect(mobileFormBox?.width).toBeGreaterThan(350);
+  expect(mobileTextareaBox?.width).toBeGreaterThan(290);
+});
+
 test("asks AI search and opens a cited article", async ({ page }) => {
   await page.route("**/api/ai-search", async (route) => {
     await route.fulfill({
