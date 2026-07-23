@@ -1,5 +1,5 @@
 {
-  "activeDays": 180,
+  "activeDays": 181,
   "books": [
     {
       "author": "彼得·考夫曼",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3399,
-  "updatedAt": "2026-07-22T17:47:17.450Z"
+  "totalMinutes": 3401,
+  "updatedAt": "2026-07-23T17:53:47.458Z"
 }
