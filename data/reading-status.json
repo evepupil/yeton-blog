@@ -1,5 +1,5 @@
 {
-  "activeDays": 185,
+  "activeDays": 186,
   "books": [
     {
       "author": "[英]亚当·斯密",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3425,
-  "updatedAt": "2026-07-30T17:55:15.177Z"
+  "totalMinutes": 3427,
+  "updatedAt": "2026-07-31T17:59:52.994Z"
 }
