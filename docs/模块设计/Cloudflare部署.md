@@ -103,24 +103,24 @@
 
 在 Cloudflare Dashboard 创建 Pages 项目并关联 Git 仓库，配置：
 
-| 配置项               | 值                                                         |
-| -------------------- | ---------------------------------------------------------- |
-| Pages project        | `yeton-blog`                                               |
-| Production branch    | `main`                                                     |
-| Production origin    | `https://blog.chaosyn.com`                                 |
-| Build command        | `NEXT_PUBLIC_SITE_URL=https://blog.chaosyn.com pnpm build` |
-| Build output         | `out`                                                      |
-| Root directory       | `/`                                                        |
-| Node.js              | `22.14.0`                                                  |
-| pnpm                 | `10.21.0`                                                  |
-| Environment variable | `NEXT_PUBLIC_SITE_URL`                                     |
+| 配置项               | 值                                                                       |
+| -------------------- | ------------------------------------------------------------------------ |
+| Pages project        | `yeton-blog`                                                             |
+| Production branch    | `main`                                                                   |
+| Production origin    | `https://blog.chaosyn.com`                                               |
+| Build command        | `NEXT_PUBLIC_SITE_URL=https://blog.chaosyn.com pnpm build`               |
+| Build output         | `out`                                                                    |
+| Root directory       | `/`                                                                      |
+| Node.js              | `22.14.0`                                                                |
+| pnpm                 | `10.21.0`                                                                |
+| Environment variable | `NEXT_PUBLIC_SITE_URL`、`NOTION_TOKEN`、`NOTION_FRIEND_LINK_DATABASE_ID` |
 
-Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding：
+Pages Function 另外从 `wrangler.jsonc` 获取以下运行时 binding，并从 Pages Secret 读取友链申请所需的 Notion 凭据：
 
-| Binding  | 用途                                 |
-| -------- | ------------------------------------ |
-| `AI`     | 调用 AutoRAG AI Search               |
-| `APP_DB` | 保存 AI 限流及后续个人状态等应用数据 |
+| Binding  | 用途                                                 |
+| -------- | ---------------------------------------------------- |
+| `AI`     | 调用 AutoRAG AI Search                               |
+| `APP_DB` | 保存 AI 与友链申请的限流计数及后续个人状态等应用数据 |
 
 首次部署或新建环境时执行：
 
@@ -139,6 +139,8 @@ pnpm db:migrate
 3. Cloudflare 安装锁定依赖并运行配置的构建命令；命令先把正式域名传给 `pnpm build`。
 4. 构建脚本先从 `redirects.config.ts` 生成 `_redirects`，再检测 `CF_PAGES=1`、校验传入的 `NEXT_PUBLIC_SITE_URL`，清理历史 `out`，生成静态页面、英文目录级 404 和 `out/_worker.js`，最后检查完整产物。
 5. Cloudflare 发布静态产物并保留 deployment 历史。
+
+友链申请需要在 Production 和 Preview 环境分别配置 `NOTION_TOKEN`、`NOTION_FRIEND_LINK_DATABASE_ID`。缺少任一 Secret 或 `APP_DB` 时，`POST /api/submit-friend-link` 返回 `503`，不会暴露 Notion 配置状态。
 
 为了让质量门禁真正阻止坏版本进入生产分支，需要在 GitHub 为 `main` 开启分支保护，并把 `Quality / quality` 设为合并前必需检查。
 
@@ -183,6 +185,7 @@ pnpm smoke:deployment -- https://your-production-origin.example
 - `pnpm build` 检查 `_headers`、中英文 404 与 `_worker.js` 已生成，并确认 `_redirects` 包含集中配置中的全部规则。
 - `pnpm test:e2e` 在静态构建产物上覆盖完整站内用户流程。
 - `wrangler pages functions build` 校验 Pages Function 可以和 AI、D1 binding 一起打包。
+- `tests/unit/friend-link-api.test.ts` 覆盖友链申请 Function 的同源、限流、Notion 写入和缺失配置状态。
 - 早期公网冒烟已覆盖 deployment 地址、`yeton-blog.pages.dev` 和临时域名；当前正式域名为 `blog.chaosyn.com`，本次路由改造发布后需要重新执行正式域名冒烟。
 
 ## 当前限制

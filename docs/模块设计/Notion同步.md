@@ -14,7 +14,7 @@
 
 ### 职责
 
-本模块负责从 Notion 拉取已发布文章和已通过友链，把页面转换为仓库内的 Markdown、JSON 和本地图片，再交给现有内容校验与 Cloudflare Git 部署流程。它不在网页请求期间访问 Notion，也不负责评论、访问统计和友链页面样式。
+本模块负责从 Notion 拉取已发布文章和已通过友链，把页面转换为仓库内的 Markdown、JSON 和本地图片，再交给现有内容校验与 Cloudflare Git 部署流程。友链申请由独立 Pages Function 写入同一个数据库的“待审核”记录，本模块负责其后的审核结果同步；它不负责评论、访问统计和友链页面样式。
 
 ### 目录结构
 
@@ -77,12 +77,12 @@
 
 ### 环境变量
 
-| 名称                             | 必需 | 用途                              |
-| -------------------------------- | ---- | --------------------------------- |
-| `NOTION_TOKEN`                   | 是   | Notion Integration Token          |
-| `NOTION_DATABASE_ID`             | 是   | 文章数据库 ID                     |
-| `NOTION_FRIEND_LINK_DATABASE_ID` | 否   | 友链数据库 ID，缺少时跳过友链同步 |
-| `NOTION_PUBLISHED_STATUS`        | 否   | 发布状态名称，默认 `Published`    |
+| 名称                             | 必需 | 用途                                                    |
+| -------------------------------- | ---- | ------------------------------------------------------- |
+| `NOTION_TOKEN`                   | 是   | Notion Integration Token；Action 与 Pages Function 共用 |
+| `NOTION_DATABASE_ID`             | 是   | 文章数据库 ID                                           |
+| `NOTION_FRIEND_LINK_DATABASE_ID` | 否   | 友链数据库 ID；同步或申请功能缺少时分别跳过/返回 503    |
+| `NOTION_PUBLISHED_STATUS`        | 否   | 发布状态名称，默认 `Published`                          |
 
 本地值放在被 Git 忽略的 `.env.local`。GitHub 中前三项放在 Actions Secrets；发布状态保持默认时无需配置。
 
@@ -132,5 +132,11 @@ pnpm sync-content
 - Notion 属性名和类型必须与上文一致；后续如调整数据库，应先更新映射和测试。
 - 文章 canonical slug 变化时必须同步维护 `redirects.config.ts`；Notion 链接规范化和旧 URL 跳转共用这份映射。
 - 下载失败的正文图片会继续使用原远程地址，远端图床仍可能限制浏览器访问；同步日志会显示来源域名，便于后续把问题图片迁移到可下载的图床。
+- 友链申请接口写入同一套字段并固定状态为“待审核”；只有管理员改成“已通过”后，JSON 与头像才会进入中英文友链页面。
 - 友链 JSON 与头像会直接进入中英文友链页面；浏览器加载头像失败时显示站名首字母。
 - Giscus 和 Umami 访问统计已经接入；本模块只负责同步内容，不读取或写入这些服务的数据。
+
+### 2026-08-11
+
+- 友链页新增申请入口，Pages Function 使用 Notion REST API 创建待审核记录。
+- 申请请求沿用共享 D1 的限流表但使用独立命名空间，避免与 AI 搜索互相消耗次数。

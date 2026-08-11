@@ -375,6 +375,24 @@ test("shows synchronized friend links with an avatar fallback", async ({
   ).toBeVisible();
 });
 
+test("opens and closes the friend-link application dialog", async ({
+  page,
+}) => {
+  await page.goto("/links/");
+
+  await page.getByRole("button", { name: "申请友链", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "申请友链" })).toBeVisible();
+  await expect(dialog.getByLabel("网站名称")).toBeVisible();
+  await expect(dialog.getByLabel("网站地址")).toBeVisible();
+  await expect(dialog.getByLabel("网站描述")).toBeVisible();
+  await expect(dialog.getByLabel("头像地址 (可选)")).toBeVisible();
+
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).toBeHidden();
+});
+
 test("opens recent writing from whole home cards while keeping read labels", async ({
   page,
 }) => {

@@ -3,6 +3,7 @@ import { UsersRound } from "lucide-react";
 
 import { PageIntro } from "@/components/page/page-intro";
 import { FriendCard } from "@/features/friends/friend-card";
+import { FriendLinkApplication } from "@/features/friends/friend-link-application";
 import { friendsContent } from "@/features/friends/friends-content";
 import { getFriendLinks } from "@/lib/friends/repository";
 import { getLocalizedSiteConfig } from "@/lib/site-config";
@@ -24,6 +25,8 @@ export function FriendsPage({ locale }: FriendsPageProps) {
         index="06"
         title={content.title}
       />
+
+      <FriendLinkApplication locale={locale} />
 
       <section aria-label={content.listLabel} className="friends-directory">
         <div className="friends-count">{content.count(friends.length)}</div>

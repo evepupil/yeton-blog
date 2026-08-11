@@ -349,6 +349,7 @@ docs/
 - 已复用旧站 Umami Cloud Website ID，延后加载统计脚本，恢复公开统计入口，并补齐 CSP、隐私说明和配置校验。
 - 已完成 `evepupil/yeton-blog` 的 Discussions、Giscus App 和 `General` 分类配置，站点公共配置已写入仓库与分类 ID 并开启评论。
 - 已上线中英文友链页面、真实友链数据、本地头像和加载失败首字母回退，并加入导航、sitemap、静态检查和部署冒烟。
+- 已增加中英文友链申请入口：同源 Pages Function 校验并限流后写入 Notion“待审核”记录，审核和公开展示继续沿用现有同步链路。
 - 已使用真实 Notion secrets 完成 GitHub Action 同步，修正图片下载兼容、固定 Notion 页面身份与 canonical slug，重复文章清零。
 - 已在生产环境确认 Giscus iframe、仓库、分类、路径映射和主题参数正常，第三方失败仍保留完整正文。
 - 已迁移旧站的 Umami API 路径、时区和 GA4 Measurement ID；文章页与卡片显示当前/旧 slug 合计浏览量，第三方脚本均延后加载。

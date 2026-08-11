@@ -7,6 +7,243 @@
   margin-bottom: 58px;
 }
 
+.friend-link-application {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  max-width: 980px;
+  padding: 22px 24px;
+  margin-bottom: 34px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.friend-link-application-copy {
+  min-width: 0;
+}
+
+.friend-link-application-copy h2 {
+  margin: 9px 0 5px;
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.friend-link-application-copy p,
+.friend-link-modal-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.friend-link-application-trigger,
+.friend-link-submit {
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.friend-link-application-trigger:hover,
+.friend-link-submit:hover {
+  background: var(--accent-strong);
+}
+
+.friend-link-application-trigger svg,
+.friend-link-submit svg {
+  width: 16px;
+  height: 16px;
+}
+
+.friend-link-modal-backdrop {
+  z-index: 100;
+  background: color-mix(in srgb, var(--text) 24%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.friend-link-modal-container {
+  width: min(560px, calc(100% - 32px));
+}
+
+.friend-link-modal-dialog {
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.friend-link-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 16px;
+}
+
+.friend-link-modal-header h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.friend-link-modal-body {
+  padding: 0 24px 24px;
+  overflow-y: auto;
+}
+
+.friend-link-modal-description {
+  padding-bottom: 20px;
+}
+
+.friend-link-form {
+  display: grid;
+  gap: 8px;
+}
+
+.friend-link-form label {
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.friend-link-form label span {
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.friend-link-form input,
+.friend-link-form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.friend-link-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.friend-link-form input:focus,
+.friend-link-form textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 0;
+}
+
+.friend-link-form input:disabled,
+.friend-link-form textarea:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.friend-link-honeypot {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  padding: 0 !important;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0 !important;
+}
+
+.friend-link-form-success,
+.friend-link-form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.friend-link-form-success {
+  color: var(--accent-strong);
+}
+
+.friend-link-form-error {
+  color: var(--coral);
+}
+
+.friend-link-form-success svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.friend-link-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.friend-link-submit {
+  min-width: 126px;
+}
+
+@media (max-width: 760px) {
+  .friend-link-application {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .friend-link-application-trigger {
+    width: 100%;
+  }
+
+  .friend-link-modal-container {
+    width: calc(100% - 24px);
+  }
+
+  .friend-link-modal-dialog {
+    max-height: calc(100vh - 24px);
+  }
+
+  .friend-link-modal-header {
+    padding: 18px 18px 14px;
+  }
+
+  .friend-link-modal-header h2 {
+    font-size: 21px;
+  }
+
+  .friend-link-modal-body {
+    padding: 0 18px 18px;
+  }
+
+  .friend-link-form-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  }
+
+  .friend-link-form-actions button {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-link-application-trigger:hover,
+  .friend-link-submit:hover {
+    transform: none;
+  }
+}
+
 .friends-directory {
   max-width: 980px;
 }

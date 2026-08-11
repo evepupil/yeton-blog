@@ -16,7 +16,7 @@
 - 中英文独立路由、翻译关联、RSS、站点地图与 SEO 元数据
 - 构建期全文搜索，以及可选的 Cloudflare AutoRAG AI 搜索
 - Giscus 评论、Umami/Google Analytics、广告位和微信赞赏
-- Notion 文章与友链同步、微信读书公开状态同步
+- Notion 文章与友链同步、友链申请与审核、微信读书公开状态同步
 - 响应式布局、明暗主题、键盘操作与无 JavaScript 阅读路径
 - 严格 TypeScript、内容校验、单元测试、端到端测试和静态产物检查
 
@@ -111,6 +111,8 @@ pnpm content:check
 
 仓库内的 GitHub Actions 可以定时同步这些公开数据。没有配置相应 Secret 时，微信读书任务会跳过同步并保留现有数据。
 
+友链页的“申请友链”会通过同源 Pages Function 把申请写入 Notion 友链数据库，并标记为“待审核”。除了 GitHub Actions 外，还要在 Cloudflare Pages 的 Production 和 Preview Secret 中配置 `NOTION_TOKEN`、`NOTION_FRIEND_LINK_DATABASE_ID`，并确认 `APP_DB` 已绑定且已执行 `pnpm db:migrate`。管理员把 Notion 中的状态改为“已通过”后，定时同步才会把它放进公开友链列表。
+
 ## 常用命令
 
 | 命令                 | 用途                                    |
@@ -138,7 +140,7 @@ pnpm content:check
    ```
 
 4. 将输出目录设置为 `out`。
-5. 按需配置 Pages Functions 使用的 Workers AI、AutoRAG 和 D1 绑定。
+5. 按需配置 Pages Functions 使用的 Workers AI、AutoRAG 和 D1 绑定；友链申请还需要配置 `NOTION_TOKEN` 和 `NOTION_FRIEND_LINK_DATABASE_ID` 两个运行时 Secret。
 
 GitHub Actions 负责格式、静态分析、类型、测试和构建检查；Cloudflare Pages 监听 `main` 并发布通过构建的静态产物。详细配置与回滚方式见 [`docs/模块设计/Cloudflare部署.md`](docs/模块设计/Cloudflare部署.md)。
 
