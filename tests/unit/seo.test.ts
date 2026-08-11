@@ -38,7 +38,7 @@ describe("SEO output", () => {
     };
 
     expect(parsed.rss.channel.language).toBe("zh-CN");
-    expect(parsed.rss.channel.item).toHaveLength(19);
+    expect(parsed.rss.channel.item).toHaveLength(21);
     expect(
       parsed.rss.channel.item.some(({ link }) => link.includes("hidden-draft")),
     ).toBe(false);

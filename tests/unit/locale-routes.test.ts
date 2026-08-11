@@ -28,7 +28,16 @@ describe("content locale routes", () => {
   });
 
   it("falls back to the target home when a translation is missing", () => {
-    const routes = buildContentLocaleRoutes(articles, books);
+    const articlesWithMissingTranslation = articles.map((article) =>
+      article.locale === "zh-CN" &&
+      article.slug === "prompt-subagent-ai-36c4342e"
+        ? { ...article, translationKey: undefined }
+        : article,
+    );
+    const routes = buildContentLocaleRoutes(
+      articlesWithMissingTranslation,
+      books,
+    );
 
     expect(routes["/posts/prompt-subagent-ai-36c4342e/"]).toBe("/en/");
     expect(routes["/books/ai-engineering/"]).toBe("/en/");
