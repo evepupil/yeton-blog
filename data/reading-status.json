@@ -1,5 +1,5 @@
 {
-  "activeDays": 199,
+  "activeDays": 201,
   "books": [
     {
       "author": "斯蒂芬·盖斯",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3504,
-  "updatedAt": "2026-08-17T16:52:22.937Z"
+  "totalMinutes": 3520,
+  "updatedAt": "2026-08-18T16:55:34.475Z"
 }
