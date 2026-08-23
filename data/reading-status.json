@@ -2,16 +2,16 @@
   "activeDays": 204,
   "books": [
     {
-      "author": "斯蒂芬·盖斯",
-      "cover": "/images/reading/50843385015b5ba5.jpg",
-      "state": "reading",
-      "title": "如何成为不完美主义者"
-    },
-    {
       "author": "[英]亚当·斯密",
       "cover": "/images/reading/487a4bdfdae7f352.jpg",
       "state": "reading",
       "title": "国富论（经济学博士生导师 译）"
+    },
+    {
+      "author": "斯蒂芬·盖斯",
+      "cover": "/images/reading/50843385015b5ba5.jpg",
+      "state": "reading",
+      "title": "如何成为不完美主义者"
     },
     {
       "author": "彼得·考夫曼",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3535,
-  "updatedAt": "2026-08-22T16:46:23.413Z"
+  "totalMinutes": 3542,
+  "updatedAt": "2026-08-23T16:48:34.371Z"
 }
