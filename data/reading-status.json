@@ -2,6 +2,12 @@
   "activeDays": 206,
   "books": [
     {
+      "author": "唐家三少",
+      "cover": "/images/reading/7066bcb284decdd2.jpg",
+      "state": "reading",
+      "title": "斗罗大陆II绝世唐门"
+    },
+    {
       "author": "[英]亚当·斯密",
       "cover": "/images/reading/487a4bdfdae7f352.jpg",
       "state": "reading",
@@ -12,15 +18,9 @@
       "cover": "/images/reading/50843385015b5ba5.jpg",
       "state": "reading",
       "title": "如何成为不完美主义者"
-    },
-    {
-      "author": "彼得·考夫曼",
-      "cover": "/images/reading/b33c32b6376442a6.jpg",
-      "state": "reading",
-      "title": "穷查理宝典：查理·芒格智慧箴言录（全新增订本）"
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3551,
-  "updatedAt": "2026-08-26T18:10:45.034Z"
+  "totalMinutes": 3565,
+  "updatedAt": "2026-08-28T01:01:04.582Z"
 }
