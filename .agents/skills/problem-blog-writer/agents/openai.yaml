@@ -1,0 +1,7 @@
+interface:
+  display_name: "问题复盘博客写作"
+  short_description: "把真实问题整理成中英文博客文章，并自动完成校验、提交和推送"
+  default_prompt: "使用 $problem-blog-writer，把这个问题整理成中英文博客并发布。"
+
+policy:
+  allow_implicit_invocation: false
