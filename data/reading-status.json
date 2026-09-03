@@ -1,5 +1,5 @@
 {
-  "activeDays": 209,
+  "activeDays": 210,
   "books": [
     {
       "author": "唐家三少",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3593,
-  "updatedAt": "2026-09-02T19:26:13.038Z"
+  "totalMinutes": 3601,
+  "updatedAt": "2026-09-03T19:21:00.658Z"
 }
