@@ -30,8 +30,8 @@ describe("content queries", () => {
   it("returns pinned and recent published articles first", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
-    expect(chineseArticles).toHaveLength(21);
-    expect(chineseArticles[0]?.slug).toBe("saas-nextdevtpl-2-x-saas-3ae4342e");
+    expect(chineseArticles).toHaveLength(23);
+    expect(chineseArticles[0]?.slug).toBe("notion-3be4342e");
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
   });
 
@@ -75,7 +75,7 @@ describe("content queries", () => {
     const previews = getPublishedArticlePreviews(articles, "zh-CN");
     const navigation = getArticleNavigation(articles, article!);
 
-    expect(previews).toHaveLength(21);
+    expect(previews).toHaveLength(23);
     expect(previews[0]).not.toHaveProperty("body");
     expect(navigation.previous?.slug).toBe("prompt-subagent-ai-36c4342e");
     expect(navigation.next?.slug).toBe("claude-code-chatgpt-34a4342e");
