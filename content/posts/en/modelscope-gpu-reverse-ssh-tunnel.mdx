@@ -1,0 +1,189 @@
+---
+title: "Reverse SSH Tunnels for ModelScope GPU Instances With No Inbound Access"
+description: "ModelScope GPU instances are outbound-only, and Cloudflare Tunnel, Tailscale and localtunnel all failed there. Native SSH remote port forwarding through a relay host works. With a ready-to-run script and two silent failures."
+published: "2026-09-04"
+locale: "en"
+tags:
+  - "postmortem"
+  - "Troubleshooting"
+  - "SSH"
+draft: false
+pinned: false
+translationKey: "modelscope-gpu-reverse-ssh-tunnel"
+---
+
+ModelScope GPU instances ship with a web terminal and no public SSH endpoint, and the network is outbound-only. Three common tunnelling tools were unusable there. Native SSH remote port forwarding through a relay host does work: the instance dials out, the relay publishes a port, and clients connect to that port. No third-party service and no domain are involved; the cost is that you supply the relay host.
+
+## The problem
+
+The web terminal is the only entry point ModelScope provides. It stops being enough as soon as you need file transfer, log inspection, or a long-running job that outlives a browser tab.
+
+The instance network only works in one direction. It can reach outside addresses; it accepts nothing inbound. Opening a port or adding a forwarding rule is not an option because there is no inbound path to configure.
+
+Three general-purpose tunnelling tools were tested and none worked:
+
+| Tool              | Behaviour                                      |
+| ----------------- | ---------------------------------------------- |
+| Cloudflare Tunnel | Unstable — dropped links and failed handshakes |
+| Tailscale         | Never completed network setup                  |
+| localtunnel       | Connected, then timed out                      |
+
+The cause was not investigated; this records the symptoms only. What the three have in common is a dependency on their own relay service and domain resolution, which adds failure modes you cannot see into from a restricted network.
+
+## Diagnosis
+
+SSH remote port forwarding avoids third-party relays and domains entirely, which makes it the right shape for this environment. Two non-obvious failures came up during setup. Both share a trait: the error text does not name the cause.
+
+### Ports below 1024 fail to bind
+
+Using port 822 on the relay, the instance reported:
+
+```
+Warning: remote port forwarding failed for listen port 822
+```
+
+The path to the cause:
+
+1. Check whether 822 is in use on the relay — it is free
+2. Check the forwarding switch in `sshd_config` — `AllowTcpForwarding yes`, enabled
+3. Retry on port 18022 — binds immediately
+
+The cause is the privileged port rule. Ports below 1024 require root to bind, and the listening socket for a remote forward is created as the logged-in user. The `ubuntu` account does not have that privilege.
+
+The `ssh(1)` manual states this outright: `Privileged ports can be forwarded only when logging in as root on the remote machine`. **The runtime error never references that constraint, which is why the diagnosis takes as long as it does.**
+
+Pick a port above 1024 for reverse tunnels.
+
+### The configured port is not the port that is listening
+
+The relay's `sshd_config` declared `Port 222`, while `ss -tlnp` showed it listening on 22.
+
+The cause is systemd socket activation. Since Ubuntu 22.10, openssh-server hands the listening socket to the `ssh.socket` unit by default, and `Port` and `ListenAddress` in `sshd_config` stop taking effect.
+
+The danger is the gap between configuration and running state: **the next restart of sshd — whenever that happens, for whatever reason — moves the listener to the declared port and drops every existing connection.** The outage arrives long after the config change that caused it, which makes it hard to trace back.
+
+To make the config file authoritative again, turn socket activation off:
+
+```bash
+sudo systemctl disable --now ssh.socket
+sudo systemctl enable --now ssh.service
+```
+
+### Three more silent failures
+
+- **The client never offers its key.** If the private key is not named `id_rsa`, `id_ed25519` or another default, SSH leaves it out of the candidate list. `ssh -vv` shows attempts against the default names and says nothing about the key you meant to use.
+- **A leftover tunnel holds the port.** When a previous tunnel process did not exit cleanly, the port stays bound and the new tunnel cannot claim it. From the outside this looks like the same command working intermittently.
+- **The security group is a separate gate.** A listening service is not a reachable one. Testing from your own machine can pass on a whitelisted address and hide the gap entirely.
+
+## The fix
+
+### Direction of the connection
+
+```
+client  ──── connects ────▶  relay host (public IP)  ◀──── dials out ────  ModelScope instance
+                                 :8222
+```
+
+The instance opens an SSH connection to the relay and registers a listening port there. A client connecting to that port has its traffic carried back over the existing connection to port 22 on the instance. **Both the client and the instance may sit behind NAT; only the relay needs a reachable public endpoint.**
+
+### Startup script
+
+`/mnt/workspace` is the only directory ModelScope preserves — everything else is wiped when the instance is rebuilt. Put the script there, fill in the four settings, and run it.
+
+```bash
+#!/usr/bin/env bash
+# ModelScope reverse tunnel, lives in /mnt/workspace
+set -uo pipefail
+
+# ============ settings ============
+PUBKEY="ssh-ed25519 AAAA...your client public key... user@host"
+RELAY_USER="ubuntu"
+RELAY_HOST="<RELAY_HOST>"
+REMOTE_PORT=8222          # must be above 1024 and open in the security group
+# ==================================
+
+RELAY_PORT=22
+LOCAL_SSH_PORT=22
+RELAY_KEY="/mnt/workspace/.tunnel_key"   # used if present, otherwise password auth
+
+die() { echo "[x] $*" >&2; exit 1; }
+info() { echo "[*] $*"; }
+
+[[ "$PUBKEY" == *"your client public key"* ]] && die "PUBKEY is not set"
+(( REMOTE_PORT > 1024 )) || die "REMOTE_PORT must be above 1024: privileged ports need root"
+
+# 1) Write the client key. /root is not persistent, so it is gone after a rebuild
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+grep -qF "$PUBKEY" ~/.ssh/authorized_keys || echo "$PUBKEY" >> ~/.ssh/authorized_keys
+
+# 2) Make sure sshd is up; a tunnel to a dead sshd looks like "connects then drops"
+if ! pgrep -x sshd >/dev/null 2>&1; then
+  service ssh start >/dev/null 2>&1 || /usr/sbin/sshd >/dev/null 2>&1 || true
+  sleep 1
+fi
+pgrep -x sshd >/dev/null 2>&1 || die "sshd did not start; the tunnel would be useless"
+
+# 3) Clear a leftover tunnel, or the port stays bound and the new one fails
+pkill -f "R \*:${REMOTE_PORT}:" >/dev/null 2>&1 && sleep 1
+
+OPTS=(-N -T
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  -o ServerAliveInterval=30 -o ServerAliveCountMax=3
+  -o ExitOnForwardFailure=yes
+  -R "*:${REMOTE_PORT}:127.0.0.1:${LOCAL_SSH_PORT}" -p "$RELAY_PORT")
+[[ -f "$RELAY_KEY" ]] && OPTS+=(-i "$RELAY_KEY" -o IdentitiesOnly=yes)
+
+info "forwarding local ${LOCAL_SSH_PORT} -> ${RELAY_HOST}:${REMOTE_PORT}"
+echo "    connect with: ssh -p ${REMOTE_PORT} $(whoami)@${RELAY_HOST}"
+exec ssh "${OPTS[@]}" "${RELAY_USER}@${RELAY_HOST}"
+```
+
+Each of the four checks heads off one failure: the port range check catches the privileged-port bind; rewriting the key covers authentication after a rebuild; the sshd check covers a tunnel that connects and immediately drops; clearing leftovers covers the intermittent bind failure. `ExitOnForwardFailure=yes` makes the process exit when the port does not bind, so its state matches reality.
+
+### Relay host
+
+```bash
+# /etc/ssh/sshd_config.d/99-tunnel.conf
+GatewayPorts yes           # defaults to no, which binds the listener to loopback only
+AllowTcpForwarding yes
+ClientAliveInterval 30     # reclaim dead links before they sit on the port
+ClientAliveCountMax 3
+```
+
+Validate with `sudo sshd -t`, then apply with `sudo systemctl reload ssh`. Open TCP 8222 inbound in the security group separately.
+
+### Client
+
+```
+Host moda
+    HostName <RELAY_HOST>
+    Port 8222
+    User root
+    IdentityFile ~/.ssh/id_ed25519      # required
+    HostKeyAlias moda-tunnel
+    StrictHostKeyChecking no
+    ServerAliveInterval 30
+```
+
+`IdentityFile` is required for the reason given above. The instance host key is regenerated on every rebuild, which raises `REMOTE HOST IDENTIFICATION HAS CHANGED`; `HostKeyAlias` gives the tunnel endpoint its own identity so it does not collide with the relay's own fingerprint.
+
+## Verification
+
+Check connectivity from the outside in. Each layer that fails points at a different cause:
+
+| Check                            | Command                               | What failure means           |
+| -------------------------------- | ------------------------------------- | ---------------------------- |
+| Port bound on the relay          | On the relay: `ss -tlnp \| grep 8222` | The tunnel is not up         |
+| Port reachable from the internet | Probe it **from a third host**        | The security group is closed |
+| Forward target is listening      | Grab the SSH banner                   | sshd is down on the instance |
+
+The second check has to come from a third host. Your own address may already be whitelisted, in which case testing locally proves nothing about the security group.
+
+With this configuration in place, clients log in to the instance reliably, and file transfer and long-running jobs both behave. After an instance rebuild, running the script again restores access; the relay needs no further changes.
+
+## References
+
+- [ssh(1) — OpenSSH client manual](https://man.openbsd.org/ssh): the `-R` option, including the rule that privileged ports require a root login on the remote machine
+- [sshd_config(5) — GatewayPorts](https://man.openbsd.org/sshd_config#GatewayPorts): accepted values and default behaviour
+- [SSHd now uses socket-based activation (Ubuntu 22.10 and later)](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189): why `Port` and `ListenAddress` stop working, and how to change it

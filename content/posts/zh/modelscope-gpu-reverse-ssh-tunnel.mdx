@@ -1,0 +1,189 @@
+---
+title: "魔搭 GPU 实例无公网入口时的反向 SSH 隧道接入"
+description: "魔搭 GPU 实例只有出站网络、不接受入站连接，Cloudflare Tunnel、Tailscale、localtunnel 三类穿透方案实测均不可用。改用 SSH 原生反向端口转发经中转主机接入，并给出可直接落地的启动脚本与两个静默失败的根因。"
+published: "2026-09-04"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "疑难杂症"
+  - "SSH"
+draft: false
+pinned: false
+translationKey: "modelscope-gpu-reverse-ssh-tunnel"
+---
+
+魔搭 GPU 实例只提供 Web 终端，不开放公网 SSH，实例仅具备出站网络能力。三类通用内网穿透方案在该环境下实测不可用。改用 SSH 原生反向端口转发，由实例主动连向一台具备公网 IP 的中转主机，客户端再经中转主机接入。该方案不依赖第三方服务与域名，代价是需要自备一台中转主机。
+
+## 问题详情
+
+魔搭 GPU 实例的可用入口只有 Web 终端。在文件传输、日志排查和长时任务托管场景下，Web 终端不足以支撑。
+
+实例网络为单向：可以主动访问外部地址，不接受外部发起的连接。因此无法通过开放端口或配置转发规则直接暴露 SSH 服务。
+
+以下三类通用穿透方案经实测均不可用：
+
+| 方案              | 表现                               |
+| ----------------- | ---------------------------------- |
+| Cloudflare Tunnel | 连接不稳定，出现链路中断与握手失败 |
+| Tailscale         | 无法完成组网                       |
+| localtunnel       | 建立后连接超时                     |
+
+具体成因未作定位，此处仅记录现象。共性问题在于这三类方案均依赖各自的中继服务与域名解析，在受限网络环境中引入了额外的不确定性。
+
+## 排查与原因
+
+SSH 原生反向端口转发不经第三方中继、不依赖域名，是该场景下的可行路径。实施过程中触发两处非直观失败，两者的共同特征是错误信息不包含根因。
+
+### 端口号低于 1024 时绑定失败
+
+在中转主机上选用 822 端口时，实例侧返回：
+
+```
+Warning: remote port forwarding failed for listen port 822
+```
+
+排查按以下顺序推进：
+
+1. 检查中转主机 822 端口占用情况，未被占用
+2. 检查 `sshd_config` 中的转发开关，`AllowTcpForwarding yes` 已启用
+3. 更换为 18022 端口重试，绑定成功
+
+根因是特权端口限制。1024 以下端口需要 root 权限才能绑定，而反向转发的监听套接字以登录用户身份创建，`ubuntu` 用户不具备该权限。
+
+`ssh(1)` 手册对此有明确说明：`Privileged ports can be forwarded only when logging in as root on the remote machine`。**运行期错误信息未引用该约束，是定位成本高的直接原因。**
+
+结论：反向隧道端口统一选取 1024 以上。
+
+### 配置文件声明端口与实际监听端口不一致
+
+中转主机的 `sshd_config` 声明 `Port 222`，而 `ss -tlnp` 显示实际监听 22 端口。
+
+根因是 systemd socket 激活。Ubuntu 22.10 起，openssh-server 默认由 `ssh.socket` 单元接管监听，`sshd_config` 中的 `Port` 与 `ListenAddress` 不再生效。
+
+该状态的风险在于配置与运行状态分叉：**任意一次 sshd 重启都会使监听端口切换至配置声明值，导致既有连接全部失效**，且故障发生时间与配置修改时间无关联，难以回溯。
+
+处置方式为关闭 socket 激活，使配置文件重新生效：
+
+```bash
+sudo systemctl disable --now ssh.socket
+sudo systemctl enable --now ssh.service
+```
+
+### 其他三处静默失败
+
+- **客户端未提交密钥**。私钥文件名不属于 `id_rsa`、`id_ed25519` 等默认名称时，SSH 不会将其纳入认证候选。`ssh -vv` 输出中仅可见对默认文件名的尝试记录，无任何提示说明实际密钥未参与认证。
+- **残留隧道占用端口**。上一次隧道进程未正常退出时端口仍被占用，新隧道绑定失败。外部表现为同一条命令间歇性可用。
+- **安全组未放行**。服务处于监听状态不等同于公网可达。从本机验证连通性可能因地址已在白名单中而无法暴露该问题。
+
+## 解决办法
+
+### 连接方向
+
+```
+客户端  ──── 连接 ────▶  中转主机(公网IP)  ◀──── 主动拨号 ────  魔搭实例
+                            :8222
+```
+
+实例主动向中转主机建立 SSH 连接，并在中转主机上注册监听端口；客户端连接该端口，流量经既有连接回传至实例的 22 端口。**客户端与实例均可位于 NAT 之后，仅中转主机需具备可达的公网入口。**
+
+### 隧道启动脚本
+
+魔搭实例仅 `/mnt/workspace` 为持久化目录，其余路径在实例重建后清空。脚本置于该目录，修改配置区四项参数后执行即可。
+
+```bash
+#!/usr/bin/env bash
+# 魔搭反向隧道启动脚本，置于 /mnt/workspace
+set -uo pipefail
+
+# ============ 配置区 ============
+PUBKEY="ssh-ed25519 AAAA...替换为客户端公钥... user@host"
+RELAY_USER="ubuntu"
+RELAY_HOST="<RELAY_HOST>"
+REMOTE_PORT=8222          # 须大于 1024，且已在安全组放行
+# ================================
+
+RELAY_PORT=22
+LOCAL_SSH_PORT=22
+RELAY_KEY="/mnt/workspace/.tunnel_key"   # 存在则免密认证，否则使用口令
+
+die() { echo "[x] $*" >&2; exit 1; }
+info() { echo "[*] $*"; }
+
+[[ "$PUBKEY" == *"替换为客户端公钥"* ]] && die "PUBKEY 未配置"
+(( REMOTE_PORT > 1024 )) || die "REMOTE_PORT 须大于 1024：特权端口非 root 用户无法绑定"
+
+# 1) 写入客户端公钥。/root 非持久化目录，实例重建后需重新写入
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+grep -qF "$PUBKEY" ~/.ssh/authorized_keys || echo "$PUBKEY" >> ~/.ssh/authorized_keys
+
+# 2) 确认本机 sshd 处于运行状态
+if ! pgrep -x sshd >/dev/null 2>&1; then
+  service ssh start >/dev/null 2>&1 || /usr/sbin/sshd >/dev/null 2>&1 || true
+  sleep 1
+fi
+pgrep -x sshd >/dev/null 2>&1 || die "sshd 未能启动，隧道建立后仍不可用"
+
+# 3) 清理残留隧道进程，避免端口占用导致绑定失败
+pkill -f "R \*:${REMOTE_PORT}:" >/dev/null 2>&1 && sleep 1
+
+OPTS=(-N -T
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  -o ServerAliveInterval=30 -o ServerAliveCountMax=3
+  -o ExitOnForwardFailure=yes
+  -R "*:${REMOTE_PORT}:127.0.0.1:${LOCAL_SSH_PORT}" -p "$RELAY_PORT")
+[[ -f "$RELAY_KEY" ]] && OPTS+=(-i "$RELAY_KEY" -o IdentitiesOnly=yes)
+
+info "转发已建立：本机 ${LOCAL_SSH_PORT} -> ${RELAY_HOST}:${REMOTE_PORT}"
+echo "    客户端连接命令： ssh -p ${REMOTE_PORT} $(whoami)@${RELAY_HOST}"
+exec ssh "${OPTS[@]}" "${RELAY_USER}@${RELAY_HOST}"
+```
+
+脚本中四项前置检查各自规避一类失败：端口范围校验对应特权端口绑定失败；重写公钥对应实例重建后认证失败；校验 sshd 运行状态对应隧道建立成功但连接立即断开；清理残留进程对应端口占用导致的间歇性失败。`ExitOnForwardFailure=yes` 使端口绑定失败时进程立即退出，避免运行状态与实际不符。
+
+### 中转主机配置
+
+```bash
+# /etc/ssh/sshd_config.d/99-tunnel.conf
+GatewayPorts yes           # 默认值为 no，监听套接字仅绑定回环地址
+AllowTcpForwarding yes
+ClientAliveInterval 30     # 及时回收失效连接，避免端口被半开连接占用
+ClientAliveCountMax 3
+```
+
+变更后执行 `sudo sshd -t` 校验语法，再执行 `sudo systemctl reload ssh` 生效。安全组需单独放行 TCP 8222 入站。
+
+### 客户端配置
+
+```
+Host moda
+    HostName <RELAY_HOST>
+    Port 8222
+    User root
+    IdentityFile ~/.ssh/id_ed25519      # 必需项
+    HostKeyAlias moda-tunnel
+    StrictHostKeyChecking no
+    ServerAliveInterval 30
+```
+
+`IdentityFile` 为必需项，原因见上文。实例主机密钥随实例重建重新生成，连接时触发 `REMOTE HOST IDENTIFICATION HAS CHANGED`；`HostKeyAlias` 为隧道端点分配独立标识，避免与中转主机自身指纹冲突。
+
+## 验证结果
+
+连通性验证按由外向内的顺序分层执行，每层失败指向不同根因：
+
+| 验证项             | 命令                                 | 失败含义           |
+| ------------------ | ------------------------------------ | ------------------ |
+| 中转主机端口已绑定 | 中转主机执行 `ss -tlnp \| grep 8222` | 隧道未建立         |
+| 公网可达该端口     | **从第三方主机**探测该端口           | 安全组未放行       |
+| 转发目标在监听     | 抓取 SSH banner                      | 实例侧 sshd 未运行 |
+
+第二项必须从第三方主机发起。客户端地址可能已存在于安全组白名单中，从本机验证无法暴露配置缺失。
+
+按上述配置实测：隧道建立后客户端可稳定登录实例，文件传输与长时任务托管均正常。实例重建后重新执行脚本即可恢复接入，无需重复配置中转主机。
+
+## 参考资料
+
+- [ssh(1) — OpenSSH 客户端手册](https://man.openbsd.org/ssh)：`-R` 选项说明，含特权端口需以 root 登录的约束
+- [sshd_config(5) — GatewayPorts](https://man.openbsd.org/sshd_config#GatewayPorts)：取值与默认行为
+- [SSHd now uses socket-based activation (Ubuntu 22.10 and later)](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)：socket 激活下 `Port` 与 `ListenAddress` 失效的说明与处置方式
