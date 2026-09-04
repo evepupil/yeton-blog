@@ -1,17 +1,17 @@
 {
-  "activeDays": 210,
+  "activeDays": 211,
   "books": [
-    {
-      "author": "唐家三少",
-      "cover": "/images/reading/7066bcb284decdd2.jpg",
-      "state": "reading",
-      "title": "斗罗大陆II绝世唐门"
-    },
     {
       "author": "[英]亚当·斯密",
       "cover": "/images/reading/487a4bdfdae7f352.jpg",
       "state": "reading",
       "title": "国富论（经济学博士生导师 译）"
+    },
+    {
+      "author": "唐家三少",
+      "cover": "/images/reading/7066bcb284decdd2.jpg",
+      "state": "reading",
+      "title": "斗罗大陆II绝世唐门"
     },
     {
       "author": "斯蒂芬·盖斯",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3601,
-  "updatedAt": "2026-09-03T19:21:00.658Z"
+  "totalMinutes": 3611,
+  "updatedAt": "2026-09-04T19:02:04.712Z"
 }
