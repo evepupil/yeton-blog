@@ -1,0 +1,176 @@
+---
+title: "MiniMax H3 High-Resolution Upscaling with Separated Audio and Video Latents"
+description: "MiniMax H3 stores video and audio in a NestedTensor, so generic latent upscaling and noise nodes either fail or corrupt the second pass. This post documents the split-resample-rejoin pipeline and RTX 5090 results at 1080p and 2K."
+published: "2026-09-04"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "minimax-h3-high-resolution-upscaling"
+---
+
+Local MiniMax H3-Base workflows produce a 768p base output, while the official 2K path depends on the non-open-source `H3-Regenerate-2K` module. Adding a generic latent upscaler to a local workflow fails on H3's `NestedTensor`; replacing only the noise node can still produce pure noise, checkerboard artifacts, or distorted audio. A valid second pass must separate the video and audio latents, upscale only the video, and reconstruct the noise schedule for each stream independently.
+
+Tests on a 32GB RTX 5090 completed both 2016×1152 and 2688×1536 outputs. The optimized 1080p run took about 345 seconds. A full 2K run took about 22 minutes, and a later optimized run failed with an out-of-memory condition, so the 2K path was not stable enough for a repeatable 32GB configuration.
+
+## Problem details
+
+MiniMax documents the complete H3 system as three components: `H3-Context-IR`, `H3-Base`, and `H3-Regenerate-2K`. The open local weights correspond to `H3-Base`, which generates 768p audio and video. Official 2K output uses `H3-Regenerate-2K` to regenerate the base result with the original context, and that module is currently available through an API rather than as open weights.
+
+This experiment evaluated a separate community approach: upscale the local `H3-Base` latent between the first sampling pass and VAE decoding, then run a second sampling pass. The workflow is not equivalent to the official 2K regeneration path and does not inherit its quality claims.
+
+The test environment was:
+
+| Item               | Configuration                                     |
+| ------------------ | ------------------------------------------------- |
+| GPU                | NVIDIA RTX 5090 32GB                              |
+| CPU / memory       | 24-core CPU / 188GB system memory                 |
+| System             | Ubuntu 24.04, CUDA 13.2                           |
+| Inference stack    | PyTorch 2.10.0, ComfyUI revision dated 2026-08-02 |
+| H3 diffusion model | Pruned INT8 Ref2VA                                |
+| Text encoder       | Qwen3-VL 32B NVFP4                                |
+| Cost basis         | USD 0.508 per hour                                |
+
+The initial graph used a conventional two-pass structure:
+
+```text
+First sampling pass
+  -> generic LatentUpscale / LatentUpscaleBy
+  -> generic AddNoise
+  -> second sampling pass
+  -> VAE decode
+```
+
+Execution stopped at the latent upscaler with:
+
+```text
+'NestedTensor' object has no attribute 'reshape'
+```
+
+Changing between generic upscaling nodes did not resolve the failure. H3's sampled value is not a plain video tensor, and the noise and conditioning data must also be transformed consistently with the new spatial dimensions.
+
+## Investigation and cause
+
+### H3 uses a joint audio-video latent
+
+H3 stores video and audio in one `NestedTensor`. The tested workflow exposed these internal shapes:
+
+```text
+video: [B, 24, T, H/16, W/16]
+audio: [B, 32, 2, T_audio]
+```
+
+The video tensor has height and width and can be spatially upscaled. The audio tensor has a time dimension but no matching spatial axes. Applying an image-latent upscaler to the joint value therefore has two conflicts: generic nodes expect a plain `Tensor`, and the audio branch does not have the shape required for two-dimensional scaling.
+
+The reported `reshape` failure follows directly from that type mismatch. The generic node attempts to rearrange the value as an ordinary video tensor, but `NestedTensor` does not provide the expected interface, so execution ends before the second pass.
+
+### Generic AddNoise corrupts H3 continuation sampling
+
+Separating the streams is necessary but insufficient. ComfyUI's generic `AddNoise` can still corrupt continuation sampling for H3. H3 uses CONST flow parameterization; when `SamplerCustomAdvanced` starts the second pass with `DisableNoise`, it applies noise scaling again. Generic `AddNoise` has already applied a compatible scale, so the two operations alter the latent amplitude twice.
+
+The `h3-latent-upscaler` maintainer documents the resulting failure at `denoise=0.4`: decoding the generic `AddNoise` output produced pure noise, while the second pass produced a checkerboard pattern. `MiniMaxH3AddNoise` applies inverse scaling after noise injection so that the sampler's later scaling restores the intended value.
+
+### Video and audio require different sigma schedules
+
+H3 evaluates video and audio in the same model forward pass, but the streams use different sigma mappings. The tested workflow used `shift_video=12` and `shift_audio=3`. At second-pass `denoise=0.4`, the video sigma is about 0.4 while the audio branch expects approximately 0.14.
+
+Applying the video sigma directly to both streams over-noises the audio latent. `MiniMaxH3ShiftSigmas` converts the video schedule to the audio schedule before the audio branch enters its dedicated noise node.
+
+### Conditioning must be upscaled with the video latent
+
+Image-to-video and reference-to-video workflows store visual latents for source images or keyframes inside the conditioning data. Enlarging the video canvas without enlarging this conditioning changes the relative location of reference tokens on the new canvas.
+
+`MiniMaxH3ConditioningUpscale` must use the same scale factor and interpolation method as the video latent upscaler. A mismatch leaves the second sampler with incompatible canvas and conditioning layouts.
+
+## Solution
+
+### Install the H3-specific upscaling nodes
+
+Install `h3-latent-upscaler` under the ComfyUI custom-node directory:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/rockerBOO/h3-latent-upscaler.git
+```
+
+Current ComfyUI releases include `LTXVSeparateAVLatent` and `LTXVConcatAVLatent` as core nodes. If an older build does not provide them, install `ComfyUI-LTXVideo` or update ComfyUI:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/Lightricks/ComfyUI-LTXVideo.git
+```
+
+Restart ComfyUI after installation and record the commit of each repository. The historical experiment did not pin the third-party node commits, which limits exact reproduction and should be corrected in subsequent runs.
+
+### Rebuild the graph as separate audio and video streams
+
+The second pass should follow this sequence:
+
+```text
+MiniMaxH3ReferenceToVideo / MiniMaxH3ImageToVideo
+  -> first SamplerCustomAdvanced
+  -> denoised joint audio-video latent
+
+  -> LTXVSeparateAVLatent
+       -> video
+          -> MiniMaxH3LatentUpscale
+          -> MiniMaxH3AddNoise(video sigmas)
+       -> audio
+          -> MiniMaxH3ShiftSigmas(video sigmas -> audio sigmas)
+          -> MiniMaxH3AddNoise(audio sigmas)
+
+  -> LTXVConcatAVLatent
+  -> MiniMaxH3ConditioningUpscale
+  -> second SamplerCustomAdvanced(DisableNoise)
+  -> video and audio VAE decode
+```
+
+Use the following values as measured starting points:
+
+| Parameter              | 1080p starting point | 2K starting point | Constraint                                                          |
+| ---------------------- | -------------------- | ----------------- | ------------------------------------------------------------------- |
+| Video latent scale     | 1.5×                 | 2.0×              | Applied only to the video branch                                    |
+| Conditioning scale     | 1.5×                 | 2.0×              | Same scale and interpolation as video                               |
+| Interpolation          | bilinear             | bilinear          | Value used in the historical run                                    |
+| Second pass            | 15 steps             | 15 steps          | `simple` scheduler                                                  |
+| Second-pass denoise    | 0.4                  | 0.4               | Community starting point; content-specific tuning remains necessary |
+| Video shift            | 12                   | 12                | Uses the original video sigma                                       |
+| Audio shift            | 3                    | 3                 | Converts the schedule for the audio branch                          |
+| Second-pass noise mode | DisableNoise         | DisableNoise      | Prevents the sampler from creating unrelated random noise           |
+
+Both `MiniMaxH3AddNoise` branches should use the same noise object or the same seed. Their sigma schedules must differ, while their source of randomness should remain aligned so that the second pass does not introduce an unrelated variation between audio and video.
+
+### Establish a 1080p configuration before attempting 2K
+
+The native 1344×768 canvas is approximately 1.0MP. Scaling by 1.5 produces about 2016×1152, or 2.3MP. Scaling by 2 produces about 2688×1536, or 4.1MP.
+
+Doubling each spatial edge increases pixel area by approximately four times. The second sampling pass runs over that enlarged latent, so compute and memory pressure rise accordingly. A 32GB card should validate the 1.5× path before attempting 2×. Reducing frame count or second-pass steps can relieve an out-of-memory condition, but each change requires a fresh review of temporal continuity, detail, and audio quality.
+
+For the optimized 1080p run, the first pass was changed from 25 steps to 8-step Turbo with SageAttention. Total time fell from 649 to 345 seconds, and estimated cost fell from USD 0.092 to USD 0.049. The second pass remained at 15 steps because most high-resolution detail reconstruction occurs there.
+
+## Verification
+
+The test used a reference-to-video workflow. The first pass produced a 73-frame low-resolution joint latent, followed by upscaling and a second sampling pass. Costs use a rate of USD 0.508 per hour.
+
+| Configuration                          | Output         | Total time | Total sampling time |     Peak VRAM | Peak system RAM | Estimated cost | Result    |
+| -------------------------------------- | -------------- | ---------: | ------------------: | ------------: | --------------: | -------------: | --------- |
+| Native 1.0MP, INT8 8-step              | About 1344×768 |     145.8s |              123.4s |        31.3GB |    Not recorded |     USD 0.0206 | Completed |
+| Two-pass 1.5×                          | 2016×1152      |       649s |                604s |        29.5GB |          53.9GB |     USD 0.0916 | Completed |
+| Two-pass 2.0×                          | 2688×1536      |      1302s |               1255s |        30.8GB |          58.7GB |     USD 0.1838 | Completed |
+| Two-pass 1.5×, Turbo + Sage first pass | 2016×1152      |       345s |        Not isolated |  Not isolated |    Not isolated |      USD 0.049 | Completed |
+| Two-pass 2.0×, Turbo first pass        | 2688×1536      | Incomplete |          Incomplete | Out of memory |    Not isolated | Not calculated | Failed    |
+
+High-resolution sampling accounted for 93% to 96% of the full two-pass sampling time. Shortening only the first pass does not remove the principal cost of the 2K path.
+
+Manual frame inspection found sharper line work and more local detail in the optimized 1080p result. The result was not evaluated in a formal blind comparison, and high-resolution audio-video synchronization did not receive a dedicated score. The evidence therefore establishes execution feasibility and measured resource cost, not repeatable quality parity.
+
+Under this test configuration, native output near 1.0MP is appropriate for routine generation. The 1080p two-pass path is suitable when additional clarity justifies roughly five to six minutes of latency. A 2K run completed once, but it took about 22 minutes and a later optimized run exhausted memory; it should not be treated as a stable 32GB single-GPU configuration.
+
+## References
+
+- [Official MiniMax H3 repository](https://github.com/MiniMax-AI/MiniMax-H3)
+- [h3-latent-upscaler nodes and example workflows](https://github.com/rockerBOO/h3-latent-upscaler)
+- [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo)
+- [ComfyUI custom-node documentation](https://docs.comfy.org/development/core-concepts/custom-nodes)

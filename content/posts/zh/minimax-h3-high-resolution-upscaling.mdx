@@ -1,0 +1,176 @@
+---
+title: "MiniMax H3 高分辨率放大：音视频潜空间拆分与二次采样"
+description: "MiniMax H3 的视频与音频共用 NestedTensor，通用潜空间放大和加噪节点会触发类型错误或破坏二次采样。本文给出音视频拆分、独立加噪、条件同步放大方案，并比较 1080p 与 2K 的 RTX 5090 实测成本。"
+published: "2026-09-04"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "minimax-h3-high-resolution-upscaling"
+---
+
+MiniMax H3-Base 的本地工作流以 768p 为基础输出，官方 2K 路线依赖尚未开源的 `H3-Regenerate-2K`。在本地工作流中加入通用潜空间放大节点会触发 `NestedTensor` 类型错误；直接替换加噪节点还可能产生纯噪声、棋盘格或音频失真。可行方案需要拆分视频与音频潜空间，只放大视频，并为两条流分别建立二次采样所需的噪声进度。
+
+RTX 5090 32GB 实测完成了 2016×1152 与 2688×1536 两档输出。1080p 方案经过首段采样优化后耗时约 345 秒；2K 完整运行需要约 22 分钟，后续优化运行又出现显存溢出，因此不具备稳定的 32GB 单卡交付条件。
+
+## 问题详情
+
+MiniMax 官方将完整 H3 系统划分为三个部分：`H3-Context-IR`、`H3-Base` 和 `H3-Regenerate-2K`。其中，本地开放权重对应 `H3-Base`，生成 768p 音视频；官方 2K 输出由 `H3-Regenerate-2K` 结合原始上下文重新生成，该模块目前通过 API 提供。
+
+本次实验评估的是另一条路线：在本地 `H3-Base` 的第一次采样与解码之间放大潜空间，再进行第二次采样。它属于社区工作流，不能替代官方 2K 路线的质量结论。
+
+测试环境如下：
+
+| 项目        | 配置                                    |
+| ----------- | --------------------------------------- |
+| GPU         | NVIDIA RTX 5090 32GB                    |
+| CPU / 内存  | 24 核 CPU / 188GB 系统内存              |
+| 系统        | Ubuntu 24.04、CUDA 13.2                 |
+| 推理栈      | PyTorch 2.10.0、ComfyUI 2026-08-02 版本 |
+| H3 扩散模型 | Ref2VA 剪枝 INT8                        |
+| 文本编码器  | Qwen3-VL 32B NVFP4                      |
+| 计费基准    | 0.508 美元/小时                         |
+
+最初工作流使用常见的两段结构：
+
+```text
+第一次采样
+  -> 通用 LatentUpscale / LatentUpscaleBy
+  -> 通用 AddNoise
+  -> 第二次采样
+  -> VAE 解码
+```
+
+运行在潜空间放大阶段中止，错误为：
+
+```text
+'NestedTensor' object has no attribute 'reshape'
+```
+
+更换通用放大节点无法解决。H3 的采样结果并非单一视频张量，后续的加噪与条件信息也必须随空间尺寸同步处理。
+
+## 排查与原因
+
+### H3 使用联合音视频潜空间
+
+H3 将视频与音频封装在同一个 `NestedTensor` 中。实测工作流对应的内部形状为：
+
+```text
+video: [B, 24, T, H/16, W/16]
+audio: [B, 32, 2, T_audio]
+```
+
+视频张量具有高度和宽度，可以进行二维空间放大。音频张量只有时间维度，没有可按相同比例扩展的空间轴。对整个联合对象调用图像潜空间放大，会同时遇到两个问题：通用节点期望普通 `Tensor`，并且音频分支不满足二维放大的数据结构要求。
+
+错误信息中的 `reshape` 来自这一类型差异。通用节点试图按普通视频张量重排数据，`NestedTensor` 没有提供对应接口，执行因此在进入第二次采样前终止。
+
+### 通用 AddNoise 不适用于 H3 的二次采样
+
+将音视频拆开以后，直接使用 ComfyUI 通用 `AddNoise` 仍可能破坏结果。H3 属于 CONST 参数化的流模型；`SamplerCustomAdvanced` 配合 `DisableNoise` 进入第二次采样时，会再次执行一次噪声缩放。通用 `AddNoise` 已经完成过同类缩放，两次叠加会改变潜空间幅度。
+
+`h3-latent-upscaler` 的维护者记录了该故障：在 `denoise=0.4` 下，通用加噪的中间结果解码为纯噪声，第二次采样输出棋盘格。专用 `MiniMaxH3AddNoise` 在加噪后执行逆缩放，用于抵消采样器随后重复执行的缩放。
+
+### 视频与音频使用不同的噪声进度
+
+H3 的视频与音频由同一次模型前向计算，但两条流使用不同的 sigma 映射。测试工作流采用 `shift_video=12` 与 `shift_audio=3`。第二次采样的 `denoise=0.4` 对应视频 sigma 约为 0.4，音频分支期望的 sigma 约为 0.14。
+
+如果两条流使用同一组视频 sigma，音频会被加入过量噪声。专用 `MiniMaxH3ShiftSigmas` 负责把视频进度转换成音频进度，再将转换后的 sigma 交给音频分支。
+
+### 条件信息必须同步放大
+
+图生视频与参考图生视频工作流会在条件信息中保存参考图或关键帧的视觉潜变量。只扩大视频画布而保持条件信息尺寸不变，会改变参考 token 在新画布中的相对位置。
+
+`MiniMaxH3ConditioningUpscale` 必须与视频放大节点使用相同的倍数和插值方法。两者不一致时，第二次采样接收的画布和条件布局无法对齐。
+
+## 解决办法
+
+### 安装专用放大节点
+
+将 `h3-latent-upscaler` 安装到 ComfyUI 的自定义节点目录：
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/rockerBOO/h3-latent-upscaler.git
+```
+
+当前 ComfyUI 已包含 `LTXVSeparateAVLatent` 与 `LTXVConcatAVLatent`。较早版本缺少这两个节点时，可以安装 `ComfyUI-LTXVideo`，或升级 ComfyUI：
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/Lightricks/ComfyUI-LTXVideo.git
+```
+
+安装后重启 ComfyUI，并记录两个仓库的提交号。此次历史实验没有固定第三方节点提交，后续复现实验应补上这一项。
+
+### 按音视频双流重新连接工作流
+
+第二次采样采用以下顺序：
+
+```text
+MiniMaxH3ReferenceToVideo / MiniMaxH3ImageToVideo
+  -> 第一次 SamplerCustomAdvanced
+  -> 去噪后的联合音视频潜空间
+
+  -> LTXVSeparateAVLatent
+       -> video
+          -> MiniMaxH3LatentUpscale
+          -> MiniMaxH3AddNoise(video sigmas)
+       -> audio
+          -> MiniMaxH3ShiftSigmas(video sigmas -> audio sigmas)
+          -> MiniMaxH3AddNoise(audio sigmas)
+
+  -> LTXVConcatAVLatent
+  -> MiniMaxH3ConditioningUpscale
+  -> 第二次 SamplerCustomAdvanced(DisableNoise)
+  -> 视频与音频 VAE 解码
+```
+
+连接时需要满足以下约束：
+
+| 参数           | 1080p 起点   | 2K 起点      | 说明                             |
+| -------------- | ------------ | ------------ | -------------------------------- |
+| 视频潜空间放大 | 1.5×         | 2.0×         | 只处理视频分支                   |
+| 条件信息放大   | 1.5×         | 2.0×         | 与视频使用相同倍数和插值         |
+| 插值方法       | bilinear     | bilinear     | 历史实测采用值                   |
+| 第二段采样     | 15 步        | 15 步        | `simple` 调度器                  |
+| 第二段去噪     | 0.4          | 0.4          | 社区工作流起始值，仍需按内容校准 |
+| 视频 shift     | 12           | 12           | 使用原始视频 sigma               |
+| 音频 shift     | 3            | 3            | 由专用节点转换音频 sigma         |
+| 第二段噪声开关 | DisableNoise | DisableNoise | 避免采样器重新生成随机噪声       |
+
+两个 `MiniMaxH3AddNoise` 分支应使用同一个随机噪声源或相同 seed。视频和音频需要各自的 sigma，随机性来源则应保持一致，避免二次采样引入无关差异。
+
+### 先建立 1080p 配置，再评估 2K
+
+原生 1344×768 约为 1.0MP。1.5 倍放大得到约 2016×1152，像素量约为 2.3MP；2 倍放大得到约 2688×1536，像素量约为 4.1MP。
+
+空间边长放大 2 倍后，像素面积约增加到 4 倍。第二段采样发生在扩大后的潜空间中，计算量与内存压力随之上升。32GB 显卡应先验证 1.5 倍方案，再决定是否尝试 2 倍；发生显存溢出时，可以减少帧数或降低第二段步数，但每次调整都需要重新检查时间连续性、细节和音频。
+
+1080p 实验将第一段从 25 步改为 8 步 Turbo，并启用 SageAttention，总耗时由 649 秒降至 345 秒，估算费用由 0.092 美元降至 0.049 美元。第二段仍保持 15 步，因为高分辨率阶段承担了主要细节重建工作。
+
+## 验证结果
+
+测试使用参考图生视频工作流，第一段生成 73 帧低分辨率联合潜空间，再执行放大和第二次采样。费用按 0.508 美元/小时计算。
+
+| 配置                         | 输出尺寸    |   总耗时 | 采样总时长 | 峰值显存 | 峰值系统内存 |    估算费用 | 结果 |
+| ---------------------------- | ----------- | -------: | ---------: | -------: | -----------: | ----------: | ---- |
+| 原生 1.0MP，INT8 8 步        | 约 1344×768 | 145.8 秒 |   123.4 秒 |   31.3GB |       未记录 | 0.0206 美元 | 完成 |
+| 两段 1.5×                    | 2016×1152   |   649 秒 |     604 秒 |   29.5GB |       53.9GB | 0.0916 美元 | 完成 |
+| 两段 2.0×                    | 2688×1536   |  1302 秒 |    1255 秒 |   30.8GB |       58.7GB | 0.1838 美元 | 完成 |
+| 两段 1.5×，首段 Turbo + Sage | 2016×1152   |   345 秒 |     未单列 |   未单列 |       未单列 |  0.049 美元 | 完成 |
+| 两段 2.0×，首段 Turbo        | 2688×1536   |   未完成 |     未完成 | 显存溢出 |       未单列 |      未计算 | 失败 |
+
+两段放大的主要成本位于第二次高分辨率采样，占完整两段运行采样时间的 93% 至 96%。单纯缩短第一段无法消除 2K 的计算压力。
+
+人工画面对比显示，优化后的 1080p 结果具有更清晰的线条和局部细节。该判断没有经过正式盲评，音画同步也没有在高分辨率样本上完成专项评分，因此只能作为可行性证据，不能作为稳定质量结论。
+
+在该测试条件下，原生约 1.0MP 适合作为常规输出；1080p 两段放大适合对清晰度有明确要求、且可以接受约 5 至 6 分钟延迟的任务。2K 曾完成一次完整运行，但耗时约 22 分钟，优化版本随后出现显存溢出，不建议在 32GB 单卡上作为稳定配置。
+
+## 参考资料
+
+- [MiniMax H3 官方仓库](https://github.com/MiniMax-AI/MiniMax-H3)
+- [h3-latent-upscaler 节点与示例工作流](https://github.com/rockerBOO/h3-latent-upscaler)
+- [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo)
+- [ComfyUI 自定义节点文档](https://docs.comfy.org/development/core-concepts/custom-nodes)
