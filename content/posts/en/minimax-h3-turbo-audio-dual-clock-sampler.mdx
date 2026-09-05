@@ -1,0 +1,143 @@
+---
+title: "Fixing MiniMax H3 Turbo Audio Distortion with Dual-Clock Sampling"
+description: "MiniMax H3 Turbo produced clipping, noise, and voice shifts at 4 and 8 steps because older samplers advanced video and audio on one sigma schedule. Updating ComfyUI or using dual-clock Euler restored clean audio at both step counts."
+published: "2026-09-05"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "minimax-h3-turbo-audio-dual-clock-sampler"
+---
+
+MiniMax H3 Turbo completed its 4-step and 8-step video generations, but the audio contained severe clipping, persistent noise, and shifted voices. Keeping the model, Turbo LoRA, prompt, step count, and scheduler fixed while replacing the older single-schedule sampler with dual-clock Euler restored clean audio at both step counts. In this context, “clock” means diffusion sampling progress, not operating-system time.
+
+## Problem details
+
+The test environment used a 32GB RTX 5090, a ComfyUI revision dated 2026-08-02, a MiniMax H3 INT8 ConvRot model, the official audio VAE, and the `simple` scheduler. Turbo LoRA was evaluated at 4 and 8 steps.
+
+The failure had three consistent properties:
+
+- the workflow completed without an exception;
+- video frames decoded successfully while the audio was damaged;
+- conventional 20-step and 50-step sampling produced clean audio, while low-step Turbo configurations reproduced the distortion.
+
+The initial comparison was:
+
+| Sampling path                          | 4-step audio                        | 8-step audio                          |
+| -------------------------------------- | ----------------------------------- | ------------------------------------- |
+| `res_multistep`                        | Severe clipping and noise; unusable | Persistent noise and voice shifts     |
+| Stock Euler in the older ComfyUI build | Severe distortion; unusable         | Intelligible, but still audibly noisy |
+| Dual-clock Euler                       | Clean by listening test             | Clean by listening test               |
+
+The defect does not fail the job. It produces an invalid media result with a successful execution status. A check limited to process completion, video frames, or file existence will not detect the damaged audio.
+
+## Investigation and cause
+
+### The audio VAE and Turbo LoRA were not the failing components
+
+The 20-step and 50-step runs used the same audio VAE and produced clean results, so the decoder did not present a stable failure. The dual-clock comparison also retained the same Turbo LoRA; audio recovered immediately when the sampler changed, excluding damaged LoRA weights as the cause.
+
+The distortion appeared across several low-step Turbo configurations with different quantization combinations. Quantization affected speed and memory, but it could not explain why changing only the sampler restored the audio.
+
+### Video and audio follow different sigma schedules
+
+MiniMax H3 generates video and stereo audio jointly in one model forward pass, while the two streams use different flow shifts:
+
+```text
+video shift = 12
+audio shift = 3
+```
+
+The shift maps a shared base progress value to a stream-specific sigma:
+
+```text
+shift_sigma(u, s) = s * u / (1 + (s - 1) * u)
+```
+
+Video sigma and audio sigma are therefore different at the same step index. The older ComfyUI implementation advanced the packed audio-video latent on one sampling schedule and used a local slope correction for audio velocity inside the model. That approximation remains usable when many steps keep adjacent sigma values close. At 4 steps, each Euler update crosses a much larger interval, the audio branch overshoots its intended schedule, and the decoded result contains clipping, bursts of noise, and shifted voices.
+
+The 8-step intervals are smaller, so the damage is less severe than at 4 steps, but the output remains below a delivery-quality threshold. Adding more steps masks the integration error while giving up much of Turbo LoRA's speed advantage.
+
+### Current ComfyUI handles both schedules in the model layer
+
+ComfyUI commit `bdcb886a4705a03cf40f4a7226de9fc7c059fc90` introduced `ModelSamplingAV`. It carries the audio latent in video sampling coordinates, restores the audio latent and timestep for the model forward pass, then transforms the output back to the shared coordinates.
+
+With that transformation in place, stock Euler can advance both schedules correctly while operating on one packed audio-video latent. Older ComfyUI builds lack this capability; stock Euler, `res_multistep`, and `Euler + Beta` do not provide an equivalent repair there.
+
+## Solution
+
+### Prefer current ComfyUI with stock Euler
+
+Check whether the environment contains native audio-video sampling support:
+
+```bash
+python -c "from comfy.model_sampling import ModelSamplingAV; print('native AV sampling available')"
+```
+
+When the import succeeds, keep the official `KSamplerSelect` node and select `euler`. The Turbo baseline is:
+
+```text
+sampler: euler
+scheduler: simple
+steps: 4 or 8
+denoise: 1.0
+video shift: 12
+audio shift: 3
+```
+
+LoRA loader choice, strength, and key-prefix conversion belong to a separate compatibility path. Do not change those variables while validating the sampler, because the comparison would no longer identify which change repaired the audio.
+
+### Use the compatibility node on older ComfyUI builds
+
+If upgrading ComfyUI is not possible, install the compatibility node:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/shuaixn/ComfyUI-MiniMaxH3DualClockSampler.git
+```
+
+Restart ComfyUI completely, find `MiniMax H3 Dual-Clock Euler`, and connect its `sampler` output to `SamplerCustomAdvanced.sampler`. Leave the noise, guider, latent, VAE, and video-combine wiring unchanged.
+
+On older builds, the compatibility path applies separate Euler updates using the video and audio sigma differences, then repacks the streams. The node validates `video shift=12`, `audio shift=3`, `denoise=1.0`, and a complete sampling interval; these constraints match the H3 Turbo configuration used in this test.
+
+The node can remain in workflows opened by current ComfyUI. When it detects `ModelSamplingAV`, it delegates to stock Euler and avoids applying the dual-clock correction twice. The console should report:
+
+```text
+[MiniMaxH3DualClock] Native ComfyUI AV sampling detected; delegating to stock Euler.
+```
+
+The manual path on an older build reports:
+
+```text
+[MiniMaxH3DualClock] Euler sampling with video shift 12.0, audio shift 3.0, ...
+```
+
+### Verify with a single-variable comparison
+
+Hold the model, LoRA, prompt, seed, resolution, duration, step count, and scheduler constant. Change only the sampler. Test both 4 and 8 steps; a clean 8-step result does not establish that the 4-step path is safe.
+
+The listening set should include speech, continuous ambience, and transient sounds. Speech exposes voice shifts, continuous sound exposes background noise, and percussion or impacts expose clipping and timing errors.
+
+## Verification
+
+After the same test set was moved to dual-clock Euler, both 4-step and 8-step audio passed the listening check. Video generation remained valid, and the correction did not rely on increasing the step count.
+
+| Configuration             | Audio result            | Total time | Estimated at USD 0.508/hour |
+| ------------------------- | ----------------------- | ---------: | --------------------------: |
+| `res_multistep`, 4 steps  | Severe distortion       |        36s |                   USD 0.005 |
+| Dual-clock Euler, 4 steps | Clean by listening test |        46s |                   USD 0.006 |
+| Dual-clock Euler, 8 steps | Clean by listening test |        58s |                   USD 0.008 |
+
+On this RTX 5090 system, dual-clock 4-step sampling added about 10 seconds and USD 0.001 over the distorted `res_multistep` baseline. The added cost restored usable audio while preserving most of the low-step Turbo speed advantage.
+
+Two limits remain. The audio judgment came from listening rather than an objective distortion metric or a formal blind evaluation. Timing and cost apply only to the tested hardware, model, and input conditions; production workflows should repeat the comparison with their own speech, music, and transient-sound samples.
+
+## References
+
+- [Official MiniMax H3 repository](https://github.com/MiniMax-AI/MiniMax-H3)
+- [ComfyUI native audio-video sampling fix](https://github.com/Comfy-Org/ComfyUI/commit/bdcb886a4705a03cf40f4a7226de9fc7c059fc90)
+- [Current ComfyUI ModelSamplingAV implementation](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy/model_sampling.py)
+- [MiniMax H3 dual-clock Euler compatibility node](https://github.com/shuaixn/ComfyUI-MiniMaxH3DualClockSampler)
+- [MiniMax H3 Turbo LoRA](https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora)
