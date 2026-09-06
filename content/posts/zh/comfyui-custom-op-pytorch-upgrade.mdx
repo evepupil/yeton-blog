@@ -1,0 +1,166 @@
+---
+title: "升级 PyTorch 解决 ComfyUI 的 torch.library.custom_op 启动错误"
+description: "ComfyUI v0.33.1 在 PyTorch 2.6 下导入 comfy-kitchen 时，因 list[int] 无法被 torch.library.custom_op 推断为算子 schema 而启动失败。CPU 对照确认 PyTorch 2.8 修复解析，CUDA 12.8 镜像随后通过 GPU 启动与出图验证。"
+published: "2026-09-06"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "comfyui-custom-op-pytorch-upgrade"
+---
+
+ComfyUI v0.33.1 在 PyTorch 2.6 环境中启动即退出，错误指向 `torch.library.custom_op` 无法解析 `list[int]` 参数。异常发生在 Python 导入阶段，尚未访问 GPU；使用 CPU 版 PyTorch 做最小对照即可确认解析差异。PyTorch 2.8 通过最小复现后，完整 CUDA 12.8 镜像又完成了 ComfyUI 启动、工作流执行和真实出图。
+
+## 问题详情
+
+故障环境使用 ComfyUI v0.33.1、`comfy-kitchen==0.2.31` 与 PyTorch 2.6.0。ComfyUI 载入量化算子时立即退出，主要调用链为：
+
+```text
+File ".../comfy/quant_ops.py", line 23, in <module>
+  import comfy_kitchen as ck
+File ".../comfy_kitchen/backends/eager/na.py", line 163, in <module>
+  @torch.library.custom_op("comfy_kitchen::na3d", mutates_args=())
+File ".../torch/_library/infer_schema.py", line 58, in error_fn
+  ValueError: infer_schema(func): Parameter kernel_size has unsupported type list[int].
+```
+
+`torch.library.custom_op` 会根据 Python 函数的类型注解生成算子 schema。`comfy-kitchen` 0.2.31 注册 `na3d` 时使用以下签名：
+
+```python
+@torch.library.custom_op("comfy_kitchen::na3d", mutates_args=())
+def _op_na3d(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    kernel_size: list[int],
+    is_causal: list[bool],
+    scale: float | None,
+) -> torch.Tensor:
+    ...
+```
+
+Python 可以正常解析这些注解。异常来自 PyTorch 2.6 的 schema 推断器，因此 ComfyUI 会在模型加载和 GPU 初始化之前终止。
+
+## 排查与原因
+
+### PyTorch 2.6 没有完整处理内置泛型
+
+PyTorch 2.6 的 `infer_schema.py` 主要登记 `typing.List[...]` 形式。遇到 Python 3.9 以后常用的 `list[int]` 时，解析结果属于 `GenericAlias`，无法命中已登记类型，最终抛出 `unsupported type list[int]`。
+
+PyTorch 2.8 增加了基于 `typing.get_origin()` 的泛型归一化，并把 `list[...]` 形式加入支持集合。相同函数签名因此可以生成 schema。
+
+### 最小复现不需要 GPU
+
+故障发生在装饰器执行和函数签名检查阶段。以下代码保留了触发问题所需的最小结构：
+
+```python
+import torch
+
+
+@torch.library.custom_op("probe::na3d", mutates_args=())
+def na3d(x: torch.Tensor, kernel_size: list[int]) -> torch.Tensor:
+    return x
+
+
+print("custom op registered")
+```
+
+CPU 环境的对照结果为：
+
+| PyTorch     | 结果                                                         |
+| ----------- | ------------------------------------------------------------ |
+| `2.6.0+cpu` | 失败：`Parameter kernel_size has unsupported type list[int]` |
+| `2.8.0+cpu` | 成功注册自定义算子                                           |
+
+2.6 环境复现了与 GPU 容器相同的错误，说明最小用例覆盖了已知根因。2.8 通过只证明 schema 解析已经修复，无法单独证明 ComfyUI 全部依赖和 CUDA 运行时可用。
+
+### 修改依赖源码不能形成稳定修复
+
+把 `list[int]` 临时改写为其他注解只能处理当前一处签名。真实函数还包含 `list[bool]` 与 `float | None`，依赖升级或重新安装也会覆盖本地修改。
+
+可维护的修复应统一兼容 PyTorch、TorchVision、TorchAudio、CUDA 或 ROCm 版本，再对真实 ComfyUI 导入链执行冒烟检查。
+
+## 解决办法
+
+### 1. 确认实际使用的 Python 与依赖版本
+
+必须在 ComfyUI 真正使用的解释器中执行检查。Windows 便携版通常使用 `python_embeded/python.exe`，虚拟环境和容器则使用各自环境内的 `python`。
+
+```bash
+python -c "import sys, torch, importlib.metadata as m; print(sys.executable); print(torch.__version__); print(torch.version.cuda); print(m.version('comfy-kitchen'))"
+```
+
+只检查系统全局 Python 可能得到另一套依赖，无法说明 ComfyUI 的实际运行环境。
+
+### 2. 安装匹配硬件的 PyTorch 2.8 发行包
+
+CPU 环境可以使用：
+
+```bash
+python -m pip install --upgrade torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+```
+
+CUDA 12.8 环境可以使用：
+
+```bash
+python -m pip install --upgrade torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+```
+
+三个包需要使用官方对应版本。直接执行不带下载源的 `pip install -U torch` 可能安装 CPU 包或不匹配的 CUDA 变体，应根据 PyTorch 官方安装表选择索引。
+
+容器镜像可以直接更换底座：
+
+```dockerfile
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+```
+
+RTX 5090 属于 Blackwell `SM_120`，CUDA 12.8 才加入对应编译支持。本次环境同时从 PyTorch 2.6/CUDA 12.4 升级到 PyTorch 2.8/CUDA 12.8，用一次底座升级解决类型解析和显卡架构支持两项问题。其他显卡应选择与驱动兼容的官方构建，不能直接照搬 `cu128`。
+
+### 3. 依次验证 schema、真实导入和实际工作流
+
+先运行最小复现，确认输出：
+
+```text
+custom op registered
+```
+
+随后在 ComfyUI 根目录检查真实依赖：
+
+```bash
+python -c "import torch; import comfy_kitchen; import comfy.quant_ops; print(torch.__version__); print('ComfyUI quant ops imported')"
+```
+
+最后启动 ComfyUI 并执行一份实际工作流。验收条件需要同时包含：
+
+- 进程启动后仍持续运行；
+- 日志没有导入异常；
+- 工作流历史没有错误状态；
+- 输出列表非空且产物可以打开。
+
+只检查工作流是否进入历史记录会产生误判，失败执行同样可能留下历史项。
+
+## 验证结果
+
+验证分为三层：
+
+| 层级            | 环境                                      | 结果                                       |
+| --------------- | ----------------------------------------- | ------------------------------------------ |
+| schema 最小复现 | PyTorch 2.6.0 CPU                         | 复现 `unsupported type list[int]`          |
+| schema 最小复现 | PyTorch 2.8.0 CPU                         | 自定义算子注册成功                         |
+| 完整 GPU 镜像   | PyTorch 2.8.0、CUDA 12.8、ComfyUI v0.33.1 | ComfyUI 启动成功，工作流完成并生成真实产物 |
+
+CPU 对照将问题收敛到 PyTorch 类型解析，无需反复构建大型镜像或租用 GPU。完整镜像验证覆盖了 `comfy-kitchen`、`comfy.quant_ops`、CUDA 和实际工作流，补足了最小复现无法证明的部分。
+
+这项修复验证的是 PyTorch 2.8 组合。更高版本可能继续兼容，也可能引入新的 ComfyUI 或扩展节点问题；升级后仍应执行完整导入和实际工作流检查。将精确版本的 `comfy_kitchen` 与 `comfy.quant_ops` 导入加入镜像门禁，可以在发布前发现同类回归。
+
+## 参考资料
+
+- [PyTorch `torch.library.custom_op` 文档](https://docs.pytorch.org/docs/stable/library.html#torch.library.custom_op)
+- [PyTorch 2.6 `infer_schema.py`](https://github.com/pytorch/pytorch/blob/v2.6.0/torch/_library/infer_schema.py)
+- [PyTorch 2.8 `infer_schema.py`](https://github.com/pytorch/pytorch/blob/v2.8.0/torch/_library/infer_schema.py)
+- [ComfyUI v0.33.1 依赖清单](https://github.com/Comfy-Org/ComfyUI/blob/v0.33.1/requirements.txt)
+- [`comfy-kitchen` v0.2.31 的 `na3d` 自定义算子](https://github.com/Comfy-Org/comfy-kitchen/blob/v0.2.31/comfy_kitchen/backends/eager/na.py)
+- [PyTorch 2.8 官方安装命令](https://pytorch.org/get-started/previous-versions/#v280)
+- [CUDA 12.8 发布说明](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html)

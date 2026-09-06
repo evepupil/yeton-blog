@@ -1,0 +1,166 @@
+---
+title: "Upgrading PyTorch Fixes ComfyUI torch.library.custom_op Startup Errors"
+description: "ComfyUI v0.33.1 failed on PyTorch 2.6 because torch.library.custom_op could not infer a schema from list[int]. A CPU comparison isolated the fix; a PyTorch 2.8/CUDA 12.8 image then passed GPU startup and generation."
+published: "2026-09-06"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "comfyui-custom-op-pytorch-upgrade"
+---
+
+ComfyUI v0.33.1 exited during startup on PyTorch 2.6 because `torch.library.custom_op` could not parse a `list[int]` parameter. The failure occurred during Python import before any GPU operation, so a CPU-only comparison was sufficient to isolate the schema parser difference. After the minimal case passed on PyTorch 2.8, a complete CUDA 12.8 image also passed ComfyUI startup, workflow execution, and real image generation.
+
+## Problem details
+
+The failing environment combined ComfyUI v0.33.1, `comfy-kitchen==0.2.31`, and PyTorch 2.6.0. ComfyUI exited while importing its quantization operators:
+
+```text
+File ".../comfy/quant_ops.py", line 23, in <module>
+  import comfy_kitchen as ck
+File ".../comfy_kitchen/backends/eager/na.py", line 163, in <module>
+  @torch.library.custom_op("comfy_kitchen::na3d", mutates_args=())
+File ".../torch/_library/infer_schema.py", line 58, in error_fn
+  ValueError: infer_schema(func): Parameter kernel_size has unsupported type list[int].
+```
+
+`torch.library.custom_op` derives an operator schema from a Python function's type annotations. `comfy-kitchen` 0.2.31 registers `na3d` with this signature:
+
+```python
+@torch.library.custom_op("comfy_kitchen::na3d", mutates_args=())
+def _op_na3d(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    kernel_size: list[int],
+    is_causal: list[bool],
+    scale: float | None,
+) -> torch.Tensor:
+    ...
+```
+
+Python accepts these annotations. The exception comes from PyTorch 2.6 schema inference, so ComfyUI terminates before model loading or GPU initialization.
+
+## Investigation and cause
+
+### PyTorch 2.6 does not fully handle built-in generics
+
+PyTorch 2.6 `infer_schema.py` primarily registers `typing.List[...]` forms. Python 3.9-style `list[int]` resolves to a `GenericAlias`; it does not match the registered types and produces `unsupported type list[int]`.
+
+PyTorch 2.8 adds generic normalization based on `typing.get_origin()` and includes `list[...]` forms in the supported set. The same function signature can therefore be converted to an operator schema.
+
+### The minimal reproduction does not require a GPU
+
+The exception occurs while the decorator examines the function signature. This script retains the smallest structure that triggers the failure:
+
+```python
+import torch
+
+
+@torch.library.custom_op("probe::na3d", mutates_args=())
+def na3d(x: torch.Tensor, kernel_size: list[int]) -> torch.Tensor:
+    return x
+
+
+print("custom op registered")
+```
+
+The CPU-only comparison produced:
+
+| PyTorch     | Result                                                             |
+| ----------- | ------------------------------------------------------------------ |
+| `2.6.0+cpu` | Failed with `Parameter kernel_size has unsupported type list[int]` |
+| `2.8.0+cpu` | Registered the custom operator successfully                        |
+
+PyTorch 2.6 reproduced the GPU container's exact error, so the minimal case covered the known cause. A successful PyTorch 2.8 run proves only that schema inference is repaired; it does not prove that all ComfyUI dependencies or the CUDA runtime are compatible.
+
+### Editing the installed dependency is not a stable repair
+
+Rewriting `list[int]` in the installed package would address only one annotation. The real function also contains `list[bool]` and `float | None`, and a reinstall or package update would overwrite the local edit.
+
+A maintainable repair aligns PyTorch, TorchVision, TorchAudio, and the CUDA or ROCm build, then runs an import smoke test against the actual ComfyUI dependency chain.
+
+## Solution
+
+### 1. Inspect the interpreter and package versions used by ComfyUI
+
+Run the check through the interpreter that actually launches ComfyUI. Windows portable distributions commonly use `python_embeded/python.exe`; virtual environments and containers use their own `python` executable.
+
+```bash
+python -c "import sys, torch, importlib.metadata as m; print(sys.executable); print(torch.__version__); print(torch.version.cuda); print(m.version('comfy-kitchen'))"
+```
+
+Checking only the system-wide Python installation may inspect a different environment and does not establish what ComfyUI is using.
+
+### 2. Install the PyTorch 2.8 build that matches the hardware
+
+For a CPU-only environment:
+
+```bash
+python -m pip install --upgrade torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+```
+
+For CUDA 12.8:
+
+```bash
+python -m pip install --upgrade torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+```
+
+The three packages must use the versions paired by the official PyTorch release table. Running `pip install -U torch` without an index may select a CPU package or an incompatible CUDA build, so choose the index for the target platform explicitly.
+
+For a container image, the base can be changed directly:
+
+```dockerfile
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+```
+
+The RTX 5090 uses Blackwell `SM_120`, for which CUDA 12.8 added compiler support. The tested environment moved from PyTorch 2.6/CUDA 12.4 to PyTorch 2.8/CUDA 12.8, addressing both schema parsing and GPU architecture support in one base-image update. Other GPUs should use an official build compatible with their driver rather than copying `cu128` without verification.
+
+### 3. Verify the schema, real imports, and a real workflow
+
+Run the minimal reproduction first and require:
+
+```text
+custom op registered
+```
+
+Then test the actual dependency chain from the ComfyUI root:
+
+```bash
+python -c "import torch; import comfy_kitchen; import comfy.quant_ops; print(torch.__version__); print('ComfyUI quant ops imported')"
+```
+
+Finally, start ComfyUI and execute a real workflow. Acceptance should require all of the following:
+
+- the process remains running after startup;
+- the log contains no import exception;
+- workflow history reports no error status;
+- the output list is non-empty and the artifact can be opened.
+
+Checking only for a workflow history entry can produce a false positive because failed executions may also be recorded there.
+
+## Verification
+
+The validation was separated into three layers:
+
+| Layer                       | Environment                               | Result                                                                     |
+| --------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| Minimal schema reproduction | PyTorch 2.6.0 CPU                         | Reproduced `unsupported type list[int]`                                    |
+| Minimal schema reproduction | PyTorch 2.8.0 CPU                         | Registered the custom operator successfully                                |
+| Complete GPU image          | PyTorch 2.8.0, CUDA 12.8, ComfyUI v0.33.1 | ComfyUI started, the workflow completed, and a real artifact was generated |
+
+The CPU comparison reduced the failure to PyTorch type parsing without repeated large-image builds or GPU rental. The complete-image test then covered `comfy-kitchen`, `comfy.quant_ops`, CUDA, and a real workflow, closing the gaps left by the minimal reproduction.
+
+This repair is verified for the PyTorch 2.8 combination. Later versions may remain compatible or introduce new interactions with ComfyUI and custom nodes, so the full import and workflow checks still apply after every upgrade. Adding exact-version imports of `comfy_kitchen` and `comfy.quant_ops` to the image gate catches this class of regression before release.
+
+## References
+
+- [PyTorch `torch.library.custom_op` documentation](https://docs.pytorch.org/docs/stable/library.html#torch.library.custom_op)
+- [PyTorch 2.6 `infer_schema.py`](https://github.com/pytorch/pytorch/blob/v2.6.0/torch/_library/infer_schema.py)
+- [PyTorch 2.8 `infer_schema.py`](https://github.com/pytorch/pytorch/blob/v2.8.0/torch/_library/infer_schema.py)
+- [ComfyUI v0.33.1 requirements](https://github.com/Comfy-Org/ComfyUI/blob/v0.33.1/requirements.txt)
+- [`comfy-kitchen` v0.2.31 `na3d` custom operator](https://github.com/Comfy-Org/comfy-kitchen/blob/v0.2.31/comfy_kitchen/backends/eager/na.py)
+- [Official PyTorch 2.8 installation commands](https://pytorch.org/get-started/previous-versions/#v280)
+- [CUDA 12.8 release notes](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html)
