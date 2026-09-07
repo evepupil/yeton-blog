@@ -30,8 +30,8 @@ describe("content queries", () => {
   it("returns pinned and recent published articles first", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
-    expect(chineseArticles).toHaveLength(27);
-    expect(chineseArticles[0]?.slug).toBe("comfyui-custom-op-pytorch-upgrade");
+    expect(chineseArticles).toHaveLength(28);
+    expect(chineseArticles[0]?.slug).toBe("minimax-h3-rtx-5090-speed-cost");
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
   });
 
@@ -46,7 +46,7 @@ describe("content queries", () => {
     expect(groupedCount).toBe(chineseArticles.length);
     expect(groups.has("2026")).toBe(true);
     expect(groups.has("2025")).toBe(true);
-    expect(aiTag?.count).toBe(9);
+    expect(aiTag?.count).toBe(10);
   });
 
   it("finds an explicit article translation and orders migrated books", () => {
@@ -75,14 +75,14 @@ describe("content queries", () => {
     const previews = getPublishedArticlePreviews(articles, "zh-CN");
     const navigation = getArticleNavigation(articles, article!);
 
-    expect(previews).toHaveLength(27);
+    expect(previews).toHaveLength(28);
     expect(previews[0]).not.toHaveProperty("body");
     expect(navigation.previous?.slug).toBe("prompt-subagent-ai-36c4342e");
     expect(navigation.next?.slug).toBe("claude-code-chatgpt-34a4342e");
   });
 
   it("filters tags and leaves single-language books unpaired", () => {
-    expect(getPublishedArticlesByTag(articles, "zh-CN", "AI")).toHaveLength(9);
+    expect(getPublishedArticlesByTag(articles, "zh-CN", "AI")).toHaveLength(10);
 
     const book = findPublishedBook(books, "zh-CN", "ai-engineering");
     expect(book).not.toBeNull();

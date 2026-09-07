@@ -1,0 +1,166 @@
+---
+title: "MiniMax H3 on an RTX 5090: 46–60 Seconds for a Five-Second Video"
+description: "On a 32GB RTX 5090, MiniMax H3 Turbo generated a five-second 0.7MP clip with clean audio in 46–60 seconds, costing about USD 0.006–0.008 at USD 0.508/hour. Tests also cover steps, resolution, duration, SageAttention, and cold starts."
+published: "2026-09-07"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "minimax-h3-rtx-5090-speed-cost"
+---
+
+On a 32GB RTX 5090, MiniMax H3 Turbo generated a five-second, approximately 0.7MP video with stereo audio in 46 seconds at four steps and 58 seconds at eight steps when using dual-clock sampling. At the tested machine price of USD 0.508 per hour, the corresponding active-compute costs were about USD 0.0065 and USD 0.0082 per clip.
+
+Timing starts at ComfyUI's first node-execution event and ends when the workflow completes. It includes model execution, VAE decoding, and video saving. It excludes remote transport, queueing, instance provisioning, model downloads, and result delivery, so these measurements estimate workflow execution cost rather than public-API end-to-end latency.
+
+## Problem details
+
+Knowing that an RTX 5090 can load MiniMax H3 does not establish its generation speed. Step count, quantization, resolution, clip duration, sampler, SageAttention, model residency, and host memory all affect latency. A timing result without those conditions is insufficient for capacity or cost planning.
+
+The measurements were collected on August 21, 2026:
+
+| Item            | Tested configuration                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| GPU             | NVIDIA RTX 5090 32GB, Blackwell, 460W power limit                                          |
+| CPU / memory    | Intel Core Ultra 9 285K, 188GB system RAM                                                  |
+| Software        | Ubuntu 24.04, CUDA 13.2, PyTorch 2.10.0+cu130                                              |
+| ComfyUI         | Build dated August 2, 2026                                                                 |
+| Diffusion model | MiniMax H3 Base FL2VA, pruned INT8 ConvRot                                                 |
+| Text encoder    | Qwen3-VL 32B NVFP4                                                                         |
+| Output          | 24fps with native stereo audio; five seconds, about 0.7MP, and 120 frames for the baseline |
+| Cost basis      | USD 0.508/hour, the full-machine rental rate recorded on the test date                     |
+
+Every run used a different seed to prevent ComfyUI from reusing a cached output. The test client opened a local WebSocket before submitting the workflow, derived total and per-stage time from node events, and sampled VRAM, GPU utilization, power, and system memory every 0.25 seconds.
+
+One batch covered six configurations and fifteen content samples per configuration, for ninety runs. Its prompt format was later found to be inconsistent with H3's official three-field format, so the generated videos cannot support a formal quality comparison. Resolution, frame count, workflow, and model settings were unchanged; the timing and cost records remain useful for performance analysis. This article discards the batch's quality judgments.
+
+## Investigation and cause
+
+### Step count affects latency more than the quantization label
+
+All ninety batch runs used SageAttention and produced a five-second, approximately 0.7MP video. The four-step and eight-step Turbo rows used the older `res_multistep` sampler, which damaged audio. Those rows therefore represent timing lower bounds only. Results with intelligible audio are listed separately under the solution.
+
+| Diffusion weight          | Steps | Mean time | Range across 15 runs | Cost per run |
+| ------------------------- | ----: | --------: | -------------------: | -----------: |
+| INT8 ConvRot              |    50 |      311s |             306–312s |   USD 0.0438 |
+| INT8 ConvRot              |    20 |      131s |             130–131s |   USD 0.0185 |
+| INT8 ConvRot + Turbo      |     8 |       59s |               59–60s |   USD 0.0084 |
+| INT8 ConvRot + Turbo      |     4 |       36s |               36–37s |   USD 0.0051 |
+| Pruned FP8 + Turbo        |     4 |       44s |               43–54s |   USD 0.0062 |
+| Mixed INT4 / INT8 + Turbo |     8 |       62s |               62–70s |   USD 0.0088 |
+
+Reducing INT8 from 50 steps to 4 cut mean runtime from 311 seconds to 36 seconds, nearly a ninefold reduction. This comparison establishes the compute difference only. Comparing four-step and fifty-step output quality still requires corrected prompts and audio-video blind evaluation.
+
+The tested NVFP4 diffusion file was about 33GB and required substantial system-memory offload. Its eight-step run took 89.9 seconds, compared with 85.6 seconds for INT8 under the same conditions. A lower nominal bit width does not guarantee higher speed: file size, available VRAM, offload volume, and kernel implementation all matter. The mixed INT4 / INT8 weight peaked near 25.9GB of VRAM, providing more memory headroom without outperforming INT8 ConvRot on this GPU.
+
+### SageAttention primarily reduces sampling time
+
+With the model, input, and step count fixed, SageAttention reduced INT8 sampling time by 21% to 26%. VAE decoding and video saving do not benefit from the attention kernel, so total-runtime improvement is smaller.
+
+| Configuration | Sampling: off → on | Sampling reduction | Total: off → on |
+| ------------- | -----------------: | -----------------: | --------------: |
+| INT8, 4 steps |       36.7 → 28.9s |                21% |    60.6 → 53.5s |
+| INT8, 8 steps |       70.1 → 52.0s |                26% |    85.6 → 67.0s |
+
+VAE decoding for a five-second 0.7MP clip usually took about 11 to 14 seconds. This fixed work explains why a large sampling improvement produces a smaller reduction in total time.
+
+### Resolution increases both sampling and decode cost
+
+The following single-variable sweep used INT8, eight steps, image-to-video, a resident model, and no SageAttention. It also used the older sampler, so the figures are retained only to measure resolution scaling.
+
+| Resolution | Total time | Sampling | VAE decode | Peak VRAM | Cost per run |
+| ---------- | ---------: | -------: | ---------: | --------: | -----------: |
+| 0.4MP      |      57.2s |    39.3s |       4.2s |    30.6GB |   USD 0.0081 |
+| 0.7MP      |      86.4s |    69.9s |      11.6s |    31.3GB |   USD 0.0122 |
+| 1.0MP      |     142.4s |   124.4s |      11.8s |    31.3GB |   USD 0.0201 |
+
+Increasing pixel count from 0.4MP to 1.0MP increased sampling time from 39.3 seconds to 124.4 seconds. Both the 0.7MP and 1.0MP runs nearly filled 32GB of VRAM, and successful execution also depended on more than 50GB of system memory for offload.
+
+### Longer clips cost more than their duration ratio suggests
+
+At fixed 0.7MP resolution, INT8 weights, and eight steps, the duration sweep produced:
+
+| Output duration | Frames | Total time | Sampling | VAE decode | Cost per run |
+| --------------- | -----: | ---------: | -------: | ---------: | -----------: |
+| 5s              |    120 |      86.4s |    69.9s |      11.6s |   USD 0.0122 |
+| 10s             |    240 |     244.4s |   212.4s |      23.3s |   USD 0.0345 |
+| 15s             |    360 |     475.5s |   428.9s |      34.9s |   USD 0.0671 |
+
+Within this workflow, increasing output duration from five to fifteen seconds multiplied runtime and cost by about 5.5, although the clip itself became three times longer. VAE decoding scaled close to frame count, while sampling grew faster. Splitting a long sequence into shorter shots can reduce inference cost, but continuity, audio transitions, and additional retries introduce separate costs.
+
+### A cold run added about 14 seconds
+
+A paired five-second 0.7MP text-to-video test took 44.29 seconds with the model resident and 58.63 seconds on the first run after restarting ComfyUI. Loading approximately 35GB of weights into the execution path added 14.34 seconds, equivalent to about USD 0.0020.
+
+This cold measurement covers model loading inside ComfyUI. Provisioning a new machine and downloading its image or model files usually takes much longer and must be measured separately.
+
+## Solution
+
+### Build the budget from runs with valid audio
+
+The older `res_multistep` path produced a lower four-step time, but it also caused clipping, noise, and voice shifts in H3 Turbo audio. After upgrading to a ComfyUI build with separate audio-video sampling schedules, or using dual-clock Euler, the four-step and eight-step outputs both passed listening checks.
+
+At USD 0.508 per hour, the usable planning baselines are:
+
+| Configuration                  | Five-second runtime | Active-compute cost | Theoretical serial limit | Cost per 1,000 runs |
+| ------------------------------ | ------------------: | ------------------: | -----------------------: | ------------------: |
+| INT8, 4-step Turbo, dual clock |                 46s |          USD 0.0065 |      About 78 clips/hour |      About USD 6.49 |
+| INT8, 8-step Turbo, dual clock |                 58s |          USD 0.0082 |      About 62 clips/hour |      About USD 8.18 |
+| INT8, 20 steps, SageAttention  |                131s |          USD 0.0185 |      About 27 clips/hour |     About USD 18.49 |
+
+The throughput column assumes uninterrupted serial execution. It reserves no time for queues, cold loads, failed runs, or maintenance. Choosing between four and eight steps still requires quality and synchronization tests on representative content; timing data cannot replace that acceptance work.
+
+The arithmetic requires only elapsed execution time and the machine's hourly rate:
+
+```text
+active cost per run = execution seconds / 3600 * full-machine hourly rate
+theoretical serial throughput = 3600 / execution seconds
+```
+
+If the machine costs USD 0.80 per hour, a 46-second run costs `46 / 3600 * 0.80 ≈ USD 0.0102`. For an owned GPU, replace the hourly rental rate with electricity, hardware depreciation, host power, and operating costs.
+
+### Separate execution, idle, and failure costs
+
+The workflow figure covers only the rental cost while the GPU is executing. A complete budget must also include:
+
+- model cold loads and instance startup;
+- billed idle time between requests;
+- failed jobs, timeouts, and retries;
+- input upload, result storage, and download traffic;
+- regenerations caused by unacceptable output quality.
+
+At the measured rate, one million audio-correct four-step runs would consume about 12,778 execution hours and USD 6,491. Eight-step runs would consume about 16,111 hours and USD 8,184. These are continuous-utilization compute floors, not full service costs.
+
+### Freeze every variable that changes speed
+
+A reproducible H3 result should record the GPU, VRAM, system memory, PyTorch and CUDA versions, ComfyUI revision, model files, quantization, LoRA, sampler, scheduler, steps, resolution, frame count, task type, model residency, and hourly price.
+
+High-resolution output needs a separate price tier. The optimized two-pass 1080p workflow took about 345 seconds and USD 0.049 at the same rate. One complete 2K run took about 1,302 seconds and USD 0.184, while a later optimized attempt ran out of memory. The implementation and limits are covered in [High-Resolution MiniMax H3 Upscaling with Audio-Video Latent Separation](/en/posts/minimax-h3-high-resolution-upscaling).
+
+The sampler requirements for Turbo audio are covered in [Fixing MiniMax H3 Turbo Audio Distortion with Dual-Clock Sampling](/en/posts/minimax-h3-turbo-audio-dual-clock-sampler).
+
+## Verification
+
+The published dataset combines:
+
+- ninety timed runs across six step-count and quantization configurations, with fifteen samples per configuration;
+- single-variable sweeps across three resolutions and three clip durations;
+- SageAttention on/off comparisons for INT8 and NVFP4;
+- paired cold and resident-model runs;
+- listening checks for four-step and eight-step dual-clock sampling.
+
+The ninety-run batch consumed about 2.7 GPU hours, or USD 1.36 at the recorded rate. Across fifteen samples, INT8 four-step timing stayed within 36 to 37 seconds, eight-step timing within 59 to 60 seconds, and twenty-step timing within 130 to 131 seconds. Runtime variance was small once output shape and step count were fixed.
+
+These figures apply to the tested hardware and software combination. Peak VRAM was generally 29 to 31.4GB, while some quantization paths used 50 to 88GB of system memory for offload. Host memory, PCIe bandwidth, driver changes, and different kernels can materially change performance. The hourly rate is also a market snapshot from August 21, 2026 and should be replaced when recalculating cost.
+
+Quality remains a separate validation boundary. Outputs from the obsolete prompt batch have been excluded as quality evidence, and dual-clock audio was assessed by listening rather than an objective distortion metric. Local MiniMax H3 weights are also governed by the Community License; confirm its territory and use restrictions before committing deployment spend.
+
+## References
+
+- [Official MiniMax H3 repository](https://github.com/MiniMax-AI/MiniMax-H3)
+- [MiniMax H3 Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE)
+- [Official ComfyUI MiniMax H3 tutorial](https://docs.comfy.org/tutorials/video/minimax/minimax-h3)
+- [SageAttention](https://github.com/thu-ml/SageAttention)
+- [ComfyUI audio-video dual-schedule support commit](https://github.com/Comfy-Org/ComfyUI/commit/bdcb886a4705a03cf40f4a7226de9fc7c059fc90)
