@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import {
+  formatReadingMinutes,
+  getE2eContentExpectations,
+  getPostsPagePath,
+} from "./site-expectations";
+
 function collectBrowserErrors(page: Page) {
   const errors: string[] = [];
 
@@ -249,6 +255,7 @@ test("supports the home reading, theme and locale flow", async ({ page }) => {
 
 test("shows the data-driven about page in both languages", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
+  const { readingStatus } = await getE2eContentExpectations();
   const days = Array.from({ length: 35 }, (_, index) => ({
     count: index % 5,
     date: new Date(Date.UTC(2026, 5, 16 + index)).toISOString().slice(0, 10),
@@ -289,14 +296,46 @@ test("shows the data-driven about page in both languages", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("128.6M", { exact: true })).toBeVisible();
   await expect(page.locator(".about-heatmap-cell")).toHaveCount(35);
-  await expect(
-    page.getByRole("heading", {
-      level: 3,
-      name: "穷查理宝典：查理·芒格智慧箴言录（全新增订本）",
-    }),
-  ).toBeVisible();
-  await expect(page.getByText("56 小时 39 分", { exact: true })).toBeVisible();
-  await expect(page.getByText("180", { exact: true })).toBeVisible();
+  const readingSection = page.locator(".about-reading-section");
+  const firstReadingBook = readingStatus.books[0];
+  await expect(readingSection.locator(".about-book-row")).toHaveCount(
+    readingStatus.books.length,
+  );
+  if (firstReadingBook) {
+    await expect(
+      readingSection.getByRole("heading", {
+        level: 3,
+        name: firstReadingBook.title,
+      }),
+    ).toBeVisible();
+  } else {
+    await expect(
+      readingSection.getByRole("heading", {
+        level: 3,
+        name: "等待首次微信读书同步",
+      }),
+    ).toBeVisible();
+  }
+  const expectedReadingStats = [
+    readingStatus.totalMinutes === null
+      ? "—"
+      : formatReadingMinutes(readingStatus.totalMinutes),
+    readingStatus.finishedBooks === null
+      ? "—"
+      : String(readingStatus.finishedBooks),
+    readingStatus.activeDays === null ? "—" : String(readingStatus.activeDays),
+  ];
+  if (
+    readingStatus.totalMinutes !== null ||
+    readingStatus.finishedBooks !== null ||
+    readingStatus.activeDays !== null
+  ) {
+    await expect(
+      readingSection.locator(".about-reading-stats strong"),
+    ).toHaveText(expectedReadingStats);
+  } else {
+    await expect(readingSection.locator(".about-reading-stats")).toHaveCount(0);
+  }
   await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
   await expect(page.getByText("Multi-agent", { exact: true })).toBeVisible();
   await expect(page.locator(".focus-band")).toHaveCount(0);
@@ -649,16 +688,25 @@ test("filters and paginates the article list through the URL", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
+  const expectations = await getE2eContentExpectations();
   await page.goto("/posts/");
 
-  await expect(page.getByText("共 19 篇")).toBeVisible();
+  await expect(
+    page.getByText(`共 ${expectations.articleCount} 篇`, { exact: true }),
+  ).toBeVisible();
   await expect(page.locator(".post-card")).toHaveCount(10);
 
   await page.getByRole("button", { name: /^AI/u }).click();
   await expect(page).toHaveURL(/\?tag=AI$/u);
-  await expect(page.getByText("共 5 篇")).toBeVisible();
-  await expect(page.locator(".post-card")).toHaveCount(5);
-  await expect(page.getByRole("button", { name: "下一页" })).toHaveCount(0);
+  await expect(
+    page.getByText(`共 ${expectations.aiArticleCount} 篇`, { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".post-card")).toHaveCount(
+    Math.min(10, expectations.aiArticleCount),
+  );
+  await expect(page.getByRole("button", { name: "下一页" })).toHaveCount(
+    expectations.aiArticleCount > 10 ? 1 : 0,
+  );
 
   await page.getByRole("button", { name: "全部" }).click();
   await expect(page).toHaveURL(/\/posts\/$/u);
@@ -666,10 +714,14 @@ test("filters and paginates the article list through the URL", async ({
 
   await page.getByRole("button", { name: "下一页" }).click();
   await expect(page).toHaveURL(/\?page=2$/u);
-  await expect(page.locator(".post-card")).toHaveCount(9);
+  await expect(page.locator(".post-card")).toHaveCount(
+    expectations.secondPageCount,
+  );
 
   await page.reload();
-  await expect(page.locator(".post-card")).toHaveCount(9);
+  await expect(page.locator(".post-card")).toHaveCount(
+    expectations.secondPageCount,
+  );
   expect(browserErrors).toEqual([]);
 });
 
@@ -677,9 +729,12 @@ test("uses compact whole-card article links with optional covers", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
-  await page.goto("/posts/");
+  const expectations = await getE2eContentExpectations();
+  await page.goto(getPostsPagePath(expectations.noCoverArticle.page));
 
-  const firstCard = page.locator(".post-card").first();
+  const firstCard = page
+    .locator(".post-card")
+    .filter({ hasText: expectations.noCoverArticle.title });
   const firstLink = firstCard.locator(".post-card-link");
   await expect(firstLink).toHaveCount(1);
   await expect(firstCard.locator(".post-card-media")).toHaveCount(0);
@@ -687,6 +742,7 @@ test("uses compact whole-card article links with optional covers", async ({
   await expect(firstCard.locator(".article-link")).toHaveCount(0);
   await expect(firstCard.locator(".post-card-tags")).toBeVisible();
   const firstHref = await firstLink.getAttribute("href");
+  expect(firstHref).toBe(`/posts/${expectations.noCoverArticle.slug}/`);
   const firstHeight = (await firstCard.boundingBox())?.height;
   expect(firstHeight).toBeLessThanOrEqual(220);
 
@@ -715,9 +771,10 @@ test("uses compact whole-card article links with optional covers", async ({
     Math.abs(verticalPadding!.top - verticalPadding!.bottom),
   ).toBeLessThanOrEqual(1);
 
+  await page.goto(getPostsPagePath(expectations.longestTitleArticle.page));
   const longCard = page
     .locator(".post-card")
-    .filter({ hasText: "Cloudflare Worker 反代网站为什么有的网站能用" });
+    .filter({ hasText: expectations.longestTitleArticle.title });
   await expect(longCard.locator(".post-card-tags")).toBeVisible();
   expect(
     await longCard
@@ -725,15 +782,21 @@ test("uses compact whole-card article links with optional covers", async ({
       .evaluate((element) => element.scrollHeight <= element.clientHeight),
   ).toBe(true);
 
-  await firstLink.click({ position: { x: 8, y: 8 } });
+  await page.goto(getPostsPagePath(expectations.noCoverArticle.page));
+  const clickableCard = page
+    .locator(".post-card")
+    .filter({ hasText: expectations.noCoverArticle.title });
+  await clickableCard
+    .locator(".post-card-link")
+    .click({ position: { x: 8, y: 8 } });
   await page.waitForURL(
     (url) => decodeURIComponent(url.pathname) === firstHref,
   );
 
-  await page.goto("/posts/?page=4");
+  await page.goto(getPostsPagePath(expectations.coveredArticle.page));
   const coveredCard = page
-    .locator(".post-card:has(.post-card-frame.has-media)")
-    .first();
+    .locator(".post-card")
+    .filter({ hasText: expectations.coveredArticle.title });
   await expect(coveredCard.locator(".post-card-media img")).toHaveCount(1);
   const mediaRatio = await coveredCard
     .locator(".post-card-media")
@@ -744,8 +807,10 @@ test("uses compact whole-card article links with optional covers", async ({
   expect(mediaRatio).toBeGreaterThan(1.5);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/posts/");
-  const mobileCard = page.locator(".post-card").first();
+  await page.goto(getPostsPagePath(expectations.noCoverArticle.page));
+  const mobileCard = page
+    .locator(".post-card")
+    .filter({ hasText: expectations.noCoverArticle.title });
   expect((await mobileCard.boundingBox())?.height).toBeLessThanOrEqual(200);
   await expect(mobileCard.locator(".article-link")).toHaveCount(0);
   await expect(mobileCard.locator(".post-card-tags")).toBeVisible();
@@ -785,16 +850,20 @@ test("uses compact whole-card article links with optional covers", async ({
 
 test("shows archive counts and opens a tag detail page", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
+  const expectations = await getE2eContentExpectations();
   await page.goto("/archives/");
 
-  await expect(page.getByText("共 19 篇文章", { exact: true })).toBeVisible();
-  await expect(page.locator(".archive-year")).toHaveCount(2);
   await expect(
-    page.getByRole("heading", { level: 2, name: "2026" }),
+    page.getByText(`共 ${expectations.articleCount} 篇文章`, { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "2025" }),
-  ).toBeVisible();
+  await expect(page.locator(".archive-year")).toHaveCount(
+    expectations.archiveYears.length,
+  );
+  for (const year of expectations.archiveYears) {
+    await expect(
+      page.getByRole("heading", { level: 2, name: year }),
+    ).toBeVisible();
+  }
 
   await page
     .locator(".archive-tags")
@@ -804,8 +873,12 @@ test("shows archive counts and opens a tag detail page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "#AI" }),
   ).toBeVisible();
-  await expect(page.getByText("这个主题下共有 5 篇文章。")).toBeVisible();
-  await expect(page.locator(".post-card")).toHaveCount(5);
+  await expect(
+    page.getByText(`这个主题下共有 ${expectations.aiArticleCount} 篇文章。`),
+  ).toBeVisible();
+  await expect(page.locator(".post-card")).toHaveCount(
+    expectations.aiArticleCount,
+  );
   expect(browserErrors).toEqual([]);
 });
 
@@ -895,12 +968,13 @@ test("returns to the target home when content has no translation", async ({
   page,
 }) => {
   const browserErrors = collectBrowserErrors(page);
+  const expectations = await getE2eContentExpectations();
 
-  await page.goto("/posts/prompt-subagent-ai-36c4342e/");
+  await page.goto(`/posts/${expectations.untranslatedArticle.slug}/`);
   await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
 
-  await page.goto("/books/tae-kim-japanese-grammar-guide/");
+  await page.goto(`/books/${expectations.untranslatedBook.slug}/`);
   await switchLocale(page, "选择语言", "English");
   await expect(page).toHaveURL(/\/en\/$/u);
   expect(browserErrors).toEqual([]);
@@ -1004,19 +1078,18 @@ test("serves localized metadata and the custom not-found page", async ({
 test("keeps the core reading path available without JavaScript", async ({
   browser,
 }) => {
+  const { homeArticle } = await getE2eContentExpectations();
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
+  const articleHref = `/posts/${homeArticle.slug}/`;
 
   await page.goto("/");
-  await page
-    .locator('a[href="/posts/prompt-subagent-ai-36c4342e/"]')
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/posts\/prompt-subagent-ai-36c4342e\/$/u);
+  await page.locator(`a[href="${articleHref}"]`).first().click();
+  await expect(page).toHaveURL((url) => url.pathname === articleHref);
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "从 Prompt 到 Subagent：AI 工程化学习路线",
+      name: homeArticle.title,
     }),
   ).toBeVisible();
 

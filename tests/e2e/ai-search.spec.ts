@@ -62,6 +62,7 @@ test("keeps the AI drawer proportional on desktop and full-width on mobile", asy
   expect(desktopTextareaBox?.width).toBeGreaterThan(330);
 
   await page.setViewportSize({ height: 844, width: 390 });
+  await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0);
   const mobileContentBox = await content.boundingBox();
   const mobileDialogBox = await dialog.boundingBox();
   const mobileFormBox = await form.boundingBox();
