@@ -1,6 +1,12 @@
 {
-  "activeDays": 213,
+  "activeDays": 215,
   "books": [
+    {
+      "author": "理查德·费曼 拉尔夫·莱顿",
+      "cover": "/images/reading/ebf913aa70fc24d6.jpg",
+      "state": "reading",
+      "title": "走近费曼丛书：别逗了，费曼先生！"
+    },
     {
       "author": "唐家三少",
       "cover": "/images/reading/7066bcb284decdd2.jpg",
@@ -12,15 +18,9 @@
       "cover": "/images/reading/65f2a073daf7e930.jpg",
       "state": "reading",
       "title": "《国富论》（经济学博导译）钟教授带你将西方经典读成中国人的经济思维课"
-    },
-    {
-      "author": "斯蒂芬·盖斯",
-      "cover": "/images/reading/50843385015b5ba5.jpg",
-      "state": "reading",
-      "title": "如何成为不完美主义者"
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3618,
-  "updatedAt": "2026-09-12T18:32:26.809Z"
+  "totalMinutes": 3628,
+  "updatedAt": "2026-09-13T18:51:12.007Z"
 }
