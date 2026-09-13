@@ -1,0 +1,87 @@
+---
+title: "Running ComfyUI and MiniMax H3 on a free ModelScope AMD GPU with no Docker and no HuggingFace"
+description: "ModelScope's free AMD MI300 instance is a Kubernetes container without Docker, HuggingFace, or systemd. ComfyUI runs as bare processes on the system ROCm torch; a 20-step H3 video takes about 19 minutes, so presigned URLs last 1 hour."
+published: "2026-09-14"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "modelscope-amd-comfyui-minimax-h3"
+---
+
+A free ModelScope AMD GPU instance (100-hour credit) needed to run two things: ComfyUI for image generation, and MiniMax H3 for reference-guided video. The machine is a Kubernetes container with no Docker inside, no access to HuggingFace, and no running systemd. The approach that worked: unpack what a container image would have carried into plain processes on the persistent volume, reuse the system's ROCm build of torch and the weights already on disk. A single 5-second H3 video takes over 19 minutes for 20 steps, so the presigned artifact URLs were extended to 1 hour.
+
+## The problem
+
+The machine is a ModelScope-sponsored AMD Instinct MI300 (gfx942), one GPU with about 192 GB of VRAM, Ubuntu 22.04, logged in as root. The expected path, same as any GPU cloud host: pull an image with ComfyUI baked in, start a container, mount the weights. Measured reality:
+
+| Item               | Measured result                                                                   |
+| ------------------ | --------------------------------------------------------------------------------- |
+| Machine shape      | Kubernetes Pod, PID 1 is `tini`                                                   |
+| Container tooling  | No Docker, podman, nerdctl, containerd, apptainer, or skopeo                      |
+| Service management | systemd binary exists but is not running; no unit registration                    |
+| Python             | 3.12.13, torch 2.11.0 (ROCm 7.2.53211), torchvision 0.24.1, torchaudio 2.9.0      |
+| GitHub             | Reachable and fast; the tarball endpoint serves 11.8 MB in about 2.6 s            |
+| PyPI               | Official index times out at 15 s; the machine's preconfigured Aliyun mirror works |
+| HuggingFace        | Unreachable (connection timeout)                                                  |
+| Persistence        | Only `/mnt/workspace`, 100 GB quota; `df` shows the cluster total (about 1 PB)    |
+
+Two conclusions shaped everything after: the image route is off the table, because running containers inside this container requires host authorization; and weights cannot come from HuggingFace.
+
+The MiniMax H3 Ref2VA weights are the nvfp4-quantized build, a single file of about 38.6 GB. The persistent volume already held assets from an earlier manual deployment: the H3 weights, Illustrious XL v2.0 (6.9 GB), and a working ComfyUI install.
+
+## Diagnosis
+
+### Layered reachability
+
+Outbound probing split by purpose, with a different source per layer:
+
+- Code from GitHub: the `codeload.github.com` tarball endpoint is reliable; `raw.githubusercontent.com` intermittently fails on exact-commit fetches, so code fetches go through codeload.
+- Python dependencies from the machine's preconfigured Aliyun mirror: the official PyPI index times out at 15 s while the mirror answers in 1.4 s.
+- Weights from ModelScope's model hub or from disk: HuggingFace is entirely unreachable. The ModelScope file-listing API for Illustrious-XL-v2.0 reports the same SHA-256 registered on HuggingFace (`c2a1a3ea…a331`, 6938040674 bytes), downloading at about 16 MB/s.
+
+Switching download sources does not lower trust, provided verification follows the file rather than the source: compare the byte count first (nearly free), then hash the whole file with SHA-256 while the bytes stream in. Bytes from any source that match the registered digest are the same file.
+
+### Free space cannot be read off `df`
+
+`/mnt/workspace` is an NFS mount, so `df` reports the cluster's capacity (about 1 PB); the 100 GB per-user quota is invisible there. The only workable measurement is `du` for used space, subtracted from the quota. Deployment scripts check this way and refuse to install below 20 GB free — filling the disk halfway through writing a 38.6 GB weight file is far worse than stopping up front.
+
+## The fix
+
+### Plain processes, system ROCm torch
+
+With no container tooling, the pieces an image would have carried get installed individually into a persistent directory: the ComfyUI checkout, Python dependencies, weights, workflow definitions, and prebuilt worker binaries. ComfyUI is fetched by commit from codeload (`72865f4f`, v0.33.1), never by tag — tags move, commits do not.
+
+Python dependencies go into a virtual environment created with `--system-site-packages`, with the torch, torchvision, and torchaudio lines stripped from ComfyUI's requirements before installing. The failure mode this avoids: without `--system-site-packages`, pip installs a default CUDA build of torch, which reports `torch.cuda.is_available() == False` on this AMD card; with it, the system image's ROCm-built torch (2.11.0, HIP 7.2.53211) is directly visible, the GPU works, and about 2 GB of the wrong build never downloads.
+
+Weights are verified by byte count and SHA-256, then linked into ComfyUI's model directories with hard links. A hard link gives the same data a second pathname without a second copy of the quota; verification must happen before linking, because the downstream weight-fetch script overwrites damaged files in place, and with a hard link "in place" is the original file.
+
+### Two ComfyUI processes with separate jobs
+
+Image and video workloads differ in memory profile by an order of magnitude, so they run as two independent ComfyUI processes: `image-0` serves Illustrious text-to-image, `video-0` serves MiniMax H3. They share the read-only model directory and the input-artifact entry point, and keep separate output, temp, and user directories. One instance saturating VRAM while decoding video degrades the other's headroom, not its structure.
+
+### Two downstream adaptations for H3
+
+First, upload lifetime. On this MI300, 20-step H3 inference takes over 19 minutes, while the object-storage presigned download/upload URLs were valid for 15 minutes — inference outlasted its own upload window, and the task would stall at artifact return. Input download and artifact upload URLs were both extended to 1 hour, covering model load, inference, decode, and upload. The URLs remain single-object, single-method, time-limited grants; only the window now matches the real inference time.
+
+Second, the result shape. The current ComfyUI `SaveVideo` node returns the MP4 inside the `images` collection with an `animated: [true]` marker. Downstream reading was adjusted accordingly: the collection is treated as video only when the animated marker is explicitly true; an unmarked plain image collection still reads as stills, so a single image cannot be misreported as an MP4.
+
+### A watchdog instead of systemd
+
+PID 1 is `tini` and systemd is not running, so unit registration does not exist as an option. The replacement is a watchdog script: start ComfyUI and the worker, restart whichever exits, keep logs on the persistent volume. After a pod restart every process is gone; running the watchdog once more is enough — machine identity and the entire install live on the persistent volume, so the restarted machine is the same machine.
+
+## Results
+
+The image path works end to end: an Illustrious XL v2.0 text-to-image job submitted through the public API lands on the machine, generates, and uploads; the retrieved PNG is 1024×1024, 740572 bytes, with a SHA-256 matching the control plane's recorded artifact digest exactly. The first job, including model load, took about 72 seconds.
+
+The MiniMax H3 path completed inference validation: a `minimax-h3-r2v-5s` job (1344×768, 5 s, 24 FPS, 20 steps) submitted through the public API ran all 20 steps and produced an MP4 with an audio track; the first job took over 19 minutes. With the presigned lifetime extended, the URLs now cover the full inference and upload window.
+
+One boundary: as of this writing, the artifact-return step of that H3 job has not been closed out, and the job still shows as running in the control plane. Inference and artifact generation are verified; the final reconciliation after upload completes is not yet.
+
+## References
+
+- [Reverse SSH tunnel access for ModelScope GPU instances](/en/posts/modelscope-gpu-reverse-ssh-tunnel) — how this machine is reached
+- [MiniMax H3 speed and cost on an RTX 5090](/en/posts/minimax-h3-rtx-5090-speed-cost) — the same model timed on a high-end NVIDIA card
+- [ComfyUI on GitHub](https://github.com/comfyanonymous/ComfyUI)

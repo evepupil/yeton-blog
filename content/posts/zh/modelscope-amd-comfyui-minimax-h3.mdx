@@ -1,0 +1,87 @@
+---
+title: "魔搭赠送的 AMD GPU 跑通 ComfyUI 与 MiniMax H3：绕开无 Docker 与 HuggingFace 被墙"
+description: "魔搭赠送的 AMD MI300 实例是一台 K8s 容器：没有 Docker，HuggingFace 不通，systemd 不可用。按进程安装 ComfyUI，复用系统 ROCm torch 与持久盘权重；MiniMax H3 单条 5 秒视频 20 步推理约 19 分钟，R2 预签名相应延长到 1 小时。"
+published: "2026-09-14"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "modelscope-amd-comfyui-minimax-h3"
+---
+
+魔搭赠送的 AMD GPU 实例（100 小时额度）要在上面跑两件事：ComfyUI 出图，以及 MiniMax H3 的参考图生成视频。这台机器是一套 K8s 容器，里面没有 Docker，访问不了 HuggingFace，systemd 也没有运行。做法是把容器镜像里的东西拆成普通进程装进持久盘，复用系统自带的 ROCm 版 torch 和盘上已有权重；H3 单条 5 秒视频的 20 步推理超过 19 分钟，产物上传地址的时效相应延长到 1 小时。
+
+## 问题详情
+
+机器是魔搭赠送的 AMD Instinct MI300 系列（gfx942 架构），单卡，显存约 192 GB，系统 Ubuntu 22.04，登录身份是 root。预期路径和 GPU 云主机一样：拉一个装好 ComfyUI 的镜像，起容器，把权重挂进去。实际环境逐项实测后是下面这样：
+
+| 项目        | 实测结果                                                                      |
+| ----------- | ----------------------------------------------------------------------------- |
+| 机器形态    | K8s Pod，1 号进程是 `tini`                                                    |
+| 容器工具    | Docker、podman、nerdctl、containerd、apptainer、skopeo 全部不存在             |
+| 服务管理    | systemd 二进制存在但未运行，无法注册服务                                      |
+| Python      | 3.12.13，torch 2.11.0（ROCm 7.2.53211），torchvision 0.24.1，torchaudio 2.9.0 |
+| GitHub      | 连通且快，代码下载口 11.8 MB 约 2.6 秒                                        |
+| PyPI 官方源 | 15 秒超时；机器预配的阿里内网 pip 源可用                                      |
+| HuggingFace | 不通（连接超时）                                                              |
+| 持久化      | 只有 `/mnt/workspace`，配额 100 GB，`df` 显示的是集群总量（约 1 PB）          |
+
+两个结论直接影响后续所有步骤：镜像路线在这台机器上走不通——在没有容器工具的容器里再跑容器需要宿主授权；权重也不能从 HuggingFace 拉。
+
+MiniMax H3 的 Ref2VA 权重是 nvfp4 量化版，单个文件约 38.6 GB。好消息是这台机器的持久盘上已经有一份此前手工部署时留下的资产：H3 权重、Illustrious XL v2.0（6.9 GB）和一个可用的 ComfyUI 安装。
+
+## 排查与原因
+
+### 网络可用性分层
+
+出网探测按用途分了层，每一层选不同的源：
+
+- 代码走 GitHub：`codeload.github.com` 的 tarball 接口稳定，`raw.githubusercontent.com` 按具体 commit 拉取时偶发连接失败，所以取代码统一走 codeload。
+- Python 依赖走机器预配的阿里内网 pip 源：PyPI 官方源 15 秒超时，内网源 1.4 秒。
+- 权重走魔搭模型站或持久盘：HuggingFace 完全不通。实测魔搭模型站上 Illustrious-XL-v2.0 的文件列表接口返回的 SHA-256 与 HuggingFace 登记值一致（`c2a1a3ea…a331`，6938040674 字节），下载速度约 16 MB/s。
+
+换下载源不降低可信度，前提是校验跟着文件走而不是跟着源走：先比字节数（几乎零成本），再对整个文件算 SHA-256，边下边验。任何一个源给出的字节只要摘要对得上登记值，就是同一个文件。
+
+### 磁盘余量不能问 `df`
+
+`/mnt/workspace` 挂载的是 NFS，`df` 报告的是整个集群的容量（约 1 PB），100 GB 的用户配额在里面看不出来。余量只能用 `du` 量出已占用、再按配额倒推。部署脚本按这个口径检查，剩余不足 20 GB 时拒绝安装——38.6 GB 的 H3 权重写一半把盘写满，比一开始就停下来难处理得多。
+
+## 解决办法
+
+### 按进程安装，复用系统 ROCm torch
+
+没有容器工具，就把镜像里那几样拆开装进持久盘目录：ComfyUI 本体、Python 依赖、权重、工作流定义、编译好的工人程序。ComfyUI 按 commit 从 codeload 拉取（`72865f4f`，即 v0.33.1），不用标签——标签会被移动，commit 不会。
+
+Python 依赖装进一个虚拟环境，创建时带 `--system-site-packages`，并把 ComfyUI 依赖清单里的 torch、torchvision、torchaudio 三行摘掉再装。这一步的失效机制：不带 `--system-site-packages`，pip 会装一份默认 CUDA 版 torch，它在这张 AMD 卡上 `torch.cuda.is_available()` 返回假；带上之后，系统镜像里那份针对 ROCm 编译的 torch（2.11.0，HIP 7.2.53211）直接可见，显卡可用且不用再下载约 2 GB 的错误版本。
+
+权重全部经过字节数与 SHA-256 校验后，用硬链接放进 ComfyUI 的模型目录。硬链接让同一份数据有两个路径名而不占第二份配额；校验必须在链接之前完成，因为下游取权重脚本发现文件损坏时会就地覆盖，而硬链接的就地覆盖写的就是原来那份文件。
+
+### 两个 ComfyUI 实例分工
+
+生图和视频的显存画像差一个量级，跑成两个独立 ComfyUI 进程：`image-0` 接 Illustrious 文生图，`video-0` 接 MiniMax H3。两者共用只读的模型目录和输入素材入口，各自的输出、临时文件和用户数据目录分开。一个实例在解码视频时占满显存，不影响另一个进程的结构，只影响物理显存的余量。
+
+### H3 的两个下游适配
+
+第一条是上传时效。H3 在这张 MI300 上 20 步推理超过 19 分钟，而对象存储的预签名下载/上传地址有效期原本是 15 分钟——推理还没跑完，上传地址已经过期，任务会卡死在产物回传那一步。输入下载和产物上传地址统一延长到 1 小时，给模型加载、推理、解码和上传留出余量。地址仍是单对象、单方法、限时的授权，只是时限覆盖了真实的推理窗口。
+
+第二条是结果形态。当前版本 ComfyUI 的 `SaveVideo` 节点把 MP4 放在 `images` 集合里返回，靠 `animated: [true]` 标记它是动画。下游读取逻辑据此调整为：仅当动画标记明确为真时把这个集合按视频读取，没有标记的普通图片集合仍按静态图处理，避免把一张图误报成 MP4。
+
+### 用看门脚本替代 systemd
+
+1 号进程是 `tini`，systemd 没有运行，注册系统服务这条路不存在。替代方案是一个看门脚本：拉起 ComfyUI 和工人进程，谁退出就重新拉起，日志落到持久盘。Pod 重启后进程全部消失，重新执行一次看门脚本即可——机器身份和全部安装都在持久盘，重启后仍是同一台机器。
+
+## 验证结果
+
+生图链路端到端跑通：通过公开 API 提交 Illustrious XL v2.0 文生图任务，机器接单、出图、产物上传，取回的 PNG 为 1024×1024、740572 字节，SHA-256 与控制面记录的产物摘要逐位一致。首次任务含模型加载约 72 秒。
+
+MiniMax H3 链路完成推理验证：通过公开 API 提交 `minimax-h3-r2v-5s` 任务（1344×768、5 秒、24 FPS、20 步），机器完成 20 步推理并生成带音轨的 MP4，首次任务超过 19 分钟。预签名时效延长后，地址覆盖完整的推理与上传窗口。
+
+一条边界要说明：截至本文写作，这条 H3 任务的产物回传环节尚未接完，任务在控制面上仍是运行状态。推理执行与产物生成本身已经验证，还没验证的是上传完成后控制面的最终对账。
+
+## 参考资料
+
+- [魔搭 GPU 实例无公网入口时的反向 SSH 隧道接入](/posts/modelscope-gpu-reverse-ssh-tunnel)——这台机器的接入方式
+- [MiniMax H3 在 RTX 5090 上的速度与成本](/posts/minimax-h3-rtx-5090-speed-cost)——同一模型在 NVIDIA 高端卡上的耗时对照
+- [ComfyUI GitHub 仓库](https://github.com/comfyanonymous/ComfyUI)

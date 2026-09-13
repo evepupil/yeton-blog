@@ -26,8 +26,8 @@ describe("search index", () => {
     const chineseDocuments = buildSearchDocuments(articles, "zh-CN");
     const englishDocuments = buildSearchDocuments(articles, "en");
 
-    expect(chineseDocuments).toHaveLength(28);
-    expect(englishDocuments).toHaveLength(24);
+    expect(chineseDocuments).toHaveLength(29);
+    expect(englishDocuments).toHaveLength(25);
     expect(
       chineseDocuments.every((document) => document.locale === "zh-CN"),
     ).toBe(true);
