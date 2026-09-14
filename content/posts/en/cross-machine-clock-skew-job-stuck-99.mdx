@@ -1,0 +1,181 @@
+---
+title: "A 0.65-Second Clock Skew Stalled a Job at 99%: Separate Client and Server Time"
+description: "A remote worker finished, yet 0.65 seconds of clock skew made the server reject its terminal event and leave progress at 99%. Separating occurrence and receipt timestamps, then ordering events by revision, fixed the cross-clock failure."
+published: "2026-09-15"
+locale: "en"
+tags:
+  - "postmortem"
+draft: false
+pinned: false
+translationKey: "cross-machine-clock-skew-job-stuck-99"
+---
+
+A remote worker completed its computation, uploaded the result, and reported success, yet the server kept the job at 99%. Every reconciliation pass returned the same timestamp-ordering error. The server had placed its own acceptance time beside the worker's start and finish times; approximately 0.65 seconds of clock skew made a valid event sequence appear causally inverted.
+
+The repair assigns each timeline to one clock domain: execution phases use only worker timestamps, job state uses only server observation time, and revisions establish event order across the network. NTP still reduces skew and supports health monitoring, but correctness no longer assumes that two wall clocks agree exactly.
+
+## Problem details
+
+The failure appeared when a real remote worker was connected for the first time. The execution path itself had completed:
+
+- computation finished successfully;
+- the generated PNG was about 1.38MB;
+- the artifact was uploaded, with its byte count and SHA-256 matching the report;
+- the worker's final event was `succeeded`;
+- the server still displayed 99% progress.
+
+The terminal event was present. The server rejected its phase timing while reconstructing the final state:
+
+```text
+reconcile failed:
+  invalid_argument: phase times must be ordered
+```
+
+Three persisted facts exposed the inversion:
+
+| Fact                            | Timestamp    | Clock source |
+| ------------------------------- | ------------ | ------------ |
+| Server created the job          | 16:24:28.903 | Server clock |
+| Worker reported acceptance      | 16:24:28.580 | Worker clock |
+| Worker reported execution start | 16:24:28.638 | Worker clock |
+
+Causally, the server created the job before the worker accepted and started it. Sorting the raw timestamps placed worker acceptance 323 milliseconds before job creation. No event traveled backward in time; the clocks had different offsets.
+
+A persisted terminal event is immutable. Reconciliation kept reading the same timestamps and triggering the same validation failure, so retries could not recover and the job remained at its last progress value.
+
+## Investigation and cause
+
+### One timeline combined two clocks
+
+The original logic reduces to:
+
+```go
+queuedAt := serverAcceptedAt   // server clock
+startedAt := workerStartedAt   // remote worker clock
+finishedAt := workerFinishedAt // remote worker clock
+
+validate(queuedAt <= startedAt && startedAt <= finishedAt)
+```
+
+`startedAt <= finishedAt` is meaningful because both values originate on one worker. `queuedAt <= startedAt` has no reliable meaning. UTC standardizes representation; it does not synchronize physical clocks to zero error.
+
+An offset of 0.65 seconds appears small, but handoff-to-start latency can be smaller. Whenever the worker lags by more than that interval, its reported start precedes the server's handoff timestamp and a strict ordering check must fail.
+
+### The same assumption failed in four layers
+
+After phase reconstruction was corrected, the job stalled in dispatch instead. Following the timestamps through the system revealed four places that assumed cross-machine timestamps were directly ordered:
+
+| Layer                  | Symptom                                               | Correction                                                               |
+| ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| Execution phase timing | Terminal state rejected; progress stays at 99%        | Read acceptance, start, and finish from the worker                       |
+| Job-state projection   | Execution succeeds, but job state cannot advance      | Use server observation time for creation, acceptance, and terminal state |
+| Database constraint    | Events from a worker running ahead cannot be inserted | Drop the cross-clock `recorded_at >= occurred_at` check                  |
+| Domain validation      | The same event is rejected before persistence         | Remove the equivalent cross-clock ordering rule                          |
+
+`occurred_at` records when an event happened on the remote worker. `recorded_at` records when the server received and stored it. Both facts should remain available, but neither can be required to follow the other.
+
+An earlier workaround moved `recorded_at` forward to `occurred_at` whenever the server clock lagged. That preserved the insert while corrupting the answer to “when did the server receive this event?” Diagnostics, latency analysis, and audit records then consumed a worker timestamp disguised as server time.
+
+### Same-host tests concealed the defect
+
+In local simulation, the worker and server ran on one computer and shared one system clock. Cross-clock comparisons happened to hold, so ordinary success, failure, and retry tests could not expose the assumption.
+
+A real remote worker split the clock domains. Network delay, NTP adjustments, and machine startup all change the offset over time. Two hosts being close during one test does not make direct comparison safe.
+
+### NTP and Go monotonic time do not order remote events
+
+NTP estimates and corrects clock offset, but synchronization remains subject to network paths, polling intervals, and operating-system adjustments. It is useful for reducing observation error and detecting unhealthy hosts; it cannot prove application event order.
+
+A Go `time.Time` may carry a monotonic reading within one process, which protects local elapsed-time calculations from wall-clock adjustments. Serialization, process transfer, and reconstruction strip the monotonic component. A monotonic reading also has no meaning on another machine, so it cannot repair remote timestamp ordering.
+
+## Solution
+
+### Assign a source to every timestamp
+
+The time model must answer both “where did this happen?” and “when did we learn about it?”:
+
+| Data                                                                | Clock domain               | Safe use                                                |
+| ------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------- |
+| Worker acceptance, start, and finish                                | One remote worker          | Worker queue time, execution duration, phase order      |
+| Server submission, observed acceptance, and observed terminal state | One server                 | System queue time, observation latency, job-state order |
+| `occurred_at`                                                       | Event-source worker        | Compare with other occurrence times from that worker    |
+| `recorded_at`                                                       | Receiving server           | Compare with other receipt times from that server       |
+| `revision`                                                          | Source-maintained sequence | Determine freshness and causal order for one job        |
+
+Names alone do not prevent misuse. Code can wrap worker time and server time in distinct types so that cross-domain subtraction fails at compile time. When both remain `time.Time`, function parameters and records should at least group them by domain.
+
+### Compute two timelines independently
+
+Remote execution validates only:
+
+```text
+worker accepted <= worker started <= worker finished
+```
+
+If the worker's acceptance event is missing, keep that timestamp absent. Filling it with server handoff time recreates the cross-domain comparison.
+
+Server job state validates only:
+
+```text
+server submitted <= server observed acceptance <= server observed terminal state
+```
+
+This yields two defensible metrics. Queue duration runs from server submission to server-confirmed acceptance. Execution duration runs from worker start to worker finish. Subtracting worker start from server submission does not produce a stable end-to-end duration.
+
+### Store both times and remove cross-domain constraints
+
+An event table can retain all three facts:
+
+```sql
+occurred_at timestamptz NOT NULL,
+recorded_at timestamptz NOT NULL,
+revision bigint NOT NULL
+```
+
+It should not contain this constraint:
+
+```sql
+CHECK (recorded_at >= occurred_at)
+```
+
+Non-null checks, valid ranges, same-domain phase ordering, and increasing revisions still apply. Removing the cross-clock check eliminates an invariant that physical clocks cannot guarantee; it does not weaken valid data checks.
+
+### Use revisions for order across machines
+
+Each remote execution maintains a strictly increasing `revision`. The server evaluates events by execution identity and revision:
+
+- the same event identity with identical content is a replay;
+- a larger revision advances state;
+- a smaller revision is late and cannot move state backward;
+- the same event identity with different content is a conflict.
+
+The revision carries causal order, while timestamps support observation, display, and same-domain durations. Server restarts, reconnects, and message replay do not change this decision.
+
+### Treat clock synchronization as a health signal
+
+Hosts should still run NTP and report estimated offset. Excessive skew can trigger an alert, stop new work, or mark timing metrics as unreliable. Terminal acceptance and event freshness should not depend on comparing remote and server wall-clock values.
+
+An absolute deadline supplied by a client is a separate contract input. The server must define its timezone, precision, and skew allowance; it should not be mixed into internal event causality.
+
+## Verification
+
+The regression test fixes the worker clock two seconds behind the server. Worker acceptance, start, and finish all appear earlier than the server's handoff record. After the repair, the terminal snapshot is created successfully, the state is `succeeded`, and all three execution phases retain their worker-local order. Reverting the repair reproduces `phase times must be ordered`.
+
+The real-machine verification preserved both timelines:
+
+| Fact                                | Timestamp    | Clock domain  |
+| ----------------------------------- | ------------ | ------------- |
+| Worker accepted                     | 17:12:52.908 | Remote worker |
+| Worker started                      | 17:12:52.954 | Remote worker |
+| Worker finished                     | 17:12:53.308 | Remote worker |
+| Server created the execution record | 17:12:53.560 | Server        |
+
+The worker phases remain ordered even though the server timestamp appears later than all of them. Once the system stopped comparing across columns, the job progressed from submission to success, the artifact could be retrieved, and its SHA-256 matched the declared digest.
+
+A complete regression matrix should also cover a worker running ahead, out-of-order delivery, duplicate events, replay after a server restart, and a missing acceptance event. Systems that require a single global timeline across multiple nodes need an explicit offset-uncertainty model or a logical-clock protocol; sorting raw wall-clock timestamps is insufficient.
+
+## References
+
+- [Go `time` package: Monotonic Clocks](https://pkg.go.dev/time#hdr-Monotonic_Clocks)
+- [RFC 5905: Network Time Protocol Version 4](https://www.rfc-editor.org/rfc/rfc5905)
+- [Leslie Lamport: Time, Clocks, and the Ordering of Events in a Distributed System](https://lamport.azurewebsites.net/pubs/time-clocks.pdf)
