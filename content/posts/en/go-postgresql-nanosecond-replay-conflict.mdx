@@ -1,0 +1,179 @@
+---
+title: "Go Nanoseconds Caused PostgreSQL Replay Conflicts: Truncate at the Microsecond Boundary"
+description: "Go timestamps carry nanoseconds, while PostgreSQL stores only microseconds. An idempotent replay can therefore look like changed evidence. Normalize UTC timestamps to microseconds before persistence, serialization, and comparison."
+published: "2026-09-19"
+locale: "en"
+tags:
+  - "postmortem"
+draft: false
+pinned: false
+translationKey: "go-postgresql-nanosecond-replay-conflict"
+---
+
+Go's `time.Time` can carry nanoseconds, while PostgreSQL `timestamptz` keeps microsecond precision. The first write stores a shortened timestamp; when the same idempotent request is replayed, the program compares the original nanosecond value with the database value and incorrectly reports a conflict.
+
+The repair is to convert timestamps to UTC and truncate them to microseconds at the PostgreSQL boundary. The normalized value must be used for SQL parameters, serialized evidence, equality checks, and replay. A repeated request then matches the stored record, while a real change to the evidence still produces a conflict.
+
+## Problem details
+
+The failure appeared in an idempotent evidence-write flow:
+
+1. compute usage or billing evidence;
+2. write it to PostgreSQL under an evidence key and event identity;
+3. retry after a network timeout with the same idempotency key;
+4. find the existing row and compare the complete evidence.
+
+The first write succeeds. The replay carries the same business fields, with a timestamp that still has a nanosecond tail:
+
+```text
+First request: 2026-09-19 10:20:30.123456789+00
+Stored value:  2026-09-19 10:20:30.123456+00
+Replay value:  2026-09-19 10:20:30.123456789+00
+```
+
+If replay comparison calls `time.Time.Equal` directly, the database value and the current request differ by 789 nanoseconds. The program returns an idempotency conflict even though the caller submitted the same logical evidence.
+
+The observed conflict detail was:
+
+```text
+Evidence Key is already associated with different cost data
+```
+
+The error appears only on the database path. An in-memory store retains the complete nanosecond value, and a database test that uses only whole seconds or microseconds never exercises the precision loss.
+
+## Investigation and cause
+
+### PostgreSQL stores less precision than Go
+
+PostgreSQL date/time values keep fractional seconds at microsecond resolution. `timestamptz` standardizes the stored instant across time zones, but it cannot retain the seventh through ninth fractional digits carried by a Go timestamp.
+
+A Go time value can contain:
+
+- a location and UTC offset;
+- nanosecond wall-clock precision;
+- a monotonic reading used for elapsed-time calculations inside one process.
+
+After a database round trip, the instant remains representable, but the sub-microsecond part is gone. The value returned to Go is therefore a different representation from the original input.
+
+### Idempotency comparison treats representation loss as a business change
+
+A typical database replay path looks like this:
+
+```go
+affected, err := insert(ctx, event)
+if err != nil {
+    return err
+}
+if affected == 1 {
+    return nil
+}
+
+stored := loadByEvidenceKey(ctx, event.EvidenceKey)
+if stored.Equivalent(event) {
+    return nil // replay accepted
+}
+return ErrConflict
+```
+
+`Equivalent` often compares amount, quantity, provider, reference, and observation time. All business fields remain equal, while the timestamp has changed during the Go → PostgreSQL → Go conversion. The replay is then classified as a different fact.
+
+The mistake is made at the boundary. A high-precision value is written to a lower-precision store, then the unnormalized input is used for equality. The two sides of the persistence boundary follow different precision rules.
+
+### A tolerance-based comparison weakens conflict detection
+
+A tempting workaround is to treat timestamps within one microsecond as equal. That mixes storage precision loss with a caller changing the evidence. It also leaves JSON evidence, hashes, and audit records on potentially different comparison rules.
+
+Idempotency requires one canonical representation. It should not depend on scattered tolerances inside individual equality functions.
+
+### Normalizing only the SQL column is incomplete
+
+If the table column is truncated but the same evidence is also stored as JSON, the JSON can retain the original nanoseconds. A replay then fails while comparing the document even though the SQL column matches.
+
+The same issue appears when `ObservedAt` is normalized but `RecordedAt`, creation time, or a nested timestamp is left untouched. The rule must cover every time field that enters PostgreSQL.
+
+## Solution
+
+### Create one canonical format at the persistence boundary
+
+Convert every timestamp written to PostgreSQL to UTC and truncate it to microseconds:
+
+```go
+const storagePrecision = time.Microsecond
+
+func normalizePersistedTime(value time.Time) time.Time {
+    return value.UTC().Truncate(storagePrecision)
+}
+```
+
+Use the same normalization for SQL columns, JSON evidence, and comparison copies. Keep the rule in the persistence adapter so domain code can retain higher precision for local measurement and diagnostics.
+
+When only a small set of fields is persisted, list them explicitly. When one structure is reused by several PostgreSQL tables or JSON documents, normalize it at the shared encoding boundary so callers cannot omit one field.
+
+Truncating only inside the SQL encoder is still insufficient. After a uniqueness conflict, the comparison function may still hold the original event with nanoseconds while the row read from PostgreSQL has microseconds, so the values remain unequal. Prefer creating the domain object with its canonical time; if the domain object must retain the raw value, normalize both operands inside the conflict comparison. SQL parameters, JSON documents, and comparison copies must share the same rule.
+
+### Compare normalized evidence during replay
+
+The write flow should be:
+
+```text
+receive request
+  -> normalize every persisted timestamp
+  -> build SQL parameters and evidence JSON
+  -> attempt the insert
+  -> on a uniqueness conflict, load the existing row
+  -> compare the same normalized structure
+```
+
+Both requests then use the same value:
+
+```text
+Input:       2026-09-19 10:20:30.123456789+00
+Normalized:  2026-09-19 10:20:30.123456+00
+```
+
+The database row and the replay request now compare at the same precision. A changed amount, quantity, reference, or other evidence field still returns a conflict.
+
+### Add unit and database round-trip tests
+
+At least these cases should be covered:
+
+| Case                                                | Expected result                       |
+| --------------------------------------------------- | ------------------------------------- |
+| Nanosecond timestamp is normalized                  | Stable microsecond value in UTC       |
+| Same normalized evidence is written twice           | Idempotent success, one row           |
+| Same evidence key changes amount or quantity        | Conflict                              |
+| Normalized evidence crosses a PostgreSQL round trip | Read-back equals the normalized value |
+
+The database round-trip test must deliberately use a value such as `123456789` for the nanosecond suffix. A whole-second fixture hides the precision loss; an in-memory test cannot cover database encoding and decoding.
+
+### Do not reduce every clock to microseconds
+
+Persistence precision and local elapsed-time precision serve different purposes:
+
+- PostgreSQL event fields use microseconds for stable reads and replays;
+- in-process durations can use Go's monotonic clock so wall-clock adjustments do not change elapsed time;
+- logs and diagnostics may retain nanoseconds, but comparisons with database evidence must first use the persistence canonical form;
+- public API timestamps need an explicit timezone and fractional-digit contract.
+
+This preserves local diagnostic detail without allowing database precision differences to change idempotency semantics.
+
+## Verification
+
+The review established two contrasting outcomes: the in-memory ledger retains the full nanosecond value and accepts an exact evidence replay; the PostgreSQL boundary keeps only microseconds, so an unnormalized replay can be classified as a conflict during exact comparison.
+
+The minimal comparison fixes one evidence key and all business fields, then changes only the storage round trip:
+
+```text
+Original ObservedAt: 2026-09-19T10:20:30.123456789Z
+Normalized value:    2026-09-19T10:20:30.123456Z
+```
+
+The repaired path must satisfy four conditions: the first write succeeds; the same normalized evidence replays successfully; changing any business evidence field still conflicts; and the timestamp read from PostgreSQL equals the normalized value exactly.
+
+The existing review also exposed a test blind spot. If round-trip fixtures use whole seconds or values already aligned to microseconds, the regression remains invisible. Nanosecond tails must be fixed test inputs, and real PostgreSQL should add concurrent idempotent-write coverage so uniqueness races and conflict reads produce the same result.
+
+## References
+
+- [PostgreSQL date/time types](https://www.postgresql.org/docs/current/datatype-datetime.html)
+- [Go `time.Time.Truncate` documentation](https://pkg.go.dev/time#Time.Truncate)
+- [Go monotonic clock documentation](https://pkg.go.dev/time#hdr-Monotonic_Clocks)
