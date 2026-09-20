@@ -30,9 +30,9 @@ describe("content queries", () => {
   it("returns pinned and recent published articles first", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
-    expect(chineseArticles).toHaveLength(32);
+    expect(chineseArticles).toHaveLength(33);
     expect(chineseArticles[0]?.slug).toBe(
-      "go-postgresql-nanosecond-replay-conflict",
+      "cloudflare-r2-oci-registry-large-layer-upload",
     );
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
   });
@@ -77,7 +77,7 @@ describe("content queries", () => {
     const previews = getPublishedArticlePreviews(articles, "zh-CN");
     const navigation = getArticleNavigation(articles, article!);
 
-    expect(previews).toHaveLength(32);
+    expect(previews).toHaveLength(33);
     expect(previews[0]).not.toHaveProperty("body");
     expect(navigation.previous?.slug).toBe("prompt-subagent-ai-36c4342e");
     expect(navigation.next?.slug).toBe("claude-code-chatgpt-34a4342e");

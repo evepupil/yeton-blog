@@ -1,0 +1,142 @@
+---
+title: "Cloudflare R2 自建 OCI 镜像仓库上传大模型层失败：从 413、500 到 1102 改成内部分段复制"
+description: "自建 Cloudflare Workers + R2 镜像仓库时，小层上传正常，大层先后遇到 413、500 和 1102。问题横跨入口请求、R2 最终化和 Worker 资源限制，处理方式是已知长度直传，超大对象由 R2 内部分段复制。"
+published: "2026-09-20"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "Cloudflare"
+draft: false
+pinned: false
+translationKey: "cloudflare-r2-oci-registry-large-layer-upload"
+---
+
+自建 Cloudflare Workers + R2 的 OCI 镜像仓库后，小镜像可以正常推送，大模型层却先后遇到 `413`、`500 INTERNAL_ERROR` 和 `503 / 1102`。这些错误来自链路中的不同阶段：入口请求体限制、临时分片对象的最终化方式，以及 Worker 免费计划的 CPU 和内存限制。
+
+最终可行的处理方式是让 Worker 只编排 R2 操作：已知大小且不超过 5 GiB 的对象直接作为一个已知长度的 multipart part 上传，更大的临时对象由 R2 内部按范围读取后分片完成。整层缓冲、整层哈希和“先拼成一个大对象再单次写入”都会把大对象重新带回 Worker 资源限制中。
+
+## 问题详情
+
+测试目标是让一个自建 OCI Registry 承载包含大模型权重的镜像。小层推送成功后，逐步扩大单层大小，得到以下结果：
+
+| 测试路径              |          层大小或条件 | 结果                            |
+| --------------------- | --------------------: | ------------------------------- |
+| 普通镜像客户端推送    |  大于边缘单请求体限制 | `413 Request Entity Too Large`  |
+| 支持分块的 OCI 客户端 |           约 3.96 GiB | 可以完成                        |
+| 支持分块的 OCI 客户端 |           约 6.46 GiB | 多次 `500 INTERNAL_ERROR`       |
+| Registry 改造后的回归 | 原本可用的约 3.96 GiB | `503`，Cloudflare 记录为 `1102` |
+
+分块客户端绕过了入口请求体限制，却没有保证服务端能够完成最终对象。一次真实推送中，约 4 GiB 模型层耗时 9 分钟以上；更大的层失败时，客户端只能看到通用的服务器错误，无法判断失败发生在上传分片、R2 最终化还是 Worker 资源耗尽。
+
+## 排查与原因
+
+### OCI 分片上传和对象最终化是两条路径
+
+OCI 客户端把大层拆成多个请求后，Registry 会先把它们写入一个临时 multipart 对象。收到最后一个分片时，服务端还要把临时对象变成最终 blob。
+
+原有实现的关键路径相当于：
+
+```text
+客户端分片请求
+  -> R2 临时 multipart 对象
+  -> 读取临时对象的完整 body
+  -> 单次 R2.put 写入最终 blob
+```
+
+入口已经使用分片，最后一步却重新变成一次大对象写入。客户端分片只解决了“每个 HTTP 请求有多大”，没有解决“最终对象如何跨 R2 multipart 限制完成”。因此，层越过单次写入能力后仍然会失败。
+
+### 第一版 multipart 修复把大对象带回了 Worker
+
+第一次改造把最终写入也换成 multipart，同时在 Worker 中用 `tee()` 复制整条流，再计算完整 SHA-256。小对象本地测试全部通过，真实约 3.96 GiB 层却从原来的成功变成 `503 / 1102`。
+
+测试账户使用 Workers Free 计划，单次请求只有 128 MB 内存和约 10 ms CPU 预算。把数 GiB 数据经过 JavaScript 流复制和哈希，会让 Worker 承担与对象大小成正比的工作；R2 的存储操作还没有完成，Worker 已经触发资源限制。
+
+尝试设置更大的 CPU 限额也没有解决问题，Cloudflare 返回了：
+
+```text
+CPU limits are not supported for the Free plan
+100328
+```
+
+这次回归说明：本地单元测试通过，只能证明流转逻辑正确，无法证明免费计划上的多 GiB 运行时资源足够。
+
+### 未知长度的自定义分片器会制造第二类失败
+
+为了避开整层缓冲，另一版实现尝试从任意 `ReadableStream` 中动态切片。R2 的 `uploadPart` 需要知道 part 的长度；当自定义流无法提供这个信息时，运行时出现：
+
+```text
+Provided readable stream must have a known length
+Stream was cancelled
+```
+
+把整个流先读进内存只为计算长度，会重新触发上一节的资源问题。大对象上传需要在协议设计阶段保留大小信息，或者把切片工作交给 R2 的范围读取。
+
+### 大小限制、资源限制和校验限制不能混为一谈
+
+这次排查中至少有三类独立约束：
+
+| 约束                      | 影响阶段               | 错误处理方向                 |
+| ------------------------- | ---------------------- | ---------------------------- |
+| 边缘单请求体大小          | 客户端到 Worker        | 使用 OCI 分块协议            |
+| R2 multipart part 大小    | 临时对象到最终对象     | 每个 part 控制在 5 MiB–5 GiB |
+| Worker Free 计划 CPU/内存 | Worker 执行 JavaScript | 避免整层复制和整层哈希       |
+
+只看到 `413` 就继续调客户端分片，无法解决 `500`；只看到“超过 5 GiB”就把所有错误归因于 R2 上限，也解释不了原本 3.96 GiB 层为何回归成 `1102`。
+
+## 解决办法
+
+### 已知大小且不超过 5 GiB：直接提交一个 multipart part
+
+对已经知道 `Content-Length` 的请求体，Worker 直接把原始 request/response body 交给 R2 multipart 的一个 part。数据路径保持为：
+
+```text
+请求体 -> R2 uploadPart -> completeMultipartUpload
+```
+
+Worker 不复制流、不把数据转换成数组，也不在本地计算整层摘要。对象摘要由上传方提供并写入对象元数据，后续读取时优先使用 R2 原生摘要，缺失时再读取受信任的元数据。
+
+### 已经落在 R2 的大对象：用范围读取做内部复制
+
+对于超过 5 GiB 的临时对象，先在 R2 内部按范围读取，每次范围不超过 5 GiB，再把读取结果直接交给 `uploadPart`：
+
+```text
+临时 R2 对象
+  -> Range 0..N（每段 <= 5 GiB）
+  -> uploadPart(part 1)
+  -> Range N..M
+  -> uploadPart(part 2)
+  -> completeMultipartUpload
+```
+
+字节不会经过 Worker 的 JavaScript 内存。R2 multipart 当前要求 part 至少 5 MiB、最多 5 GiB，单个对象最多 10,000 个 part；分片规划需要同时满足这些限制。
+
+### 对未知大小和超大 pull-through 请求提前止损
+
+Registry 的 pull-through cache 如果不知道上游层大小，或者需要在一次 Worker 请求中处理超过 5 GiB 的外部层，应在入口拒绝或转入异步路径。把未知长度的上游流直接交给 Worker，既无法满足 `uploadPart` 的已知长度要求，也无法保证 Free 计划的资源预算。
+
+### 把超大模型权重从镜像层移出去
+
+镜像仓库适合分发运行时和较小层，超大模型权重可以改为启动时下载到持久盘，再按字节数和 SHA-256 校验。另一轮镜像仓库对照测试中，约 5.77 GiB 层在公共仓库返回过 `429`，约 3.96 GiB 层可以返回 `206`；把权重移出镜像后，镜像体积从约 18 GiB 降到 4.65 GiB，最大层控制在约 3.96 GiB。
+
+这条路径把“镜像分发”和“模型资产分发”拆开：镜像启动更容易完成，模型下载失败可以单独重试，也能用摘要校验避免拿到长度正确但内容错误的文件。
+
+## 验证结果
+
+本次修复链的验证结果分为三层：
+
+| 验证层                                       | 结果                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| 本地 multipart、分片、失败回滚和范围复制测试 | 71/71 通过                                                         |
+| 小对象远端 smoke                             | `202`、`201`、`200` 状态符合预期，临时对象已清理                   |
+| 真实多 GiB 层                                | 3.96 GiB 在第二轮修复后恢复；6.46 GiB 曾在约 29 分钟后仍返回 `500` |
+
+最后一行仍有明确边界：最终 guard 版本部署后的 3.96 GiB 和 6.46 GiB 生产复测，在本轮记录结束时没有完成。因此可以确认失败机制和修复方向，不能把这组记录写成“Cloudflare R2 已稳定承载任意大模型层”。
+
+验证大对象 Registry 时，至少要保留三组回归：一个此前成功的 3–4 GiB 层、一个目标超限层，以及一个小对象基线。每次更换最终化方式都要重新跑三组；只跑本地小对象和单元测试，无法发现 Worker 资源回归。
+
+## 参考资料
+
+- [Cloudflare R2 multipart objects](https://developers.cloudflare.com/r2/objects/multipart-objects/)
+- [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/)
+- [Cloudflare R2 Workers API reference](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+- [Cloudflare serverless-registry](https://github.com/cloudflare/serverless-registry)

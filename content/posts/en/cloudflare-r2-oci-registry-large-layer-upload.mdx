@@ -1,0 +1,142 @@
+---
+title: "Large OCI Layers Failed in a Cloudflare R2 Registry: From 413, 500, and 1102 to Internal Multipart Copy"
+description: "A Cloudflare Workers + R2 registry accepted small layers but failed large model layers with 413, 500, and 1102. The fix keeps large-object work inside R2 with known-size multipart parts and internal range copies."
+published: "2026-09-20"
+locale: "en"
+tags:
+  - "postmortem"
+  - "Cloudflare"
+draft: false
+pinned: false
+translationKey: "cloudflare-r2-oci-registry-large-layer-upload"
+---
+
+A self-hosted OCI registry built on Cloudflare Workers and R2 accepted small layers, while large model layers failed with `413`, `500 INTERNAL_ERROR`, and `503 / 1102` at different stages. The errors came from separate constraints: the edge request body limit, the R2 finalization path, and CPU and memory limits on the Workers Free plan.
+
+The reliable design keeps the Worker as an orchestrator. A known-size object up to 5 GiB is sent directly as a multipart part; a larger temporary object is finalized through R2-internal range reads and multipart parts. Whole-object buffering, whole-object hashing, and a final single-object write all bring the large payload back into the Worker resource budget.
+
+## Problem details
+
+The goal was to use a self-hosted OCI Registry for images containing large model weights. Small layers pushed successfully, so the layer size was increased step by step:
+
+| Test path                    |           Layer size or condition | Result                                  |
+| ---------------------------- | --------------------------------: | --------------------------------------- |
+| Standard image client push   | Above the edge request-body limit | `413 Request Entity Too Large`          |
+| Chunk-capable OCI client     |                    About 3.96 GiB | Completed                               |
+| Chunk-capable OCI client     |                    About 6.46 GiB | Repeated `500 INTERNAL_ERROR`           |
+| Registry finalization change | Previously working 3.96 GiB layer | `503`, recorded by Cloudflare as `1102` |
+
+Client-side chunking bypassed the entry request limit, but it did not prove that the server could finalize the object. One real push of a roughly 4 GiB model layer took more than nine minutes. When a larger push failed, the client exposed only a generic server error, with no indication whether the failure happened during chunk upload, R2 finalization, or Worker resource execution.
+
+## Investigation and cause
+
+### OCI chunk upload and object finalization are different paths
+
+An OCI client splits a large layer into several requests. The Registry first stores those pieces in a temporary R2 multipart object. After the final piece arrives, the server still has to turn that temporary object into the final blob.
+
+The original path was effectively:
+
+```text
+chunked client requests
+  -> temporary R2 multipart object
+  -> read the complete temporary body
+  -> one R2.put for the final blob
+```
+
+The entry path used multipart, while the last step reintroduced one large object write. Client-side chunking controls the size of each HTTP request; it does not change how the final object is committed. Once the layer crossed the single-write capability, finalization failed.
+
+### The first multipart fix moved the large object back into the Worker
+
+The first revision changed finalization to multipart and used `tee()` to copy the entire stream while computing a full SHA-256 in the Worker. Local tests passed, but a real 3.96 GiB layer that had worked before regressed to `503 / 1102`.
+
+The account used the Workers Free plan, with 128 MB memory and about 10 ms of CPU budget per request. Copying and hashing multiple GiB in JavaScript scales work with object size; the Worker can hit its resource limit before R2 completes the storage operation.
+
+Attempting to raise the CPU limit did not solve it. Cloudflare rejected the setting with:
+
+```text
+CPU limits are not supported for the Free plan
+100328
+```
+
+The regression established an important acceptance rule: local tests can prove the stream logic, but they cannot prove that a multi-GiB operation fits the resource budget of the deployed plan.
+
+### An unknown-length splitter creates a second failure mode
+
+Another revision tried to split an arbitrary `ReadableStream` dynamically. In the tested runtime, `uploadPart` requires a body with a known length. The custom splitter produced errors such as:
+
+```text
+Provided readable stream must have a known length
+Stream was cancelled
+```
+
+Reading the entire stream into memory merely to discover its length would recreate the previous resource failure. Large-object upload needs size information at the protocol boundary, or it must delegate splitting to R2 range reads.
+
+### Size, resource, and integrity limits are separate
+
+The investigation exposed at least three independent constraints:
+
+| Constraint              | Affected stage            | Appropriate response                   |
+| ----------------------- | ------------------------- | -------------------------------------- |
+| Edge request-body size  | Client to Worker          | Use the OCI chunk protocol             |
+| R2 multipart part size  | Temporary to final object | Keep each part between 5 MiB and 5 GiB |
+| Workers Free CPU/memory | JavaScript execution      | Avoid whole-object copies and hashes   |
+
+Seeing `413` and continuing to tune the client cannot fix `500`. Seeing “over 5 GiB” and blaming every error on the R2 object limit cannot explain why a previously working 3.96 GiB layer regressed to `1102`.
+
+## Solution
+
+### Known-size objects up to 5 GiB: submit one multipart part directly
+
+When `Content-Length` is known, pass the original request or response body directly to one R2 multipart part. The data path remains:
+
+```text
+request body -> R2 uploadPart -> completeMultipartUpload
+```
+
+The Worker does not copy the stream into an array and does not compute a full-object digest. The expected digest is stored as object metadata; readers use a native R2 checksum when present and fall back to the trusted metadata when it is absent.
+
+### Larger objects already in R2: copy ranges internally
+
+For a temporary object larger than 5 GiB, read it inside R2 by ranges, with each range no larger than 5 GiB, and pass each result directly to `uploadPart`:
+
+```text
+temporary R2 object
+  -> Range 0..N (each <= 5 GiB)
+  -> uploadPart(part 1)
+  -> Range N..M
+  -> uploadPart(part 2)
+  -> completeMultipartUpload
+```
+
+The bytes never enter the Worker's JavaScript memory. R2 multipart currently requires parts from 5 MiB to 5 GiB, allows up to 10,000 parts, and supports objects around 5 TiB; the splitter must satisfy all of these bounds.
+
+### Stop oversized and unknown-size pull-through requests early
+
+A pull-through cache that cannot determine an upstream layer's size, or that must process an external layer above 5 GiB inside one Worker request, should reject the operation or move it to an asynchronous path. Passing an unknown-length upstream stream to the Worker satisfies neither the known-length requirement of `uploadPart` nor the Free-plan resource budget.
+
+### Move oversized model weights out of image layers
+
+An image registry is a good distribution channel for runtime layers and smaller assets. Very large model weights can be downloaded at startup onto persistent storage and verified by byte count and SHA-256. In a separate registry comparison, a roughly 5.77 GiB layer returned `429` while a roughly 3.96 GiB layer returned `206`; moving weights out of the image reduced the image from about 18 GiB to 4.65 GiB, with the largest layer near 3.96 GiB.
+
+This separates image delivery from model-asset delivery. Image startup becomes easier to complete, model downloads can retry independently, and a matching digest prevents a same-sized but corrupted file from being accepted.
+
+## Verification
+
+The validation evidence has three layers:
+
+| Validation layer                                           | Result                                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Local multipart, splitting, rollback, and range-copy tests | 71/71 passed                                                                                             |
+| Small remote smoke tests                                   | `202`, `201`, and `200` behaved as expected; temporary objects were deleted                              |
+| Real multi-GiB layers                                      | 3.96 GiB recovered in the second iteration; 6.46 GiB still returned `500` after a roughly 29-minute push |
+
+The last row is an explicit boundary. The final guard version was not followed by a complete production retest of both 3.96 GiB and 6.46 GiB in the recorded rollout. The failure mechanism and repair design are supported; the data does not support claiming that an arbitrary large model layer is now stable on the deployed setup.
+
+Every large-object registry change should rerun three regressions: a previously successful 3–4 GiB layer, a target oversized layer, and a small baseline. Each finalization change needs all three. Small local objects and unit tests alone cannot expose a Worker resource regression.
+
+## References
+
+- [Cloudflare R2 multipart objects](https://developers.cloudflare.com/r2/objects/multipart-objects/)
+- [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/)
+- [Cloudflare R2 Workers API reference](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+- [Cloudflare serverless-registry](https://github.com/cloudflare/serverless-registry)
