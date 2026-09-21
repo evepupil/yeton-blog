@@ -30,10 +30,19 @@ describe("content queries", () => {
   it("returns pinned and recent published articles first", () => {
     const chineseArticles = getPublishedArticles(articles, "zh-CN");
 
-    expect(chineseArticles[0]?.slug).toBe(
-      "cloudflare-r2-oci-registry-large-layer-upload",
-    );
+    expect(chineseArticles.length).toBeGreaterThan(0);
     expect(chineseArticles.every((article) => !article.draft)).toBe(true);
+
+    const rank = chineseArticles.map((article) => [
+      article.pinned ? 0 : 1,
+      article.published,
+    ]);
+    const sorted = [...rank].sort(([pinnedA, dateA], [pinnedB, dateB]) =>
+      pinnedA !== pinnedB
+        ? Number(pinnedA) - Number(pinnedB)
+        : String(dateB).localeCompare(String(dateA)),
+    );
+    expect(rank).toEqual(sorted);
   });
 
   it("groups every article by year and counts tags", () => {
