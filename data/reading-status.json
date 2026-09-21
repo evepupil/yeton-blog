@@ -1,5 +1,5 @@
 {
-  "activeDays": 221,
+  "activeDays": 222,
   "books": [
     {
       "author": "理查德·费曼 拉尔夫·莱顿",
@@ -21,6 +21,6 @@
     }
   ],
   "finishedBooks": 12,
-  "totalMinutes": 3737,
-  "updatedAt": "2026-09-20T18:55:51.816Z"
+  "totalMinutes": 3751,
+  "updatedAt": "2026-09-21T20:29:05.226Z"
 }
