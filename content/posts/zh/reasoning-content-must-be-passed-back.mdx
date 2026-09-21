@@ -1,0 +1,121 @@
+---
+title: "DeepSeek 思考模式下多轮工具调用中断报 400：回传 reasoning_content"
+description: "请求带 tools 参数时，DeepSeek 要求把此前每一轮的 reasoning_content 原样回传，而 OpenAI 兼容适配层在重放历史消息时会删掉这个字段，导致工具调用跑到十来轮后返回 400。在模型配置里开启思考内容回传即可恢复。"
+published: "2026-09-22"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "reasoning-content-must-be-passed-back"
+---
+
+带工具调用的对话跑到十来轮时，接口返回 400，提示思考模式下的 `reasoning_content` 必须回传给接口，会话就此卡死。DeepSeek 在请求携带 `tools` 参数时要求把历史每一轮的思考内容原样送回，而 opencode 使用的 OpenAI 兼容适配层在重放历史消息时会把这个字段删掉。在模型配置里开启思考内容回传后，五路并发、每路十四次工具调用全部跑通。
+
+## 问题详情
+
+环境是 opencode 1.18.4，模型 `deepseek-v4.1-flash`，通过一个 OpenAI 兼容网关访问。任务是并发九路，每路独立完成一段编码工作，过程中会连续调用读写文件和执行命令的工具。
+
+九路里有七路在十来次工具调用之后中断，返回：
+
+```text
+The reasoning_content in the thinking mode must be passed back to the API.
+```
+
+中断之前的几轮完全正常，工具调用发出、结果回填都成功。中断之后该路无法继续。
+
+单轮请求和压测用的纯文本请求都没有触发这个错误，失败集中在连续多轮工具调用的场景。
+
+## 排查与原因
+
+### 带 tools 参数时思考内容是必填项
+
+DeepSeek 的思考模式文档对这个字段给了两条相反的规则：
+
+- 请求携带 `tools` 参数时，此前每一轮的 `reasoning_content` 都要回传，它会被拼进上下文；
+- 请求不携带 `tools` 参数时，`reasoning_content` 不需要回传，即使传了也会被忽略。
+
+文档同时写明，没有正确回传时接口返回 400。
+
+同一份客户端代码用在普通问答上不会出问题，一旦开始调用工具就会踩中这条规则。agent 恰好是全程带 `tools` 的场景。
+
+### 适配层在重放历史时删掉了这个字段
+
+opencode 通过 `@ai-sdk/openai-compatible` 访问 OpenAI 兼容接口。这一层把历史消息转换回请求体时，会剥掉助手消息上的 `reasoning_content`。
+
+于是每一轮发出去的历史都是残缺的：工具调用和正文都在，思考内容没了。轮数越多，残缺的部分越长，撞上服务端校验的机会越大。
+
+opencode 仓库有对应的 issue（#24104），n8n、qwen-code 等客户端也报过同一个错误，属于 OpenAI 兼容适配层共有的处理缺口。
+
+### 为什么不是每次都失败
+
+这个模型并非每轮都产生思考内容。用一段十八轮连续工具调用的脚本直连接口，十六轮带 `reasoning_content`，两轮没有。
+
+哪一轮会思考取决于当轮任务的难度，中断时机因此不固定。并发多路时每一路各自赌一次，整体表现为大面积失败而非全部失败。
+
+验证边界需要说明：上面那句 400 报错来自实际批量运行的日志。用脚本直连接口复现时，拿到的是第十二轮的空响应；另一次对照运行跑满十八轮没有中断。服务端具体在什么条件下触发校验，没有从文档或返回内容中确认。
+
+### 三个看起来生效的参数
+
+关掉思考模式是另一个方向。试过四个参数，只有一个真正起作用：
+
+| 参数                                               | 接口返回 | 响应里还有思考内容吗 |
+| -------------------------------------------------- | -------- | -------------------- |
+| `thinking: {"type": "disabled"}`                   | 200      | 没有                 |
+| `enable_thinking: false`                           | 200      | 仍然有               |
+| `reasoning_effort: "none"` 或 `"minimal"`          | 200      | 仍然有               |
+| `chat_template_kwargs: {"enable_thinking": false}` | 200      | 仍然有               |
+
+后三个都被接受、都返回 200，响应里的 `reasoning_content` 原样存在。只看状态码会误以为参数已经生效，实际一点没变。
+
+## 解决办法
+
+在模型配置里声明这是思考模型，并指定需要回传的字段。opencode 1.18.4 的写法是：
+
+```json
+{
+  "provider": {
+    "my-gateway": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://gateway.example.com/v1",
+        "apiKey": "YOUR_KEY"
+      },
+      "models": {
+        "deepseek-v4.1-flash": {
+          "reasoning": true,
+          "interleaved": { "field": "reasoning_content" }
+        }
+      }
+    }
+  }
+}
+```
+
+`interleaved` 只接受布尔值或对象。写成字符串会被配置校验直接拒掉，命令行启动时就报错：
+
+```text
+Expected true | object | undefined, got "reasoning_content"
+  provider.my-gateway.models.deepseek-v4.1-flash.interleaved
+```
+
+每一个会产生思考内容的模型都要单独加这两个字段，同一通道下的其他模型不会自动继承。
+
+退路是在模型的 `options` 里写 `{"thinking": {"type": "disabled"}}` 把思考关掉，代价是模型不再做显式推理。只在回传方案不起作用时才用。
+
+这个修法有两处限制。opencode 的 issue 记录提到，从数据库历史恢复的会话仍可能缺字段；相关修复已经合并进上游，升级到更新的版本后可能不再需要这段配置。
+
+## 验证结果
+
+按原来的失败场景复跑：五路并发，每路依次创建十四个文件，每个文件单独调用一次写入工具，合计七十次工具调用。
+
+五路全部完成，各自建出十四个文件，没有一路中断。
+
+直连接口的对照实验同时确认了参数行为：不加任何参数时，十八轮里十六轮带 `reasoning_content`；加上 `thinking: {"type": "disabled"}` 后降到零轮。
+
+## 参考资料
+
+- [DeepSeek API 文档：思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)
+- [opencode issue #24104：思考模式下 reasoning_content 必须回传](https://github.com/anomalyco/opencode/issues/24104)
+- [opencode 配置文件 schema](https://opencode.ai/config.json)

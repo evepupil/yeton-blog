@@ -1,0 +1,121 @@
+---
+title: "DeepSeek Thinking Mode Returns 400 Mid Tool Loop: Pass reasoning_content Back"
+description: "When a request carries the tools parameter, DeepSeek requires every prior reasoning_content to be sent back, but the OpenAI-compatible adapter strips that field while replaying history, so tool loops die with a 400 after about ten turns."
+published: "2026-09-22"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "reasoning-content-must-be-passed-back"
+---
+
+About ten turns into a tool-calling conversation, the API returns 400 and says `reasoning_content` must be passed back in thinking mode, leaving the session stuck. DeepSeek requires every prior turn's reasoning to be echoed back whenever a request carries the `tools` parameter, and the OpenAI-compatible adapter opencode uses drops that field when it replays history. After enabling reasoning passthrough in the model config, five parallel lanes each ran fourteen tool calls without a single failure.
+
+## What Happened
+
+The setup was opencode 1.18.4 talking to `deepseek-v4.1-flash` through an OpenAI-compatible gateway. Nine lanes ran in parallel, each working through its own coding task with repeated file reads, writes, and shell commands.
+
+Seven of the nine lanes died after roughly ten tool calls with:
+
+```text
+The reasoning_content in the thinking mode must be passed back to the API.
+```
+
+Earlier turns were clean — tool calls went out and results came back normally. Once a lane hit the error it could not continue.
+
+Single-shot requests and the plain-text requests used for load testing never triggered it. Failures were confined to long chains of tool calls.
+
+## Investigation and Cause
+
+### With tools present, reasoning is mandatory
+
+DeepSeek's thinking mode documentation states two opposite rules for this field:
+
+- When the request carries the `tools` parameter, every prior turn's `reasoning_content` must be passed back and gets concatenated into the context.
+- When the request does not carry `tools`, `reasoning_content` need not be passed back and is ignored even if supplied.
+
+The same page states that failing to pass it back correctly returns a 400.
+
+The same client code works fine for ordinary question-and-answer traffic and breaks the moment tools enter the picture. An agent carries `tools` on every single request.
+
+### The adapter strips the field during history replay
+
+opencode reaches OpenAI-compatible endpoints through `@ai-sdk/openai-compatible`. That layer removes `reasoning_content` from assistant messages when converting stored history back into a request body.
+
+Every subsequent request therefore ships an incomplete history: tool calls and message text survive, the reasoning does not. The longer the chain, the more is missing and the likelier the server-side check fires.
+
+opencode tracks this as issue #24104, and n8n and qwen-code have reported the same error, which places the gap in the OpenAI-compatible adapter layer rather than in any single client.
+
+### Why it fails only sometimes
+
+The model does not emit reasoning on every turn. Driving the raw endpoint through eighteen consecutive tool calls produced `reasoning_content` on sixteen turns and nothing on two.
+
+Whether a given turn reasons depends on how hard that turn is, so the failure point moves around. With several lanes running at once each one takes its own gamble, which shows up as most lanes dying rather than all of them.
+
+One limit on this account: the 400 quoted above comes from a production batch run. Reproducing it with a direct script produced an empty response on turn twelve instead, and a control run survived all eighteen turns. The exact server-side condition that triggers the check was not confirmed from documentation or response payloads.
+
+### Three parameters that only look like they work
+
+Turning thinking off is the other available direction. Four parameters were tested and one of them actually did anything:
+
+| Parameter                                          | HTTP status | Reasoning still in response? |
+| -------------------------------------------------- | ----------- | ---------------------------- |
+| `thinking: {"type": "disabled"}`                   | 200         | No                           |
+| `enable_thinking: false`                           | 200         | Yes                          |
+| `reasoning_effort: "none"` or `"minimal"`          | 200         | Yes                          |
+| `chat_template_kwargs: {"enable_thinking": false}` | 200         | Yes                          |
+
+The last three are accepted and return 200 while `reasoning_content` keeps arriving untouched. Checking the status code alone suggests the parameter took effect when nothing changed.
+
+## The Fix
+
+Declare the model as a reasoning model and name the field to carry back. On opencode 1.18.4:
+
+```json
+{
+  "provider": {
+    "my-gateway": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://gateway.example.com/v1",
+        "apiKey": "YOUR_KEY"
+      },
+      "models": {
+        "deepseek-v4.1-flash": {
+          "reasoning": true,
+          "interleaved": { "field": "reasoning_content" }
+        }
+      }
+    }
+  }
+}
+```
+
+`interleaved` accepts a boolean or an object only. A bare string is rejected by config validation before the process starts:
+
+```text
+Expected true | object | undefined, got "reasoning_content"
+  provider.my-gateway.models.deepseek-v4.1-flash.interleaved
+```
+
+Both fields must be added to each model that emits reasoning. Other models under the same provider do not inherit them.
+
+The fallback is `{"thinking": {"type": "disabled"}}` in the model's `options`, which costs the model its explicit reasoning. Reach for it only if passthrough fails.
+
+Two limits apply. The opencode issue notes that sessions restored from stored history can still arrive without the field, and the upstream fixes have already merged, so a newer release may make this config unnecessary.
+
+## Verification
+
+The original failure scenario was rerun: five parallel lanes, each creating fourteen files one at a time with a separate write call per file, for seventy tool calls total.
+
+All five lanes finished, each produced its fourteen files, and none dropped out.
+
+A direct-to-endpoint control run confirmed the parameter behaviour at the same time: with no extra parameters, sixteen of eighteen turns carried `reasoning_content`; adding `thinking: {"type": "disabled"}` brought that to zero.
+
+## References
+
+- [DeepSeek API docs: Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)
+- [opencode issue #24104: reasoning_content must be passed back in thinking mode](https://github.com/anomalyco/opencode/issues/24104)
+- [opencode config schema](https://opencode.ai/config.json)
