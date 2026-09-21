@@ -1,0 +1,171 @@
+---
+title: 'Jev Labels "Meeting at 3pm" as Qing Dynasty Poetry: Add a Fallback Option to Every Choice Set'
+description: "Jev returns a supplied option at 0.97 confidence even for input outside the question entirely, because probabilities are normalized over the given criteria. An explicit fallback option fixed every out-of-scope case."
+published: "2026-09-21"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+draft: false
+pinned: false
+translationKey: "jev-classification-fallback-option"
+---
+
+Give Jev a piece of text that has nothing to do with the classification task, and it still returns one of the supplied options with high confidence. The sentence "Let's meet in the conference room at 3pm today" came back as Qing dynasty poetry with a confidence of 0.97.
+
+Probabilities are normalized over the option set in the request, and no option exists for rejecting the question's premise. The zero-hallucination claim guarantees that the return value stays inside the schema; it says nothing about whether the judgment holds. Adding an explicit fallback option resolved every out-of-scope case without affecting in-scope accuracy.
+
+## Problem details
+
+Jev is a model released by TypeSafe AI on 15 September 2026. It emits three structured result types: a pick from a supplied list (Choice), a rating on supplied levels (Score), and a 0-to-1 probability for a yes/no question (Noul). It has no free-text generation endpoint. The documentation states a 0% structured output error rate.
+
+To decide whether it could carry production classification work, 159 labeled cases were run across eight task types, all through `POST https://api.typesafe.ai/v1/systemone` against `jev-latest`:
+
+| Task                          | Cases | Accuracy |
+| ----------------------------- | ----: | -------: |
+| Code vulnerability classing   |    26 |     100% |
+| Retrieval relevance           |    12 |     100% |
+| Support ticket routing        |    25 |    96.0% |
+| Poem dynasty classification   |    24 |    95.8% |
+| Agent tool routing            |    18 |    94.4% |
+| Content moderation            |    16 |    87.5% |
+| Commit message classification |    26 |    84.6% |
+| Log severity rating           |    12 |    66.7% |
+| Total                         |   159 |    91.8% |
+
+The code vulnerability set included six snippets written to look dangerous while being safe: parameterized queries, path joins behind an allowlist check, and secrets read from environment variables. All six were correctly cleared.
+
+Switching to input outside the option set exposed the failure. The question was fixed as "which dynasty does this classical Chinese poem belong to", with Tang, Song, Yuan, Ming, and Qing as options:
+
+| Input                                      | Returned | Confidence |
+| ------------------------------------------ | -------- | ---------: |
+| A Python function definition               | Tang     |       0.67 |
+| The opening line of a Shakespeare sonnet   | Tang     |       0.45 |
+| Random noise `asdkj23 !!! @@ zxcv 9182`    | Tang     |       0.76 |
+| "Let's meet in the conference room at 3pm" | Qing     |       0.97 |
+
+All four landed inside the valid option set. None raised an error or timed out.
+
+## Investigation and cause
+
+### Probabilities are normalized over the supplied options
+
+The output range is defined by `criteria` in the request. Supply five dynasties and the distribution is normalized across those five, summing to 1. The model has no slot for stating that the question's premise does not hold, so the probability mass goes to the existing options.
+
+"Which dynasty does this Python code belong to" is not a valid question, and nothing in the request lets the model say so.
+
+This is what the zero-hallucination claim actually covers: the return value is always a valid type and a valid enum member, never a misspelled option name or an extra field. It constrains the output format and carries no information about correctness.
+
+### Confidence is trustworthy on normal input, which hides the failure
+
+Confidence calibration across the 159 cases:
+
+| Confidence band | Cases | Mean confidence | Actual accuracy |
+| --------------- | ----: | --------------: | --------------: |
+| 0.95-1.00       |   104 |            0.99 |           99.0% |
+| 0.85-0.95       |    20 |            0.90 |            100% |
+| 0.70-0.85       |    10 |            0.80 |            100% |
+| 0.50-0.70       |    17 |            0.62 |           64.7% |
+| 0.00-0.50       |     8 |            0.43 |           25.0% |
+
+Expected calibration error is 0.037. Cases it scored at 0.99 were correct 99.0% of the time, so the number can be used as a threshold directly.
+
+That reliability is exactly what makes the 0.97 on "meeting at 3pm" dangerous. The figure is computed conditional on the premise that the text is a poem from some dynasty. When the premise fails, confidence does not drop, so no threshold downstream fires.
+
+The high bands also run conservative: cases scored at 0.80 were correct 100% of the time. Production thresholds therefore tend to sit lower than intuition suggests, which widens the window in which out-of-scope input is accepted outright.
+
+## Solution
+
+### Add an explicit fallback option
+
+```python
+CRITERIA = {
+    "tang": "Tang dynasty", "song": "Song dynasty", "yuan": "Yuan dynasty",
+    "ming": "Ming dynasty", "qing": "Qing dynasty",
+    # the option that matters
+    "none": "Not classical Chinese poetry at all, or the dynasty cannot be determined",
+}
+
+body = {
+    "state": text,
+    "model": "jev-latest",
+    "questions": {
+        "dynasty": {
+            "type": "choice",
+            "instructions": "Which dynasty does this classical Chinese poem belong to",
+            "criteria": CRITERIA,
+        }
+    },
+}
+```
+
+Write a real description for the fallback option. Leaving the description empty gives the model nothing to match against, which turns the fallback into a sixth dynasty with no meaning.
+
+### Treat anything below 0.5 as "no answer"
+
+The 0.00-0.50 band was correct 25.0% of the time, below its own mean confidence of 0.43. That range cannot be used as a weak signal. Route it to review or to a fallback path instead.
+
+### Multi-class questions are more sensitive than a single yes/no
+
+The same 45 inputs (25 attack samples, 20 normal samples) were run through both question shapes:
+
+| Question shape                  | Missed | False positives | Threshold for zero misses |
+| ------------------------------- | -----: | --------------: | ------------------------: |
+| Choice, multi-class w/ fallback |      0 |               0 |                         — |
+| Noul, single yes/no             |      2 |               0 |                       0.3 |
+
+At a 0.5 threshold Noul missed two: a forged conversation boundary scored 0.30, and a dual-persona jailbreak scored 0.31. The multi-class question classified both correctly. Use multi-class where misses are unacceptable, or lower the Noul threshold to 0.3.
+
+## Verification
+
+The same out-of-scope inputs were rerun with the fallback option in place, with one genuine Tang poem kept as a control:
+
+| Input                                      | Before | After | Confidence |
+| ------------------------------------------ | ------ | ----- | ---------: |
+| A Python function definition               | Tang   | none  |       1.00 |
+| The opening line of a Shakespeare sonnet   | Tang   | none  |       1.00 |
+| Random noise                               | Tang   | none  |       1.00 |
+| "Let's meet in the conference room at 3pm" | Qing   | none  |       1.00 |
+| Modern pop song lyrics                     | Song   | none  |       0.62 |
+| A genuine Tang poem (control)              | Tang   | Tang  |       1.00 |
+
+Six out of six. The control was not pulled into the fallback, so the extra option does not make the model hesitant on valid input.
+
+### Latency composition determines where it fits
+
+Network and inference were separated on a single warmed keep-alive connection, comparing a request rejected for invalid parameters against a full inference request:
+
+| Stage                                 | Median |
+| ------------------------------------- | -----: |
+| Network round trip, no inference      |  340ms |
+| Full decision                         |  402ms |
+| State expanded to roughly 2500 tokens |  395ms |
+
+Inference accounts for roughly 63ms; the network round trip takes 84% of the total. Expanding state from 20 to 3000 tokens barely moved the number, so compute is not the constraint.
+
+Two consequences follow. Cross-region calls measured 402ms each, capping a single serial loop at 2.7 decisions per second; a co-located deployment at an estimated 20ms round trip lands near 83ms, or about 12 decisions per second. And when one frame needs several decisions, they must be merged into a single call: four questions against the same state cost 513 input tokens merged against 1560 split across four calls, cutting ten frames from 24.88 seconds to 4.33 seconds.
+
+### Verified applications
+
+Two applications were measured with the same method, both with a fallback option in place.
+
+Input-side security filtering. 45 samples (instruction override, roleplay jailbreaks, emotional manipulation, forged authority markers, indirect injection, and illicit requests, plus 20 normal inputs) produced zero misses and zero false positives. Fifteen of the twenty normal inputs were deliberately constructed as high-risk false positives, including a security engineer asking how SQL injection works, a developer debugging their own system prompt, and "ignore the plan I just described". All were correctly allowed. Seven variants of a forged moderation verdict appended to the payload were also tested; risk scores stayed between 0.90 and 0.97 and were not pulled down.
+
+Interface action selection. Interactive elements were listed as a numbered, constrained menu with a goal attached. All six cases picked the correct element, averaging 402ms at confidence above 0.99.
+
+One result does not support a conclusion yet: detection of encoded payloads is inconsistent. Of five malicious payloads sent as raw base64, one slipped through (an explosives request scored 0.33); decoding first caught all five. Benign base64 scored only 0.06 to 0.29, so partial decoding does happen, just not reliably enough to depend on. Normalization and decoding belong on the caller's side.
+
+### Not applicable when the signal lives only in your own data
+
+A set of user records was built with activity levels held flat and only ticket counts varying, under a rule that inverts common sense: heavy ticket filers are deeply engaged and do not churn, while zero-ticket users have disengaged and do churn.
+
+With no rule supplied, accuracy was 5/10, equivalent to chance; the model assigned all ten users a low churn probability between 0.16 and 0.25. Writing the rule into `instructions` raised accuracy to 9/10.
+
+The documentation states that customer data is not used for fine-tuning or LoRA adaptation and that the same weights serve every account. A rule that can be written down can be handed over at request time. A pattern that only emerges from historical data cannot.
+
+## References
+
+- [TypeSafe AI HTTP API reference](https://docs.typesafe.ai/api.md)
+- [TypeSafe AI models](https://docs.typesafe.ai/models)
+- [Introducing System One Models & Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev)
+- [TypeSafe AI use case map](https://docs.typesafe.ai/concepts/use-case-map)
