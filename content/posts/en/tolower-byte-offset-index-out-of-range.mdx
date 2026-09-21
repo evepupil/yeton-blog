@@ -1,0 +1,185 @@
+---
+title: "One Request Crashed a Go Gateway: Lowercasing Changed Byte Length, So Fold ASCII Case Only"
+description: "A keyword matcher lowercased the text, searched that copy, then indexed the original with the offset it found. One request containing Ⱥ ended the process with index out of range, because Unicode lowercasing changes UTF-8 byte length."
+published: "2026-09-19"
+locale: "en"
+tags:
+  - "postmortem"
+  - "Go"
+draft: false
+pinned: false
+translationKey: "tolower-byte-offset-index-out-of-range"
+---
+
+A Go content-inspection gateway started terminating outright once customers configured their own keywords. Exit status 2, and nothing on stderr but an `index out of range` stack trace. The matcher lowercased the whole text, located the keyword in that copy, then used the same offset against the original string to check word boundaries. Unicode lowercasing changes UTF-8 byte length, so the two strings disagree about where anything is, and reading one byte backwards runs off the end.
+
+The fix restricts case folding to the 26 ASCII letters, which keeps the copy byte-for-byte aligned with the original, at the cost of no longer matching case variants outside ASCII. A second change contains detector panics so that one detector's defect stays inside that detector.
+
+## Problem details
+
+The gateway inspects request content before it reaches the upstream AI provider. One of its checks scans for customer-configured keywords — internal service names, project code names, and similar strings — and records a hit whenever one appears.
+
+Once keywords were configured, some requests took the whole process down with exit status 2:
+
+```text
+panic: runtime error: index out of range [18] with length 17
+```
+
+The gateway is a single process shared by every customer, so one request cuts off all AI traffic at once. Triggering it takes no crafted payload; a handful of unusual characters in ordinary conversation text is enough. The minimal reproduction is the keyword `acme` against the request text `ȺȺȺȺȺȺ acme`, where `Ⱥ` is U+023A.
+
+The same defect has a quieter second form: a keyword buried inside a longer word still gets reported as a standalone hit.
+
+## Investigation and cause
+
+### Offsets computed on the copy, bytes read from the original
+
+The pre-fix matcher, with unrelated branches removed:
+
+```go
+lower := strings.ToLower(text) // lowercase the whole text into a copy
+i := strings.Index(lower, sym) // find the keyword in that copy
+start, end := i, i+len(sym)
+if startsAtBoundary(text, start) && endsAtBoundary(text, end) { // boundaries on the original
+	hits++
+}
+```
+
+The boundary check reads the byte on each side of the match, and it has to read the original:
+
+```go
+func startsAtBoundary(s string, i int) bool {
+	if i == 0 {
+		return true
+	}
+	prev := s[i-1]
+	if !isIdentChar(prev) {
+		return true
+	}
+	// camelCase split point: lowercase or digit followed by uppercase
+	return isLowerOrDigit(prev) && isUpper(s[i])
+}
+```
+
+camelCase is the reason. In `NewAcmeGateway`, `w` is followed by an uppercase `A`, which marks a split point, so `Acme` counts as a standalone occurrence. In `incorporate`, `n` is followed by lowercase `c`, so `corp` is buried inside the word and does not count. Lowercasing destroys the uppercase signal, and the rule along with it.
+
+That leaves the code resting on an assumption nobody wrote down: the copy and the original line up byte for byte. Unicode makes no such promise.
+
+### Unicode lowercasing is not length-preserving
+
+Measured on Go 1.26.7:
+
+| Character       | Code point | UTF-8 bytes | Lowercased | Bytes |
+| --------------- | ---------- | ----------- | ---------- | ----- |
+| Ⱥ               | U+023A     | 2           | ⱥ (U+2C65) | 3     |
+| K (Kelvin sign) | U+212A     | 3           | k (U+006B) | 1     |
+| İ               | U+0130     | 2           | i (U+0069) | 1     |
+| ẞ               | U+1E9E     | 3           | ß (U+00DF) | 2     |
+
+When the copy grows, offsets land too far right. `ȺȺȺȺȺȺ acme` is 17 bytes; lowercased it is 23, and `acme` sits at offset 19 in the copy. Reading the preceding byte of the original at `text[18]` is already past its 17 bytes, so the process panics.
+
+When the copy shrinks, offsets land too far left, in the middle of a multi-byte character. Four Kelvin signs plus ` xacme` is 18 bytes in the original and 10 in the copy, with `acme` at offset 6. In the original, offset 6 is flanked by UTF-8 continuation bytes of the Kelvin signs. Continuation bytes are not identifier characters, so the boundary check concludes the keyword stands alone and reports the `acme` buried inside `xacme`.
+
+The same pattern breaks in other languages. Measuring those four characters on Python 3 and Node gives the same direction of UTF-8 byte-length change as Go; `İ` additionally goes from one character to two there (`i` plus a combining dot), while Go produces a single `i`. Whether a given character grows or shrinks varies by runtime, so guessing is not an option.
+
+### One detector panic takes down the process
+
+Detectors run in separate goroutines. A panic in a goroutine cannot be recovered by the code that started it:
+
+```go
+func main() {
+	defer func() {
+		if p := recover(); p != nil {
+			fmt.Println("recovered:", p) // never runs
+		}
+	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var s []int
+		_ = s[1]
+	}()
+	wg.Wait()
+}
+```
+
+This program prints a panic trace and exits with status 2; the `recovered:` line never appears. The Go specification scopes `recover` to the goroutine that is panicking. That sets the blast radius: one out-of-range read inside one detector disconnects every customer.
+
+## Solution
+
+### Fold case over A-Z only
+
+```go
+// foldASCII lowercases ASCII uppercase letters and copies every other byte as is.
+func foldASCII(s string) string {
+	i := 0
+	for i < len(s) && (s[i] < 'A' || s[i] > 'Z') {
+		i++
+	}
+	if i == len(s) {
+		return s // no uppercase letters, no allocation
+	}
+	b := []byte(s)
+	for ; i < len(b); i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			b[i] += 'a' - 'A'
+		}
+	}
+	return string(b)
+}
+```
+
+Only 26 byte values change and every other byte is copied verbatim, so the length is guaranteed to stay the same and the copy stays byte-aligned with the original. The initial scan returns the input unchanged when it holds no uppercase letters, which skips the allocation for most text.
+
+The cost is that case variants outside ASCII no longer match: `Σ` and `σ` are now distinct. That is acceptable here because these keywords are English identifiers or Chinese code names, and Chinese has no case.
+
+When Unicode-aware case-insensitive matching is genuinely required, two options hold up: hand the search to a regular expression with `(?i)` so it matches the original directly and its offsets come from the original, or record, during conversion, which source byte each output byte came from, and map offsets back through that table.
+
+The failure mode is broader than case conversion. Full-width to half-width conversion, diacritic stripping, and Unicode normalization can all change length, and "compute the offset on a converted copy, read the byte from the original" breaks with each of them.
+
+### Contain detector panics where they happen
+
+```go
+func (e *Engine) runGuarded(ctx context.Context, capID string, det Detector, units []Unit) (r Result, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			detail := fmt.Sprintf("%T", p)
+			if re, ok := p.(runtime.Error); ok {
+				detail = re.Error()
+			}
+			r, err = Result{}, fmt.Errorf("%w: %s", errDetectorPanic, detail)
+		}
+	}()
+	return e.runOne(ctx, capID, det, units)
+}
+```
+
+The `recover` sits in the function the goroutine actually executes. After a panic the scan is booked as "this detector failed this time": the remaining detectors still produce results, the request is still forwarded, and the failure joins the failure list that monitoring and alerting read.
+
+The error detail keeps only the runtime error's own text, such as the offending index; panic values of any other type are recorded by type name alone. A panic value can carry the user text being processed, and this error is written to the system log.
+
+## Verification
+
+With `acme` as the keyword, the same set of inputs was run through both the pre-fix and post-fix matcher:
+
+| Request text              | Expected | Before the fix                                | After  |
+| ------------------------- | -------- | --------------------------------------------- | ------ |
+| `ȺȺȺȺȺȺ acme`             | hit      | panic: index out of range [18] with length 17 | hit    |
+| `ȺȺȺ xacme`               | no hit   | no hit                                        | no hit |
+| four U+212A plus ` xacme` | no hit   | hit (false positive)                          | no hit |
+| four U+212A plus ` acme`  | hit      | hit                                           | hit    |
+| `call acme now`           | hit      | hit                                           | hit    |
+| `call xacme now`          | no hit   | no hit                                        | no hit |
+| `NewAcmeGateway`          | hit      | hit                                           | hit    |
+
+The first four rows became unit tests, pinning both the growing and the shrinking direction. The last three confirm that ordinary matching and camelCase boundaries survived the change. Swapping the matcher back to `strings.ToLower` reproduces the out-of-range panic on the first row immediately.
+
+Two further tests cover the engine guard: a detector that reliably reads out of range, asserting that the engine contains the panic, that the other detectors still return results, and that the failure is recorded as a panic; and a panic value carrying text, asserting that the text never reaches the error detail.
+
+Verification covers ASCII case folding and nothing else. Any other place in the codebase that converts text and then indexes the original with the resulting offset needs its own audit, and case-insensitive matching outside ASCII is genuinely gone — a requirement that depends on it needs a different design.
+
+## References
+
+- [Go `strings.ToLower`](https://pkg.go.dev/strings#ToLower)
+- [Unicode FAQ: Character Properties, Case Mappings & Names](https://www.unicode.org/faq/casemap_charprop.html)
+- [The Go Programming Language Specification: Handling panics](https://go.dev/ref/spec#Handling_panics)

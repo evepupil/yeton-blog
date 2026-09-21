@@ -1,0 +1,185 @@
+---
+title: "转小写会改变字节长度，一条请求就让 Go 网关进程退出：改成只折叠英文字母"
+description: "关键词匹配先把整段文本转小写、在副本里找位置，再拿这个位置回原文判词边界。含 Ⱥ 的请求让整个进程以 index out of range 退出，原因是 Unicode 小写映射会改变 UTF-8 字节长度。改成只折叠 A-Z 保证逐字节对齐，并给每个检测器加崩溃兜底。"
+published: "2026-09-19"
+locale: "zh-CN"
+tags:
+  - "postmortem"
+  - "Go"
+draft: false
+pinned: false
+translationKey: "tolower-byte-offset-index-out-of-range"
+---
+
+一个 Go 写的内容检查网关，在客户配上自定义关键词之后开始整进程退出，退出码 2，标准错误里只有一段 `index out of range` 的崩溃堆栈。关键词匹配先把整段文本转成小写、在这份副本里找到位置，再拿同一个位置回到原文判断词边界；Unicode 小写映射会改变 UTF-8 字节长度，副本和原文的偏移对不上，往前多走一个字节就越界。
+
+修复把大小写折叠限制在 A-Z 这 26 个字母上，保证副本和原文逐字节对应，代价是非英文字母的大小写变体不再互相匹配。同时给每个检测器加崩溃兜底，让一个检测器的缺陷停在它自己身上。
+
+## 问题详情
+
+网关在 AI 请求发往上游之前检查请求内容，其中一项检查是客户自己配的关键词——内部服务名、项目代号这类字符串，出现在请求里就记一条。
+
+客户配上关键词之后，某些请求会让网关进程整个退出，退出码 2：
+
+```text
+panic: runtime error: index out of range [18] with length 17
+```
+
+网关是所有客户共用的一个进程，一条请求打掉它，全部客户的 AI 流量同时中断。触发不需要构造攻击载荷，正常对话内容里出现少数几个特殊字符就够了。最小复现是关键词配 `acme`、请求内容为 `ȺȺȺȺȺȺ acme`，其中 `Ⱥ` 是 U+023A。
+
+同一个缺陷还有一种不崩溃的表现：关键词明明陷在别的词里面，照样被报成一次独立命中。
+
+## 排查与原因
+
+### 位置在副本上算，字节在原文上取
+
+修复前的匹配逻辑去掉无关分支后是这样：
+
+```go
+lower := strings.ToLower(text) // 全文转小写，得到一份副本
+i := strings.Index(lower, sym) // 在副本里找关键词
+start, end := i, i+len(sym)
+if startsAtBoundary(text, start) && endsAtBoundary(text, end) { // 回原文判边界
+	hits++
+}
+```
+
+边界判定要看命中位置左右的那个字节，并且必须看原文：
+
+```go
+func startsAtBoundary(s string, i int) bool {
+	if i == 0 {
+		return true
+	}
+	prev := s[i-1]
+	if !isIdentChar(prev) {
+		return true
+	}
+	// 驼峰分词处：小写或数字后面跟大写
+	return isLowerOrDigit(prev) && isUpper(s[i])
+}
+```
+
+看原文的理由是驼峰命名。`NewAcmeGateway` 里 `w` 后面跟着大写 `A`，这是一个分词点，`Acme` 算独立出现；`incorporate` 里 `n` 后面是小写 `c`，`corp` 陷在词中间，不算。转成小写之后大写信息就没了，这条规则也跟着没了。
+
+这段代码因此带着一个没写下来的前提：副本和原文逐字节一一对应。Unicode 不保证这一点。
+
+### Unicode 小写映射不保证等长
+
+Go 1.26.7 实测四个字符：
+
+| 字符            | 码位   | UTF-8 字节数 | 转小写后    | 字节数 |
+| --------------- | ------ | ------------ | ----------- | ------ |
+| Ⱥ               | U+023A | 2            | ⱥ（U+2C65） | 3      |
+| K（开尔文符号） | U+212A | 3            | k（U+006B） | 1      |
+| İ               | U+0130 | 2            | i（U+0069） | 1      |
+| ẞ               | U+1E9E | 3            | ß（U+00DF） | 2      |
+
+副本变长时偏移偏后。`ȺȺȺȺȺȺ acme` 原文 17 字节，转小写后 23 字节，`acme` 在副本里的位置是 19。拿 19 回原文取前一个字节，`text[18]` 已经在 17 字节之外，越界崩溃。
+
+副本变短时偏移偏前，落进多字节字符的中间。4 个开尔文符号加上 ` xacme` 原文共 18 字节，副本 10 字节，`acme` 在副本里的位置是 6。原文第 6 字节两侧都是开尔文符号 UTF-8 编码的续接字节，续接字节不算标识符字符，边界判定于是认定关键词独立出现，把陷在 `xacme` 里的 `acme` 记成一次命中。
+
+同样的写法在别的语言里一样坏。Python 3 和 Node 上测这四个字符，UTF-8 字节数的变化方向和 Go 一致；`İ` 在它们那里还会从 1 个字符变成 2 个字符（`i` 加一个组合点），Go 只给出一个 `i`。同一个字符在不同运行时里变长还是变短都不一样，靠猜没有意义。
+
+### 一个检测器崩溃带走整个进程
+
+各个检测器跑在各自的协程里（协程是 Go 的并发执行单元）。协程里的 panic，调用方的 recover 接不住：
+
+```go
+func main() {
+	defer func() {
+		if p := recover(); p != nil {
+			fmt.Println("接住了:", p) // 不会执行
+		}
+	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var s []int
+		_ = s[1]
+	}()
+	wg.Wait()
+}
+```
+
+这段程序打印崩溃堆栈并以退出码 2 结束，`接住了` 一行不会出现。Go 语言规范把 recover 的作用范围限定在同一个协程内。影响面由此确定：一个检测器里的一次越界，后果是全部客户断流。
+
+## 解决办法
+
+### 大小写折叠只处理 A-Z
+
+```go
+// foldASCII 只把 ASCII 大写字母转成小写，其余字节原样保留。
+func foldASCII(s string) string {
+	i := 0
+	for i < len(s) && (s[i] < 'A' || s[i] > 'Z') {
+		i++
+	}
+	if i == len(s) {
+		return s // 没有大写字母，不分配新串
+	}
+	b := []byte(s)
+	for ; i < len(b); i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			b[i] += 'a' - 'A'
+		}
+	}
+	return string(b)
+}
+```
+
+只改 26 个字节值、其余字节原样复制，长度必然不变，副本和原文逐字节对齐。先扫一遍确认没有大写字母就原样返回，大多数文本省掉一次内存分配。
+
+代价是非英文字母的大小写变体认不出来，`Σ` 和 `σ` 不再互相匹配。这里能接受的理由是这类关键词基本是英文标识符或中文代号，中文没有大小写。
+
+业务上确实需要 Unicode 大小写不敏感匹配时有两条路：把定位交给正则，用 `(?i)` 在原文上直接匹配，偏移天然来自原文；或者在转换时记下每个输出字节对应的原文位置，用这张表把偏移映射回去。
+
+适用范围比大小写更广。全角转半角、去掉变音符号、Unicode 规范化都可能改变长度，「在副本上算偏移、到原文上取字节」这个写法在它们身上同样会坏。
+
+### 检测器崩溃就地兜住
+
+```go
+func (e *Engine) runGuarded(ctx context.Context, capID string, det Detector, units []Unit) (r Result, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			detail := fmt.Sprintf("%T", p)
+			if re, ok := p.(runtime.Error); ok {
+				detail = re.Error()
+			}
+			r, err = Result{}, fmt.Errorf("%w: %s", errDetectorPanic, detail)
+		}
+	}()
+	return e.runOne(ctx, capID, det, units)
+}
+```
+
+recover 写在协程里实际执行的那个函数上。崩溃之后按「这个检测器这次失败」记账：其余检测器照常出结果，请求照常放行，失败进结果里的失败清单，监控和告警读这份清单。
+
+错误说明只保留运行时错误自带的文字（越界的下标这类），其他类型的 panic 值只记类型名。panic 值可能来自正在处理的用户文本，而这条错误要写进系统日志。
+
+## 验证结果
+
+关键词固定为 `acme`，同一组文本分别用修复前后的匹配跑一遍：
+
+| 请求文本                | 期望   | 修复前                                       | 修复后 |
+| ----------------------- | ------ | -------------------------------------------- | ------ |
+| `ȺȺȺȺȺȺ acme`           | 命中   | 崩溃：index out of range [18] with length 17 | 命中   |
+| `ȺȺȺ xacme`             | 不命中 | 不命中                                       | 不命中 |
+| 4 个 U+212A 加 ` xacme` | 不命中 | 命中（误报）                                 | 不命中 |
+| 4 个 U+212A 加 ` acme`  | 命中   | 命中                                         | 命中   |
+| `call acme now`         | 命中   | 命中                                         | 命中   |
+| `call xacme now`        | 不命中 | 不命中                                       | 不命中 |
+| `NewAcmeGateway`        | 命中   | 命中                                         | 命中   |
+
+前四行进了单元测试，钉死变长和变短两个方向；后三行确认常规匹配和驼峰边界没有被这次改动碰坏。把匹配函数换回 `strings.ToLower`，第一行立刻复现越界。
+
+引擎兜底另有两条测试：构造一个必定越界的检测器，断言引擎收住崩溃、其余检测器照常出结果、这次失败记成崩溃；再用一个携带文本的 panic 值，断言这段文本不会出现在错误说明里。
+
+验证只覆盖了 ASCII 大小写折叠这一种转换。代码里其他「先转换文本再用偏移回查原文」的地方要单独排查；非英文字母的大小写匹配能力确实丢掉了，依赖这一条的需求需要另行设计。
+
+## 参考资料
+
+- [Go `strings.ToLower`](https://pkg.go.dev/strings#ToLower)
+- [Unicode FAQ：Character Properties, Case Mappings & Names](https://www.unicode.org/faq/casemap_charprop.html)
+- [Go 语言规范：Handling panics](https://go.dev/ref/spec#Handling_panics)
