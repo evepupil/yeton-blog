@@ -1,5 +1,5 @@
 {
-  "activeDays": 222,
+  "activeDays": 223,
   "books": [
     {
       "author": "理查德·费曼 拉尔夫·莱顿",
@@ -20,7 +20,7 @@
       "title": "《国富论》（经济学博导译）钟教授带你将西方经典读成中国人的经济思维课"
     }
   ],
-  "finishedBooks": 12,
-  "totalMinutes": 3751,
-  "updatedAt": "2026-09-21T20:29:05.226Z"
+  "finishedBooks": 13,
+  "totalMinutes": 3790,
+  "updatedAt": "2026-09-22T19:47:46.299Z"
 }
