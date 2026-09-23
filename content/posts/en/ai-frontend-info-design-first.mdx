@@ -1,0 +1,168 @@
+---
+title: "AI-Built Pages Look Templated and Hollow: Do Information Design First, Then Spec the Look in Numbers"
+description: "One prompt shipped a landing page, yet app pages fell into AI default looks or filled every slot with noise. Fix: information design first, then a numeric visual spec for cheap workers, with contrast and overflow gated by scripts."
+published: "2026-09-23"
+locale: "en"
+tags:
+  - "postmortem"
+  - "AI"
+  - "Frontend"
+draft: false
+pinned: false
+translationKey: "ai-frontend-info-design-first"
+---
+
+Between September 21 and 23 I ran five frontend experiments with Claude Code as the orchestrator and cheap models as workers. A single prompt produced a model-launch landing page I was happy with, but the same setup fell apart on application pages: a task board with a purple button and three identical cards, a parameter list that looked like an admin console, a usage page with text crammed into every corner that nobody asked for. The pitfalls sit on two layers. The style layer slides into a handful of default looks; the information layer turns the requirements list into a page list and fills every slot. The current approach is an information-design tree of yes/no decisions first, then a visual spec written in numbers for the workers, with contrast and overflow gated by scripts.
+
+## What Happened
+
+The orchestrator was Opus 5 or Fable 5.1 inside Claude Code. Workers were `deepseek-v4.1-flash` sessions started cold through opencode or pi, following dispatch rules kept in home-grown skills. The orchestrator only writes specs, dispatches, and reviews; it avoids writing code itself. "Worker" below means one of these cheap-model sessions that only sees its task sheet, never the main conversation.
+
+| Experiment                                   | Setup                                                                                                                                                   | Outcome                                                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Fictional model-launch landing page, Sep 21  | One prompt: build a Gemini 4 Pro landing page in the Aceternity UI style, make it flashy. Orchestrator writes the spec, 9 workers implement in parallel | Shipped in 82 minutes; I accepted it                                                                                                  |
+| Team task board A/B, Sep 22                  | Same model, same requirements, only the task sheet changed                                                                                              | A: purple primary button and three identical stat cards; B kept the tokens, but my verdict was "from unwatchable to barely watchable" |
+| Fishing reel parameter list, night of Sep 22 | Requirements doc only; a pi worker wrote a single HTML page in three steps                                                                              | Clean token discipline, yet the page looked like a console with no top bar at all                                                     |
+| API billing usage page, Sep 22 to 23         | Four versions of one page, A through D                                                                                                                  | A landed in a default look, B was uglier than A, D scored 7/10 after every slot was stripped                                          |
+| Information-design skill trial, Sep 23       | Site layer on the reel library, then all three layers on a fictional event sign-up tool                                                                 | The site layer put "Compare" and "About the data" in the top nav, exactly what AI does unprompted; I wiped the skill that day         |
+
+![Task board A: purple primary button, three identical stat cards, shadowed white cards](/images/posts/ai-frontend-info-design-first/board-a-baseline.png)
+
+![Task board B: sidebar plus table, tokens respected, still only barely acceptable](/images/posts/ai-frontend-info-design-first/board-b-constrained.png)
+
+![Reel parameter list: every element is fine, assembled it looks like an admin console](/images/posts/ai-frontend-info-design-first/reels-list-no-topbar.png)
+
+## Investigation and Causes
+
+### Style layer: default looks, and the backlash from dodging them mechanically
+
+Claude Code's official frontend-design skill states that AI-generated interfaces cluster around three looks: warm cream background with a high-contrast serif headline and a terracotta accent; near-black background with a single acid-green or vermilion accent; broadsheet layout with hairline rules and zero border radius. Usage page A, done on instinct, landed squarely in the second: near-black, acid green, Plus Jakarta Sans. The project's dependencies already included that font.
+
+Version B followed the method and dug for visual symbols in the "bookkeeping" subject: greenbar ledger stripes and solid black bars. My verdict was that B looked far worse than A. The defaults are defaults because countless products polished them. Swap the palette only; keep the dark shell, the cards, and the grid.
+
+Following the method also did not make the tokens compliant. A had 2 body-text pairs below 4.5:1 contrast, B had 1. Only a script can check this.
+
+![Usage page A: near-black with acid green, one of the AI default looks](/images/posts/ai-frontend-info-design-first/usage-a-default.png)
+
+![Usage page B: ledger stripes dug up to escape the default look, uglier than A](/images/posts/ai-frontend-info-design-first/usage-b-ledger.png)
+
+### Information layer: slot filling, and treating the requirements table as an answer key
+
+Version C avoided all three visual defaults and then filled every slot on the information layer: "Daily" in the corner of the trend card, "By cost" in the corner of the distribution card, "12,847 records" in the corner of the table with no pagination, an "Average latency" card invented to make four cards, and an "As of 14:30" line in the header. A user who wants fresh data will refresh; that line can neither refresh for them nor stop them. AI has one more reflex: a "View all" link under a list, because pagination is a stateful component and a link takes no thought.
+
+The other failure was reading the requirements as an answer key. The requirements listed 10 sub-features; the orchestrator ticked them line by line and declared four "missing". But a single-record detail is a drawer, failed requests are a filter state, per-key usage is the same table with a different filter. Different states of one object were counted as four missing sections. The page became a shape in which every box looked reasonable on its own while nothing spoke to the user.
+
+### Web-ness: every element is fine, the assembly is not a website
+
+The reel parameter page had perfect token discipline: nine color values and not one more, two border radii, zero shadows. My conclusion after looking: the UI is fine, the elements are fine, together it is strange. What is missing is the stuff only websites have, a top bar and a menu; a filter page could copy an e-commerce layout outright, and instead the AI drew something like an admin console. That rule now lives in my global config: never design from scratch, search competitors first.
+
+Chasing the idea of "let the AI copy for itself", I surveyed template sites. Inspiration galleries are all screenshots: text scraping sees no images, and headless browsers get blocked, Land-book behind a Cloudflare challenge and Godly with a plain 400. Component sites welcome scraping; the shadcn CLI ships with 382 third-party registries, and one `npx shadcn add @aceternity/spotlight-new` drops source code into the project. Two traps: sampling 40 shadcnblocks blocks found only 5 free, the rest returned 401; and component names cannot be guessed, kokonutui and animate-ui both 404ed on plausible names, so pull the site's llms.txt or registry index for exact names first.
+
+### The rules broke before dispatch
+
+The global config spells out design tokens, six component states, a contrast floor, and copy rules, and none of it reached the workers. The six-item task sheet is entirely functional, with no place for visual rules, and a pi worker only reads the AGENTS.md in its working directory, never the global config. The most contradictory line: the config says "no unit tests for pure presentation, UI problems are visible to the eye", while the unattended pipeline says the user never looks.
+
+### The first version of the information-design skill
+
+Version one had three layers, site, page, and section, each expanded downward by workers. The site layer for the reel library produced a top nav with six items, including "Compare (with count)" and "About the data". My reaction: why would anyone put Compare in the nav? This is identical to what AI produces unprompted. Compare is an action that only exists after something is selected; clicking it with nothing selected lands on an empty table. Every item on the "About the data" page had a closer home, data sources in the provenance popover, crawl time in the footer, so the page dissolves and should not exist. Both mistakes share a cause: the top layer was decided without looking at what the next layer would hold.
+
+The second trap was unreadable output. The site file ran to thousands of words of personas and reasoning, and the checkpoint report pasted twenty-odd candidates with their dissolve verdicts. My words were "how am I supposed to read all this". I wiped the skill at noon and rewrote it as a three-question tree, page, sub-area, component: is it necessary, is it odd, what should it be.
+
+The third trap came from the sessions themselves. Switching models leaves the old process running autonomously; three sibling sessions ended up fighting over the same file. The skill directory was wiped by another session mid-run, and the 5 workers started afterwards could not read the templates.
+
+Running the fictional event tool through all three layers exposed the side effects of parallel expansion. Each lane sees one candidate, so among 34 lanes there were 5 chains (A merges into B, then B is deleted), mutual hand-offs (the detail page pushes attendance rate to the stats page, the stats page pushes it back), and contradictions (one lane deletes the settings page, another keeps it). Thirty writer lanes started cold and named the same state differently. Template instructions were copied into the output as body text.
+
+### Worker mechanics
+
+- **Disconnects after about ten tool calls.** The worker model runs in thinking mode; 7 of 9 lanes died in the first wave. Logs showed the turns burned on defensive moves: grepping node_modules to confirm an icon exists, repeated ls, running the type check themselves. The API-level cause is in [the earlier reasoning_content postmortem](/en/posts/reasoning-content-must-be-passed-back).
+- **The role prompt pushes workers into loops.** Large tasks with the worker role file attached always died; tiny probes passed in seconds. Dropping the role file and putting the requirements into the task sheet fixed it. The culprit was the line "verify your changes after editing". Asking workers to paste a full self-check of every color and font size into the reply also blew up the output.
+- **Step-wise dispatch loses requirements.** Responsive behavior was in the first step's sheet and not repeated in the second; at 390px width there were 146 overflows and the site name was covered by a third of the filter panel.
+- **The channel trips per account.** On the morning of September 23, 4 lanes from this session plus 3 from another ran at once; two minutes later the channel returned `Concurrency limit exceeded for account` to everything, even a `say ok` probe, from 10:45 until 12:06. Only 8 of 36 lanes succeeded, and four retries per lane were wasted. Later measurements: 4 concurrent lanes stable, drops start at 6.
+- **The orchestrator's knowledge goes stale too.** The task sheet's list of usable icons included GitHub and Twitter, but lucide-react 1.47 has removed every brand icon. The project's only 4 type errors came from that.
+- **Compiling is not the same as looking right.** The hero lane reported done; the orchestrator read the code and found 4 defects: the grid was drawn twice, hiding the edge fade; the noise utility carries 3% opacity and was overridden by `opacity-60` to 20 times that; the badge shimmer moved relative to its own width and never entered the visible area; the "1M context" counter actually counted from 0 to 1. The build stays silent on all of these.
+- **Headless screenshots lie.** A full-page capture freezes scroll-triggered entrance animations at their initial state: the headline is blank and the three metrics sit at 0M, ≤0ms, 0.0%.
+- **Gate scripts need validating themselves.** The first emoji check used a bash regex that matched bytes and swept in every Chinese character, reporting 1328 false positives. Node's `\p{Extended_Pictographic}` fixed it.
+- **A detector that ignores the project spec inverts the result.** A 59-rule render detector passed version A with 0 findings and failed B with 2: Roboto in use, and a 12 to 20 font-size ladder with only a 1.7:1 hierarchy ratio. The second finding directly contradicts the dense tool-style spec that was deliberately set. A detector has to read the project's design spec before it can tell intent from improvisation.
+
+![Landing page full-page headless capture: entrance animations frozen, blank headline, metrics stuck at 0](/images/posts/ai-frontend-info-design-first/landing-headless-initial-state.jpg)
+
+## The Fix
+
+### Sort by subject first
+
+A model-launch page has a canonical skeleton: nav, hero, logo wall, capability grid, benchmarks, use cases, developer section, pricing, CTA, footer. The orchestrator listed those 9 sections without looking anything up, so the information design came for free. Application screens have no such free lunch; check-in pages and usage pages need information design done first.
+
+### Information design as a yes/no tree
+
+Three layers, page, sub-area, component, and three questions per node: is it necessary, meaning someone in the requirements needs it; is it odd, meaning if no other site puts it there you must have a reason; what should it be. Supporting rules:
+
+- Before fixing a node, think about what its next layer holds. A node with nothing underneath is dropped.
+- Actions follow objects: compare, save, export live on list rows and detail pages, never in the top bar, never in a floating strip. The top bar only holds "go elsewhere".
+- Every element on a display page passes the deletion test: remove it, and does anyone understand one thing less? No answer means delete. Concrete bans: "as of / updated at" timestamps; corner labels like "Daily" or "N records"; stat cards invented to fill a row; derived numbers that subtract two visible values; "View all". Lists get real pagination. The primary number sits leftmost.
+- The feature table in a requirements doc is a scope contract listing what the system must be able to do; do not translate it into what the page must display.
+- One line per tree node. The user sees the tree and at most three decisions; the reasoning stays in the docs.
+
+Keep one cold-started review session that only receives the requirements and the tree. Across three layers of the event tool it raised 39 findings, all real, none padded, including product holes like "a waitlisted attendee without a phone number never learns they got in" that the orchestrator could not see in its own output. When a person writes the outline by hand, mark each line "fixed / draft / ?" so the AI can tell a decision from a passing note; otherwise it treats the outline as scripture and silently skips whatever was left out. This last rule has not been tested yet.
+
+### Style layer: write it in numbers, name a reference
+
+The landing page looked good because four things stacked. The name "Aceternity UI" brought a whole vocabulary of named components, Spotlight, Background Beams, Bento Grid, Sticky Scroll, far more information than the word "flashy". Before any code, the orchestrator spent 96 seconds writing a 15.7 KB DESIGN.md with no words like "premium feel", only executable quantities: 1px grid at 4% white on 40px spacing; 120px glow blur; a preview card tilting from 28 degrees to flat on scroll; a footer watermark at 12vw and 3% white. Workers needed no taste, only transcription. Nine sessions that could not see each other produced one voice: the same easing curve appears in 17 files, and there are only 4 brand colors.
+
+Application screens use the same trick with the reference swapped to a sibling product: filter pages copy e-commerce, tool pages copy developer tools like Linear. Task board B's sheet added four blocks of hard constraints over A: a named reference and what it bets on; locked tokens, 11 hex values, 6 font sizes, 7 values on a 4px spacing ladder, 2 radii, 1 shadow; 9 refusals with reasons, no gradients, no emoji as icons, no shadows on cards or buttons, no centering the whole page, no more than two accent colors, no values off the ladder, no arbitrary bracket values, no developer notes as copy, no subtitle under every section; and four mandatory states with an 80-plus-character title planted in the data to prove truncation works. The worker followed the rules to the letter: exactly 6 font sizes, only 4 hex values in the file, every spacing value on the ladder.
+
+The only correct way to escape a default look is to change the palette. Usage page D kept the dark shell, cards, and grid, swapped acid green for brass `#E0A85C`, and used `#0A0D0F` with a hint of teal to avoid pure neutral black.
+
+![Usage page D: slots stripped, real pagination and reference lines added](/images/posts/ai-frontend-info-design-first/usage-d-stripped.png)
+
+### The task sheet
+
+- Feed workers everything they would otherwise look up: the list of usable icons, color class names, animation class names.
+- Take self-checking away; the orchestrator runs type checks and builds. Drop reasoning effort to minimal, write each file in one pass, report in three lines. With these three changes the 7 re-dispatched lanes finished 6.
+- Put role requirements in the task sheet instead of attaching a role file. Self-checks go into a file, and the reply reports the path.
+- When dispatching in steps, repeat the hard constraints in every step, above all responsive rules and tokens.
+- Write a file-ownership table: shared files are off limits to every worker, and each section may only import whitelisted packages. Add guardrails: no Math.random (server and client render differently), no window.innerWidth for breakpoints, timers must be cleaned up, animate only transform and opacity. None of this makes a page prettier, but it blocks the usual sources of "looks broken" in AI frontends.
+
+### Channels and parallelism
+
+- Probe before dispatching. Two consecutive probe failures mean the channel is blocked outright; switch to native subagents (Claude Code's Agent tool with Sonnet). Same role prompt, same task sheet, with "reply" changed to "write to out.txt and return one line". A native lane takes 4 to 9 minutes and 60k to 100k tokens, slower than pi, with a 100% first-try success rate.
+- Copy the templates and vocabularies workers read into a temp directory at kickoff, and point task sheets at the copies.
+- When collecting verdicts, group every "merge into X" by target: if X was also deleted it is a chain, if X merges back it is a mutual hand-off; re-decide each one.
+- Aggregate assumptions with a script that pulls every "assumption" line into a table instead of a person reading 30 outputs. Add a state glossary section to the template, and move template instructions into HTML comments.
+- List running sessions before starting, and message any sibling session to stop.
+
+### Machine gates
+
+Contrast is computed by script against the WCAG 4.5:1 floor, and failures are solved into new tokens: darkening `#6B716B` to `#616761` brought paper white to 5.39:1, pure white to 5.80:1, and the stripe to 4.56:1 at once, one line changed site-wide. Overflow and overlap only show up in a real render: version B's truncated long title ran its ellipsis into the "Owner" column, and source scanning, worker self-check, and file-mode detection all missed it while render mode reported a 717px overflow. Source scanning catches refusal-list violations like purple hues or border plus shadow on one element in milliseconds. Screenshots for the orchestrator to eyeball are an aid only.
+
+## Verification
+
+Task board A/B, same model, only the task sheet changed:
+
+| Metric                         | A: current dispatch    | B: constrained dispatch |
+| ------------------------------ | ---------------------- | ----------------------- |
+| Refusal-list violations        | 3 / 8                  | 0 / 8                   |
+| Four states covered            | missing loading, error | 4 / 4                   |
+| Purple / indigo hues           | 12                     | 0                       |
+| border plus shadow on one node | 2                      | 0                       |
+| Visible focus states           | 18                     | 36                      |
+| aria / role attributes         | 0                      | 8                       |
+
+B still had two problems: the truncation overlap was caught only by render detection, and two hand-picked tokens measured 2.5:1 and 2.9:1, under the 3:1 floor. Tokens chosen by a person are just as capable of being wrong.
+
+Usage page D dropped the timestamp, corner labels, the padded average-latency card, the "saved" derivative, and requirement text pasted into the UI; it added pagination with page numbers and a jump box plus reference lines on the trend chart. Contrast: 0 failures. I scored it 7/10 and would only need minor manual edits.
+
+The landing page went from prompt to my acceptance in 82 minutes; 22 dispatches, 13 with useful output; zero type errors, production build passing, 183 kB first load; the 4 hero defects fixed in one round of rework. Mobile was never captured; the spec's rule of no overflow at 375px was only self-checked at the code level.
+
+Event tool, three layers: 21 candidate pages kept 8, 63 candidate sections kept 30; review findings 15 at the site layer, 15 at the page layer, 9 at the section layer, all adopted; 48 pending requirements, 5 of them real gaps in the requirements doc. 82 worker lanes, 46 succeeded on pi and 36 on Sonnet; started 10:33, finalized 13:55, with 80 minutes lost to the channel block.
+
+Re-running the reel library under the rewritten skill shrank the site file from thousands of words to a 1.9 KB tree plus three decisions for me. My first reaction to the list was still "the AI flavor is leaking off the screen", but the problems now surface before any code exists.
+
+Limits: "good-looking" has no objective metric, and both the 7/10 and the acceptance are my judgment alone. No real user took part in any round. The two confirmation points for the event tool were taken by the orchestrator on my behalf.
+
+## References
+
+- [Claude Code official frontend-design skill](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/frontend-design/skills/frontend-design)
+- [shadcn Registry Directory](https://ui.shadcn.com/docs/directory)
+- [WCAG 2.2 Understanding SC 1.4.3 Contrast (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
+- [InfoQ: Lucide 1.0 removes brand icons](https://www.infoq.com/news/2026/06/lucide-v1-icons/)
+- Related post: [DeepSeek Thinking Mode Returns 400 Mid Tool Loop](/en/posts/reasoning-content-must-be-passed-back)
