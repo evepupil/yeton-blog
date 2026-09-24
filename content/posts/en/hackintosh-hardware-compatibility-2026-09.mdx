@@ -1,0 +1,197 @@
+---
+title: "Hackintosh Hardware Compatibility as of September 2026: What Still Works"
+description: "macOS 27 is Apple silicon only, so macOS 26 Tahoe is the last stop for PCs. A September 2026 checklist of CPUs, boards, GPUs, network cards, SSDs, audio and prebuilt machines that work, need tweaks, or should be avoided."
+published: "2026-09-25"
+locale: "en"
+tags:
+  - "Hackintosh"
+  - "macOS"
+draft: false
+pinned: false
+translationKey: "hackintosh-hardware-compatibility-2026-09"
+---
+
+Apple released macOS 27 (Golden Gate) on September 14, 2026, and it runs only on Apple silicon Macs, so the newest macOS a regular Intel or AMD PC can run is macOS 26 Tahoe, currently at 26.7. Tahoe removes the onboard audio driver and leaves Broadcom Wi-Fi with only an experimental driver, so macOS 15 Sequoia is the safer install. The least troublesome parts are a 10th-gen Intel CPU, an AMD RX 6600 and a Broadcom BCM94360CD Wi-Fi card; the lists below reflect the official docs, driver notes and public configs available on September 24, 2026.
+
+## macOS 26 Tahoe Is the Ceiling
+
+On Apple's security releases page, every Mac listed for macOS Golden Gate 27 has Apple silicon. In June 2026 the OpenCore Legacy Patcher (OCLP) team, which patches newer macOS onto unsupported Macs, explained that the first macOS 27 beta had already removed most kernel extensions for Intel hardware, that what remains is not enough to boot the release, and that there are no plans to attempt it.
+
+Tahoe officially supports four Intel Macs: MacBook Pro (16-inch, 2019), MacBook Pro (13-inch, 2020, Four Thunderbolt 3 ports), iMac (27-inch, 2020) and Mac Pro (2019). A Hackintosh boots through the OpenCore bootloader and presents itself as a specific Mac model, an identity called the SMBIOS. Dortania, which maintains the OpenCore Install Guide, lists only these four identities in its Tahoe notes; desktops typically use iMac20,1 (10th-gen Intel with the iGPU) or MacPro7,1 (an AMD card drives every display).
+
+Dortania's Tahoe notes list four things that need handling beyond Sequoia:
+
+- Apple removed the AppleHDA audio driver, so onboard headphone jacks and speaker outputs go silent.
+- Broadcom Wi-Fi works only through the experimental AppleBCMWLANCompanion driver.
+- Intel Bluetooth needs the `-ibtcompatbeta` boot argument.
+- WhateverGreen, the usual AMD GPU helper, has connector-patching problems; for now the only fix is to remove it.
+
+Official OCLP support still stops at Sequoia. TidBITS estimated that, if Apple keeps its current policy, Tahoe gets two more years of security updates and Intel Macs lose security viability in 2028; by the same policy, Sequoia's updates end about a year earlier. Install Sequoia if you want onboard audio and Broadcom Wi-Fi without fuss; install Tahoe if the extra year of updates is worth working around the headphone jack and running experimental Wi-Fi.
+
+## CPUs
+
+| CPU                                                              | Verdict         | Conditions and limits                                                                                                                           |
+| ---------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Intel 10th gen (Comet Lake, e.g. i5-10400, i7-10700K, i9-10900K) | Easiest         | Apple shipped a 2020 iMac on the same generation and Tahoe still supports it; the UHD 630 iGPU works                                            |
+| Intel 8th/9th gen (Coffee Lake, e.g. i7-8700K, i9-9900K)         | Works           | Public configs run Tahoe; the UHD 630 iGPU works                                                                                                |
+| Intel 12th/13th/14th gen                                         | With tweaks     | Spoof the CPU as 10th gen; handle P/E cores with CpuTopologyRebuild or disable E-cores in the BIOS; no iGPU driver, so an AMD card is mandatory |
+| Intel Core Ultra 200S (Arrow Lake, e.g. 265K)                    | With tweaks     | Same approach as 12th–14th gen; CpuTopologyRebuild marks this generation as experimental                                                        |
+| Intel 11th gen (Rocket Lake)                                     | Not recommended | Needs a 10th-gen CPUID spoof, the UHD 730/750 iGPU has no driver, and no public config runs Tahoe                                               |
+| Intel 4th gen (Haswell)                                          | With tweaks     | No iGPU driver since macOS 13, so a discrete card is needed; one iGPU-only machine boots Tahoe 26.3.2 without graphics acceleration             |
+| Intel 6th/7th gen                                                | Unknown         | No public config found running Tahoe                                                                                                            |
+| AMD Ryzen 1000–7000, Threadripper                                | With tweaks     | Relies on the AMD_Vanilla kernel patches, which list Tahoe as supported; Ryzen 7000 also needs an IOPCIFamily patch                             |
+| AMD Ryzen 9000                                                   | Few examples    | The patch notes don't mention this generation; one Ryzen 5 9600X build runs Sequoia                                                             |
+
+Among the AMD limitations in Dortania's Anti-Hackintosh Buyers Guide, these affect daily use:
+
+- Sleep is hard to set up and impossible on some systems; there is no CPU power management.
+- Virtual machines built on Apple's hypervisor framework (such as Parallels) and Docker don't work.
+- Some Adobe apps misbehave and Lightroom has no fix; audio apps such as Cubase and REAPER crash on launch.
+- Onboard microphone input doesn't work, and some boards have USB ports that stay dead.
+
+## Motherboards
+
+On Intel boards, first check whether the BIOS can disable CFG Lock (write protection on a CPU power-management register). Dortania states that a machine will not boot with CFG Lock enabled; if the BIOS has no such option, enable `AppleXcpmCfgLock` in the OpenCore config to work around it. heipg.cn, a Chinese Hackintosh community site, recommends boards whose BIOS exposes the option and notes many successful installs on Gigabyte Vision D/G and MSI MORTAR boards.
+
+On enthusiast and server platforms such as X79, X99, X299, C612, C621 and C422, some boards have no working NVRAM (the firmware storage that keeps boot settings); ASUS X299 boards are the exception.
+
+The table lists combinations that public config repositories report as working. They only show that someone got this hardware running; a different BIOS version or onboard NIC can change the outcome.
+
+| Motherboard                                                                                                                  | CPU                           | Working macOS                            |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------- |
+| [ASUS Prime Z390-A](https://github.com/petrouv/Hackintosh-ASUS-PRIME-Z390-A-i3-8350K-i9-9900K-UHD630)                        | i3-8350K, i9-9900K, iGPU only | Tahoe 26.5.1 to 26.7                     |
+| [Gigabyte Z390 Aorus Master](https://github.com/Hanam824/Gigabyte-Z390-Aorus-Master-Hackintosh)                              | i9-9900K                      | Tahoe 26.6.2                             |
+| [ASUS ROG Strix B460-I Gaming](https://github.com/megaFatXR/macos-tahoe-hackintosh-opencore)                                 | i9-10900K                     | Tahoe 26.0.1                             |
+| [Gigabyte Z690 UD AX DDR5](https://github.com/Thamizhan/macOS-Tahoe-26.5-EFI-Gigabyte-Z690-UD-AX-i7-12700-RX-6600)           | i7-12700                      | Tahoe 26                                 |
+| [Gigabyte Z790 Aorus Elite AX](https://github.com/domiey/Gigabyte-Z790-Aorus-EliteAX-i9-14900K-RX6800XT-OpenCore-Hackintosh) | i9-14900K                     | Tahoe 26.6.2                             |
+| [Gigabyte Z890M Aorus Elite WIFI7 ICE](https://github.com/7HE-W0R1D/Hackintosh-Z890M)                                        | Core Ultra 265K               | Sequoia 15.7, Tahoe 26.6.2               |
+| [Gigabyte X570 Aorus Master](https://github.com/bobanilic/X570-AORUS-MASTER-Ryzen-9-3900XT-macOS-Tahoe)                      | Ryzen 9 3900XT                | Tahoe 26.6.1                             |
+| [ASUS ROG Strix B550-F Gaming](https://github.com/Emanuele-Chiummo/hackintosh-b550f-ryzen7-rx6900xt)                         | Ryzen 7 3800X                 | Tahoe 26                                 |
+| [ASRock X670E Taichi](https://github.com/suraj-lab/asrock-x670e-taichi-hackintosh-efi)                                       | Ryzen 9 7950X                 | Tahoe; restarts by itself after shutdown |
+| [MSI B650M Gaming Plus WiFi](https://github.com/Sanqing678/MSI-B650M-GAMING-PLUS-WIFI-Hackintosh)                            | Ryzen 7 7800X3D               | Tahoe 26.5.2                             |
+| [MSI B850M-G](https://github.com/icliberen/hackintosh-opencore-sequoia-tahoe-msi_b850m_g-ryzen5_9600x-rx570-rx5500xt)        | Ryzen 5 9600X                 | Sequoia                                  |
+
+## Graphics Cards
+
+Discrete cards have to be AMD. Dortania's GPU Buyers Guide is only verified up to Sequoia 15. For Tahoe, look at the Mac Pro (2019), which Tahoe still supports: its options include the Radeon Pro 580X, W5500X, W5700X, Vega II, W6600X, W6800X and W6900X, covering the RX 500, RX 5000, Radeon VII and RX 6600/6800/6900 architectures. Apple has to ship drivers for that machine, so these architectures still work on Tahoe.
+
+| GPU                                         | Verdict     | Notes                                                                                                                                                              |
+| ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| RX 6600, RX 6600 XT                         | Best pick   | Native, Metal 3, used in public Tahoe configs                                                                                                                      |
+| RX 6800, RX 6800 XT, RX 6900 XT             | Works       | Native, Metal 3; one Tahoe config notes the RX 6900 XT runs without WhateverGreen                                                                                  |
+| RX 5500 XT, RX 5600 XT, RX 5700, RX 5700 XT | Works       | Native, Metal 3                                                                                                                                                    |
+| RX Vega 56/64, Radeon VII                   | Works       | Native, Metal 3                                                                                                                                                    |
+| RX 460 to RX 590                            | Works       | Native and the cheapest; no Metal 3 (Apple's current graphics API)                                                                                                 |
+| RX 6650 XT, RX 6950 XT                      | With tweaks | Spoof the device ID as RX 6600 XT or RX 6900 XT                                                                                                                    |
+| RX 580 2048SP                               | With tweaks | A cut-down variant common in China; flash an RX 570 VBIOS to run natively                                                                                          |
+| RX 6700, RX 6700 XT, RX 6750 XT             | With tweaks | No Apple driver; needs the third-party NootRX kext, which Dortania calls a work in progress that is not fully functional                                           |
+| RX 6400, RX 6500 XT                         | No          | NootRX doesn't support this generation yet                                                                                                                         |
+| RX 7000 and RX 9000 series                  | No          | No driver; Dortania considers RX 7000 support unlikely ever                                                                                                        |
+| All NVIDIA                                  | No          | Kepler (e.g. GTX 660–780, some GT 710/730) tops out at Big Sur 11; GTX 745/750, GTX 900 and GTX 10 series top out at High Sierra 10.13; newer cards have no driver |
+| Intel Arc                                   | No          | No driver                                                                                                                                                          |
+
+Most RX 5000 and RX 6000 cards need the `agdpmod=pikera` boot argument to get a display out.
+
+Intel iGPU support ends at 10th gen (UHD 630, UHD 620 and similar) and the Iris Plus in Ice Lake laptops; 11th-gen and later iGPUs, Iris Xe and Core Ultra graphics have no driver. One build forced Tahoe onto Iris Xe and got no graphics acceleration, with the CPU drawing every window. UHD 630 runs Metal 3 on Tahoe, but the HP ProDesk 400 G7 author saw the UI freeze and the machine black-screen and reboot under long heavy loads, and finally added an AMD card.
+
+The Vega iGPUs in Ryzen 1000 to 5000 and 7x30 APUs rely on the third-party NootedRed kext, which states compatibility up to macOS 26; a ThinkPad T495 Tahoe config uses it for graphics acceleration.
+
+For DRM-protected video such as Apple TV+ and Netflix, WhateverGreen's documentation says that since macOS 11 only Mac models without an iGPU, paired with a compatible AMD card, get full playback; iGPU-only machines can't play it.
+
+## Wi-Fi and Bluetooth
+
+| Card                                                                               | Verdict                  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Broadcom BCM94360CD, BCM943602CDP and similar (the Fenvi T919 uses the BCM94360CD) | Best pick, needs patches | The only option for AirDrop, Sidecar, Apple Watch unlock and other Continuity features. Apple removed its Wi-Fi driver in macOS 14: on Sequoia, OCLP's wireless patch restores it but requires relaxing SIP (System Integrity Protection, which guards system files); on Tahoe, the experimental AppleBCMWLANCompanion needs VT-d (Intel's device virtualization feature), so AMD systems can't use it. Bluetooth is unaffected |
+| Intel AX200, AX201, AX210 and similar                                              | With tweaks              | Third-party itlwm (connect through the HeliPort app) or AirportItlwm (uses the native Wi-Fi menu); with AirportItlwm, only Handoff and Universal Clipboard work. On Tahoe, users got Wi-Fi and Bluetooth working on the AX210 and AX201 with OCLP patches; AirDrop and Personal Hotspot still don't work                                                                                                                        |
+| Intel BE200                                                                        | No                       | Wi-Fi is still incomplete on Tahoe                                                                                                                                                                                                                                                                                                                                                                                              |
+| Realtek Wi-Fi                                                                      | No                       | No driver                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| MediaTek Wi-Fi                                                                     | No                       | No driver; the Minisforum UM560XT build swapped its stock RZ608 for a Broadcom card                                                                                                                                                                                                                                                                                                                                             |
+| USB Wi-Fi adapters                                                                 | Avoid                    | Unreliable; Handoff and Apple Watch unlock may break                                                                                                                                                                                                                                                                                                                                                                            |
+
+## Ethernet
+
+| Controller                                 | Verdict     | Driver and notes                                                                |
+| ------------------------------------------ | ----------- | ------------------------------------------------------------------------------- |
+| Intel I219-V, I219-LM                      | Works       | IntelMausi, optimized for macOS 10.15 through 26.0                              |
+| Realtek RTL8111 (1 GbE)                    | Works       | RealtekRTL8111, tested up to macOS 26.1                                         |
+| Realtek RTL8125 (2.5 GbE), RTL8126 (5 GbE) | Works       | RTL812xLucy, tested on Tahoe; LucyRTL8125Ethernet also covers the RTL8125       |
+| Aquantia AQC107 (10 GbE)                   | Works       | Native; the same chip ships in the iMac Pro, Mac mini (2018) and Mac Pro (2019) |
+| Intel I225-V (2.5 GbE)                     | With tweaks | Spoof it as the officially supported I225-LM                                    |
+| Intel I226-V (2.5 GbE)                     | With tweaks | Third-party AppleIGC; the author only tested macOS 12.6.1                       |
+| Intel I211                                 | With tweaks | Use the SmallTree-I211-AT-patch driver                                          |
+| Realtek L8200A (some ASUS boards)          | No          | No driver                                                                       |
+
+## SSDs
+
+Dortania recommends drives with Western Digital's own controllers, such as the WD SN750, or Phison-based drives such as the Sabrent Rocket; the Samsung 970 EVO Plus needs a firmware update first. Avoid these:
+
+- Samsung PM981 and PM991: common as laptop OEM drives and prone to kernel panics. The ThinkPad T490 config says the stock PM981a must be replaced as well.
+- Micron 2200S: users report it won't boot.
+- SK Hynix PC711: its controller isn't supported at all.
+- Intel 600p: known issues; the 660p is fine.
+
+Samsung drives in general tend to stutter and have TRIM problems. Add the NVMeFix kext for any NVMe drive; it supports up to macOS 26, though some fixes, such as the timeout panic fix, may not apply on newer versions.
+
+## Audio
+
+Up to Sequoia, onboard Realtek ALC codecs work through AppleALC in most cases. Tahoe dropped AppleHDA starting with developer preview 2, which leaves AppleALC with nothing to drive, so headphone jacks and speaker outputs go silent; HDMI and DisplayPort audio and USB audio devices are unaffected, and the Lenovo M70q Tahoe config states that only HDMI audio works.
+
+To use the headphone jack on Tahoe:
+
+- Buy a class-compliant USB audio interface or DAC; this is the simplest option.
+- Switch to the VoodooHDA driver, which may sound worse.
+- Relax SIP and put the old AppleHDA back onto the system volume.
+
+## Laptops and Mini PCs
+
+With prebuilt machines you can't choose the Wi-Fi card, SSD or fingerprint reader, and those parts decide how far the install gets. Each machine below has a public config stating the version it reaches:
+
+| Machine                                                                                                 | Highest macOS  | Main limits                                                |
+| ------------------------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------- |
+| [Lenovo ThinkCentre M70q](https://github.com/marcoxmediran/thinkcentre-m70q-opencore) (i5-10400T)       | Tahoe 26.1     | HDMI is the only working audio                             |
+| [HP ProDesk 400 G7](https://github.com/d3xc0/HP-ProDesk-400-G7-Hackintosh)                              | Tahoe 26.6.2   | iGPU black-screens and reboots under long heavy loads      |
+| [Intel NUC8i7HN](https://github.com/Baio1977/Intel-NUC8i7HN)                                            | Tahoe          | Needs a script to restore audio on Tahoe                   |
+| [HP ProDesk 400 G1](https://github.com/HJebbour/HP-ProDesk-400-G1-Hackintosh-every-macOS) (4th gen)     | Tahoe 26.3.2   | Boots without graphics acceleration                        |
+| [Lenovo ThinkCentre M720q](https://github.com/ecklf/OpenCore-Lenovo-M720q)                              | Sequoia 15     | No AirDrop with the Intel Wi-Fi card                       |
+| [Dell OptiPlex 7050 Micro](https://github.com/linkev/Dell-Optiplex-7050-Micro-Hackintosh)               | Sequoia 15     | Display stays black after waking from sleep                |
+| [ThinkPad T490](https://github.com/5T33Z0/Thinkpad-T490-Hackintosh-OpenCore)                            | Tahoe 26.5     | Stock Samsung PM981a must go; no fingerprint reader        |
+| [HP EliteBook 840 G6](https://github.com/pgciq/HP-EliteBook-840-G6-Hackintosh-Tahoe26.1)                | Tahoe 26.6.2   | Camera doesn't work                                        |
+| [Dell Latitude 5410](https://github.com/chiragshetty-code/dell-latitude-5410-hackintosh-macos-tahoe-26) | Tahoe 26       | HDMI untested; iMessage still has issues                   |
+| [ThinkPad T480](https://github.com/valnoxy/t480-oc)                                                     | Sequoia 15     | No fingerprint reader, Thunderbolt 3 or Apple Watch unlock |
+| [ThinkPad T495](https://github.com/Wardcy9/T495-Hackintosh) (Ryzen 7 3700U)                             | Tahoe 26       | Bluetooth doesn't work                                     |
+| [Beelink SER5 Max](https://github.com/cgartlab/Beelink-SER5-Max-Hackintosh) (Ryzen 7 5800H)             | Ventura 13.7.8 | Intel AX200 card, so no AirDrop or Sidecar                 |
+| [Minisforum UM560XT](https://github.com/daliansky/minisforum-UM560XT-Hackintosh) (Ryzen 5 5600H)        | Sonoma 14      | Stock MediaTek card must be swapped for a BCM94360Z3       |
+
+## Suggested Builds
+
+- **Least hassle**: a 10th-gen Intel CPU (i5-10400 or i7-10700), a Z490 or B460 board whose BIOS can disable CFG Lock, an AMD RX 6600, a Broadcom BCM94360CD Wi-Fi card and a WD SSD, running Sequoia.
+- **Newer platform**: 12th–14th-gen Intel on a Z690 or Z790 board with an RX 6600 or RX 6800-series card; accept the CPU spoof, P/E-core handling and an unusable iGPU.
+- **AMD**: Ryzen 3000 or 5000 on a B550 or X570 board, once you have accepted the sleep, virtualization and pro-app issues.
+
+Two features stay out of reach whatever you buy: iPhone Mirroring requires Apple's T2 security chip, and fingerprint readers have no driver. PCs will get no macOS release after Tahoe, so before buying new parts for a Hackintosh, count on security updates ending around 2028.
+
+## References
+
+- [Apple: Apple security releases](https://support.apple.com/en-us/100100)
+- [Apple: macOS Tahoe 26 is compatible with these computers](https://support.apple.com/en-us/122867)
+- [Apple: Mac Pro (2019) technical specifications](https://support.apple.com/kb/SP797)
+- [Apple: Support for Metal on Apple devices](https://support.apple.com/en-us/102894)
+- [TidBITS: The Real System Requirements for macOS 26](https://tidbits.com/2025/06/12/the-real-system-requirements-for-%EF%A3%BFos-26/)
+- [OCLP issue #1183: macOS Golden Gate 27 and the Future of OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher/issues/1183)
+- [OCLP issue #1076: legacy Broadcom Wi-Fi removed in Sonoma](https://github.com/dortania/OpenCore-Legacy-Patcher/issues/1076)
+- [OCLP 2.5.0 release notes](https://github.com/dortania/OpenCore-Legacy-Patcher/releases/tag/2.5.0)
+- [Dortania: macOS 26 Tahoe](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)
+- [Dortania: Hardware limitations](https://dortania.github.io/OpenCore-Install-Guide/macos-limits.html)
+- [Dortania: Comet Lake config (CFG Lock)](https://dortania.github.io/OpenCore-Install-Guide/config.plist/comet-lake.html)
+- [Dortania: GPU Buyers Guide](https://dortania.github.io/GPU-Buyers-Guide/)
+- [Dortania: Anti-Hackintosh Buyers Guide](https://dortania.github.io/Anti-Hackintosh-Buyers-Guide/)
+- [WhateverGreen: DRM compatibility chart](https://github.com/acidanthera/WhateverGreen/blob/master/Manual/FAQ.Chart.md)
+- [AppleALC](https://github.com/acidanthera/AppleALC), [NVMeFix](https://github.com/acidanthera/NVMeFix)
+- [AMD_Vanilla](https://github.com/AMD-OSX/AMD_Vanilla), [CpuTopologyRebuild](https://github.com/b00t0x/CpuTopologyRebuild)
+- [NootRX](https://chefkiss.dev/applehax/nootrx/), [NootedRed](https://chefkiss.dev/applehax/nootedred/)
+- [itlwm FAQ](https://openintelwireless.github.io/itlwm/FAQ.html), [itlwm issue #1062: Intel Wi-Fi on Tahoe](https://github.com/OpenIntelWireless/itlwm/issues/1062)
+- [IntelMausi](https://github.com/Mieze/IntelMausiEthernet), [RealtekRTL8111](https://github.com/Mieze/RTL8111_driver_for_OS_X), [LucyRTL8125Ethernet](https://github.com/Mieze/LucyRTL8125Ethernet), [RTL812xLucy](https://github.com/Mieze/RTL812xLucy), [AppleIGC](https://github.com/SongXiaoXi/AppleIGC)
+- [Fenvi T919 specifications](https://pcbuilder.net/component-details/wireless-network-adapter/fenvi-fv-t919-bcm94360cd/)
+- [heipg.cn: Hackintosh hardware recommendations (Chinese)](https://heipg.cn/tutorial/diy-hackintosh-2020.html)
+- [heipg.cn: Flashing an RX 570 VBIOS onto the RX 580 2048SP (Chinese)](https://heipg.cn/tutorial/polaris-flash-vbios.html)

@@ -1,0 +1,197 @@
+---
+title: "截至 2026 年 9 月，黑苹果还能用哪些硬件"
+description: "macOS 27 只支持苹果芯片，普通电脑最高只能装 macOS 26 Tahoe。按 2026 年 9 月的官方文档、驱动说明和公开配置，整理 CPU、主板、显卡、网卡、固态、声卡和整机哪些能用、哪些有条件、哪些别买。"
+published: "2026-09-25"
+locale: "zh-CN"
+tags:
+  - "黑苹果"
+  - "macOS"
+draft: false
+pinned: false
+translationKey: "hackintosh-hardware-compatibility-2026-09"
+---
+
+苹果 2026 年 9 月 14 日发布的 macOS 27（Golden Gate）只支持苹果芯片的 Mac，普通 Intel、AMD 电脑最高只能装 macOS 26 Tahoe，当前最新是 26.7。Tahoe 删掉了板载声卡驱动，博通无线网卡也只剩实验性驱动，求稳就装 macOS 15 Sequoia。配件最省心的组合是 Intel 10 代 CPU、AMD RX 6600 显卡和博通 BCM94360CD 无线网卡；清单按 2026 年 9 月 24 日能查到的官方文档、驱动说明和公开配置整理。
+
+## 最高能装到 macOS 26 Tahoe
+
+苹果安全更新页面上，macOS Golden Gate 27 的适用机型全是苹果芯片 Mac。给老款 Mac 打补丁的 OpenCore Legacy Patcher（下称 OCLP）团队在 2026 年 6 月说明，macOS 27 第一个测试版就删掉了绝大部分 Intel 机型的内核驱动，剩下的部分不够让系统跑起来，团队目前没有适配计划。
+
+Tahoe 官方支持的 Intel Mac 只剩四款：MacBook Pro（16 英寸，2019）、MacBook Pro（13 英寸，2020，四个雷雳 3 端口）、iMac（27 英寸，2020）和 Mac Pro（2019）。黑苹果用 OpenCore 引导程序启动，并在引导配置里把电脑伪装成某一款 Mac，这个身份叫 SMBIOS。维护 OpenCore 安装指南的 Dortania 在 Tahoe 安装说明里只列了这四款对应的身份，台式机常用 iMac20,1（10 代 Intel 用核显）和 MacPro7,1（全靠 AMD 独显出图）。
+
+Tahoe 比 Sequoia 多出四处要处理的地方，Dortania 的 Tahoe 安装说明都写了：
+
+- 苹果删掉了声卡驱动 AppleHDA，板载声卡的耳机孔和音箱口没声音。
+- 博通无线网卡的 Wi-Fi 只能靠实验性驱动 AppleBCMWLANCompanion。
+- Intel 蓝牙要加启动参数 `-ibtcompatbeta`。
+- AMD 显卡常用的 WhateverGreen 驱动接口补丁有问题，目前只能删掉它。
+
+官方 OCLP 目前只支持到 Sequoia。TidBITS 按苹果现行的更新惯例推算，Tahoe 还会再收两年安全更新，Intel Mac 在 2028 年失去安全保障；按同样的惯例，Sequoia 的安全更新会早一年左右结束。要板载声卡和博通网卡省心就装 Sequoia；想多拿一年安全更新，就接受耳机孔另想办法、Wi-Fi 用实验性驱动，装 Tahoe。
+
+## CPU
+
+| CPU                                                          | 结论   | 条件和限制                                                                                                       |
+| ------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------- |
+| Intel 10 代（Comet Lake，如 i5-10400、i7-10700K、i9-10900K） | 最省心 | 苹果用同代 CPU 出过 iMac（2020），Tahoe 仍支持这款；UHD 630 核显能驱动                                           |
+| Intel 8/9 代（Coffee Lake，如 i7-8700K、i9-9900K）           | 能用   | 有跑通 Tahoe 的公开配置，UHD 630 核显能驱动                                                                      |
+| Intel 12/13/14 代                                            | 有条件 | 要把 CPU 伪装成 10 代；大小核用 CpuTopologyRebuild 驱动处理，或在 BIOS 里关掉小核；核显没有驱动，必须配 AMD 独显 |
+| Intel 酷睿 Ultra 200S（Arrow Lake，如 265K）                 | 有条件 | 做法同 12–14 代，CpuTopologyRebuild 对这一代标为实验性支持                                                       |
+| Intel 11 代（Rocket Lake）                                   | 不推荐 | 要伪装成 10 代，核显 UHD 730/750 没有驱动，没找到跑通 Tahoe 的公开配置                                           |
+| Intel 4 代（Haswell）                                        | 有条件 | macOS 13 起核显没有驱动，必须配独显；有人只用核显启动了 Tahoe 26.3.2，但没有图形加速                             |
+| Intel 6/7 代                                                 | 没查到 | 没找到跑通 Tahoe 的公开配置                                                                                      |
+| AMD 锐龙 1000–7000、线程撕裂者                               | 有条件 | 靠 AMD_Vanilla 内核补丁，补丁说明写明支持 Tahoe；锐龙 7000 还要额外的 IOPCIFamily 补丁                           |
+| AMD 锐龙 9000                                                | 案例少 | 补丁说明没提这一代；有人用锐龙 5 9600X 跑通了 Sequoia                                                            |
+
+Dortania 的反黑苹果购买指南列出的 AMD 平台限制里，影响日常使用的有：
+
+- 睡眠难设置，有的机器完全不能睡眠；没有 CPU 电源管理。
+- 基于苹果虚拟化框架的虚拟机（如 Parallels）和 Docker 用不了。
+- Adobe 部分软件不正常，Lightroom 暂时无解；Cubase、REAPER 等音频软件启动会崩溃。
+- 板载声卡的麦克风输入用不了，部分主板有 USB 口用不了。
+
+## 主板
+
+Intel 主板先看 BIOS 能不能关掉 CFG Lock（CPU 电源管理寄存器的写保护）。Dortania 写明开着 CFG Lock 无法启动；BIOS 里没有这个选项时，要在 OpenCore 配置里打开 `AppleXcpmCfgLock` 绕过去。中文社区黑苹果星球建议优先选 BIOS 里有这个选项的主板，并提到技嘉 Vision D/G 和微星迫击炮（MORTAR）系列的安装案例多。
+
+X79、X99、X299 和 C612、C621、C422 这类发烧、服务器平台，有一部分主板没有可用的 NVRAM（主板上保存启动设置的存储），华硕的 X299 主板例外。
+
+下表是公开配置仓库里写明跑通的组合，只说明这套硬件有人装成功过；BIOS 版本、板载网卡不同，结果可能不一样。
+
+| 主板                                                                                                                     | CPU                          | 跑通的系统                  |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------- |
+| [华硕 Prime Z390-A](https://github.com/petrouv/Hackintosh-ASUS-PRIME-Z390-A-i3-8350K-i9-9900K-UHD630)                    | i3-8350K、i9-9900K，只用核显 | Tahoe 26.5.1 至 26.7        |
+| [技嘉 Z390 Aorus Master](https://github.com/Hanam824/Gigabyte-Z390-Aorus-Master-Hackintosh)                              | i9-9900K                     | Tahoe 26.6.2                |
+| [华硕 ROG Strix B460-I Gaming](https://github.com/megaFatXR/macos-tahoe-hackintosh-opencore)                             | i9-10900K                    | Tahoe 26.0.1                |
+| [技嘉 Z690 UD AX DDR5](https://github.com/Thamizhan/macOS-Tahoe-26.5-EFI-Gigabyte-Z690-UD-AX-i7-12700-RX-6600)           | i7-12700                     | Tahoe 26                    |
+| [技嘉 Z790 Aorus Elite AX](https://github.com/domiey/Gigabyte-Z790-Aorus-EliteAX-i9-14900K-RX6800XT-OpenCore-Hackintosh) | i9-14900K                    | Tahoe 26.6.2                |
+| [技嘉 Z890M Aorus Elite WIFI7 ICE](https://github.com/7HE-W0R1D/Hackintosh-Z890M)                                        | 酷睿 Ultra 265K              | Sequoia 15.7、Tahoe 26.6.2  |
+| [技嘉 X570 Aorus Master](https://github.com/bobanilic/X570-AORUS-MASTER-Ryzen-9-3900XT-macOS-Tahoe)                      | 锐龙 9 3900XT                | Tahoe 26.6.1                |
+| [华硕 ROG Strix B550-F Gaming](https://github.com/Emanuele-Chiummo/hackintosh-b550f-ryzen7-rx6900xt)                     | 锐龙 7 3800X                 | Tahoe 26                    |
+| [华擎 X670E Taichi](https://github.com/suraj-lab/asrock-x670e-taichi-hackintosh-efi)                                     | 锐龙 9 7950X                 | Tahoe，关机后会自动重新开机 |
+| [微星 B650M Gaming Plus WiFi](https://github.com/Sanqing678/MSI-B650M-GAMING-PLUS-WIFI-Hackintosh)                       | 锐龙 7 7800X3D               | Tahoe 26.5.2                |
+| [微星 B850M-G](https://github.com/icliberen/hackintosh-opencore-sequoia-tahoe-msi_b850m_g-ryzen5_9600x-rx570-rx5500xt)   | 锐龙 5 9600X                 | Sequoia                     |
+
+## 显卡
+
+独显只能选 AMD。Dortania 的显卡购买指南目前只验证到 Sequoia 15。判断 Tahoe 能不能用，可以看 Tahoe 仍支持的 Mac Pro（2019）：它可选配 Radeon Pro 580X、W5500X、W5700X、Vega II、W6600X、W6800X、W6900X，对应 RX 500、RX 5000、Radeon VII 和 RX 6600/6800/6900 这几代架构。苹果要给这台机器提供驱动，这几代架构在 Tahoe 上就还能用。
+
+| 显卡                                        | 结论   | 说明                                                                                                                            |
+| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| RX 6600、RX 6600 XT                         | 首选   | 免驱，支持 Metal 3，有 Tahoe 公开配置在用                                                                                       |
+| RX 6800、RX 6800 XT、RX 6900 XT             | 能用   | 免驱，支持 Metal 3；有 Tahoe 配置写明 RX 6900 XT 不装 WhateverGreen 也能用                                                      |
+| RX 5500 XT、RX 5600 XT、RX 5700、RX 5700 XT | 能用   | 免驱，支持 Metal 3                                                                                                              |
+| RX Vega 56/64、Radeon VII                   | 能用   | 免驱，支持 Metal 3                                                                                                              |
+| RX 460 至 RX 590                            | 能用   | 免驱，最便宜；不支持 Metal 3（苹果新一代图形接口）                                                                              |
+| RX 6650 XT、RX 6950 XT                      | 有条件 | 要把设备 ID 伪装成 RX 6600 XT、RX 6900 XT                                                                                       |
+| RX 580 2048SP                               | 有条件 | 国内常见的缩水版，要把显卡 BIOS 刷成 RX 570 才能免驱                                                                            |
+| RX 6700、RX 6700 XT、RX 6750 XT             | 有条件 | 苹果没有驱动，要装第三方驱动 NootRX；Dortania 称它还在开发、功能不完整                                                          |
+| RX 6400、RX 6500 XT                         | 不能用 | NootRX 还没支持这一代                                                                                                           |
+| RX 7000、RX 9000 全系                       | 不能用 | 没有驱动；Dortania 认为 RX 7000 以后也不太可能支持                                                                              |
+| NVIDIA 全系                                 | 不能用 | Kepler（如 GTX 660–780、部分 GT 710/730）最高 Big Sur 11；GTX 745/750、GTX 900 和 10 系最高 High Sierra 10.13；更新的卡没有驱动 |
+| Intel Arc                                   | 不能用 | 没有驱动                                                                                                                        |
+
+RX 5000 和 RX 6000 系列多数要加启动参数 `agdpmod=pikera` 才有画面。
+
+Intel 核显最新只支持到 10 代（UHD 630、UHD 620 等）和 Ice Lake 笔记本的 Iris Plus；11 代以后的核显、Iris Xe 和酷睿 Ultra 的核显都没有驱动。有人在 Tahoe 上硬用 Iris Xe，结果没有图形加速，界面全靠 CPU 画。UHD 630 能在 Tahoe 上跑 Metal 3，但 HP ProDesk 400 G7 的作者遇到长时间高负载时界面卡死、黑屏重启，最后加了一块 AMD 独显。
+
+AMD 锐龙 1000 到 5000 系列和 7x30 系列的 Vega 核显靠第三方驱动 NootedRed，官方写明兼容到 macOS 26；ThinkPad T495 的 Tahoe 配置用它开了显卡加速。
+
+Apple TV+、Netflix 这类有版权保护的视频，WhateverGreen 的说明写明：macOS 11 起只有伪装成不带核显的 Mac 机型、再配兼容的 AMD 独显才能完整播放，只用核显的机器播不了。
+
+## 无线网卡和蓝牙
+
+| 网卡                                                              | 结论             | 说明                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 博通 BCM94360CD、BCM943602CDP 等（奋威 T919 用的就是 BCM94360CD） | 首选，但要打补丁 | 唯一能用隔空投送、随航、手表解锁这类苹果生态功能的选择。macOS 14 起苹果删掉了它的 Wi-Fi 驱动：Sequoia 用 OCLP 的无线补丁恢复，要放宽 SIP（macOS 防止系统文件被改的保护）；Tahoe 用实验性的 AppleBCMWLANCompanion，要开 VT-d（Intel 的设备虚拟化功能），AMD 平台用不了。蓝牙不受影响 |
+| Intel AX200、AX201、AX210 等                                      | 有条件           | 第三方驱动 itlwm（配 HeliPort 客户端联网）或 AirportItlwm（用系统自带的 Wi-Fi 菜单）；AirportItlwm 下生态功能只有接力和通用剪贴板能用。Tahoe 上有人配合 OCLP 补丁让 AX210、AX201 的 Wi-Fi 和蓝牙工作，隔空投送、个人热点仍用不了                                                    |
+| Intel BE200                                                       | 不能用           | Tahoe 上 Wi-Fi 还不完整                                                                                                                                                                                                                                                             |
+| Realtek 无线网卡                                                  | 不能用           | 没有驱动                                                                                                                                                                                                                                                                            |
+| 联发科无线网卡                                                    | 不能用           | 没有驱动，铭凡 UM560XT 的原装 RZ608 就换成了博通卡                                                                                                                                                                                                                                  |
+| USB 无线网卡                                                      | 不推荐           | 不稳定，接力和手表解锁可能失效                                                                                                                                                                                                                                                      |
+
+## 有线网卡
+
+| 网卡                                   | 结论   | 驱动和说明                                                                  |
+| -------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| Intel I219-V、I219-LM                  | 能用   | IntelMausi，写明针对 macOS 10.15 至 26.0 优化                               |
+| Realtek RTL8111（千兆）                | 能用   | RealtekRTL8111，测到 macOS 26.1                                             |
+| Realtek RTL8125（2.5G）、RTL8126（5G） | 能用   | RTL812xLucy，写明在 Tahoe 上测过；只用 RTL8125 也可以选 LucyRTL8125Ethernet |
+| Aquantia AQC107（万兆）                | 能用   | 免驱，iMac Pro、Mac mini（2018）、Mac Pro（2019）用的就是它                 |
+| Intel I225-V（2.5G）                   | 有条件 | 伪装成苹果支持的 I225-LM                                                    |
+| Intel I226-V（2.5G）                   | 有条件 | 第三方驱动 AppleIGC，作者只在 macOS 12.6.1 上测过                           |
+| Intel I211                             | 有条件 | 用 SmallTree-I211-AT-patch 驱动                                             |
+| Realtek L8200A（部分华硕主板）         | 不能用 | 没有驱动                                                                    |
+
+## 固态硬盘
+
+Dortania 推荐西数 SN750 这类用西数自研主控的盘，或者群联主控的盘（如 Sabrent Rocket）；三星 970 EVO Plus 要先升级固件。要避开的型号：
+
+- 三星 PM981、PM991：笔记本原装盘常见，容易内核崩溃（系统崩溃重启）。ThinkPad T490 的配置写明原装 PM981a 也必须换。
+- 镁光 2200S：有用户报告无法启动。
+- 海力士 PC711：主控完全不支持。
+- Intel 600p：有已知问题，660p 正常。
+
+三星的盘整体容易卡顿、TRIM 有问题。所有 NVMe 盘都建议加 NVMeFix 驱动；它写明支持到 macOS 26，但超时崩溃的修复在新系统上可能用不了。
+
+## 声卡
+
+Sequoia 及以前，主板自带的 Realtek ALC 声卡靠 AppleALC 驱动基本都能用。Tahoe 从第二个开发者预览版起删掉了 AppleHDA，AppleALC 跟着失效，耳机孔和音箱口没声音；HDMI、DP 接显示器出声和 USB 声卡不受影响，联想 M70q 的 Tahoe 配置就写明只有 HDMI 有声音。
+
+Tahoe 上要用耳机孔，有三个办法：
+
+- 买一个免驱的 USB 声卡或耳放，最省事。
+- 改装 VoodooHDA 驱动，音质可能不如原来。
+- 放宽 SIP，把旧版 AppleHDA 补回系统分区。
+
+## 笔记本和小主机
+
+现成机器的原装网卡、固态和指纹模块没法挑，这些件决定了能装到哪一步。下表的机型都有公开配置写明能装到的版本：
+
+| 机型                                                                                                    | 最高版本       | 主要限制                           |
+| ------------------------------------------------------------------------------------------------------- | -------------- | ---------------------------------- |
+| [联想 ThinkCentre M70q](https://github.com/marcoxmediran/thinkcentre-m70q-opencore)（i5-10400T）        | Tahoe 26.1     | 只有 HDMI 有声音                   |
+| [HP ProDesk 400 G7](https://github.com/d3xc0/HP-ProDesk-400-G7-Hackintosh)                              | Tahoe 26.6.2   | 核显长时间高负载会黑屏重启         |
+| [Intel NUC8i7HN](https://github.com/Baio1977/Intel-NUC8i7HN)                                            | Tahoe          | Tahoe 上要跑脚本恢复声音           |
+| [HP ProDesk 400 G1](https://github.com/HJebbour/HP-ProDesk-400-G1-Hackintosh-every-macOS)（4 代）       | Tahoe 26.3.2   | 能启动，没有图形加速               |
+| [联想 ThinkCentre M720q](https://github.com/ecklf/OpenCore-Lenovo-M720q)                                | Sequoia 15     | Intel 网卡没有隔空投送             |
+| [戴尔 OptiPlex 7050 Micro](https://github.com/linkev/Dell-Optiplex-7050-Micro-Hackintosh)               | Sequoia 15     | 睡眠唤醒后显示器黑屏               |
+| [ThinkPad T490](https://github.com/5T33Z0/Thinkpad-T490-Hackintosh-OpenCore)                            | Tahoe 26.5     | 原装三星 PM981a 要换，指纹不能用   |
+| [HP EliteBook 840 G6](https://github.com/pgciq/HP-EliteBook-840-G6-Hackintosh-Tahoe26.1)                | Tahoe 26.6.2   | 摄像头不能用                       |
+| [戴尔 Latitude 5410](https://github.com/chiragshetty-code/dell-latitude-5410-hackintosh-macos-tahoe-26) | Tahoe 26       | HDMI 没测过，iMessage 还有问题     |
+| [ThinkPad T480](https://github.com/valnoxy/t480-oc)                                                     | Sequoia 15     | 指纹、雷电 3、手表解锁不能用       |
+| [ThinkPad T495](https://github.com/Wardcy9/T495-Hackintosh)（锐龙 7 3700U）                             | Tahoe 26       | 蓝牙不能用                         |
+| [零刻 SER5 Max](https://github.com/cgartlab/Beelink-SER5-Max-Hackintosh)（锐龙 7 5800H）                | Ventura 13.7.8 | Intel AX200 网卡没有隔空投送和随航 |
+| [铭凡 UM560XT](https://github.com/daliansky/minisforum-UM560XT-Hackintosh)（锐龙 5 5600H）              | Sonoma 14      | 原装联发科网卡要换成 BCM94360Z3    |
+
+## 推荐配置
+
+- **最省心**：Intel 10 代（i5-10400 或 i7-10700）、BIOS 能关 CFG Lock 的 Z490 或 B460 主板、AMD RX 6600、博通 BCM94360CD 无线网卡、西数固态，系统装 Sequoia。
+- **新平台**：Intel 12–14 代配 Z690 或 Z790 主板，加 RX 6600 或 RX 6800 系列独显；要接受 CPU 伪装和大小核处理，核显也用不了。
+- **AMD**：锐龙 3000、5000 配 B550 或 X570 主板；先确认能接受睡眠、虚拟机和部分专业软件的问题。
+
+怎么配都用不了的功能有两个：iPhone 镜像要求苹果的 T2 安全芯片，指纹解锁没有驱动。Tahoe 之后普通电脑不会再有新版 macOS，为黑苹果新买配件前，按 2028 年前后停止安全更新来算这台机器还能用几年。
+
+## 参考资料
+
+- [Apple：安全更新发布列表](https://support.apple.com/en-us/100100)
+- [Apple：与 macOS Tahoe 26 兼容的电脑](https://support.apple.com/en-us/122867)
+- [Apple：Mac Pro (2019) 技术规格](https://support.apple.com/kb/SP797)
+- [Apple：Metal 在苹果设备上的支持情况](https://support.apple.com/en-us/102894)
+- [TidBITS：The Real System Requirements for macOS 26](https://tidbits.com/2025/06/12/the-real-system-requirements-for-%EF%A3%BFos-26/)
+- [OCLP issue #1183：macOS Golden Gate 27 与 OCLP 的未来](https://github.com/dortania/OpenCore-Legacy-Patcher/issues/1183)
+- [OCLP issue #1076：Sonoma 删除老款博通无线驱动](https://github.com/dortania/OpenCore-Legacy-Patcher/issues/1076)
+- [OCLP 2.5.0 发布说明](https://github.com/dortania/OpenCore-Legacy-Patcher/releases/tag/2.5.0)
+- [Dortania：macOS 26 Tahoe 安装说明](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)
+- [Dortania：各代硬件的 macOS 支持上限](https://dortania.github.io/OpenCore-Install-Guide/macos-limits.html)
+- [Dortania：Comet Lake 配置说明（CFG Lock）](https://dortania.github.io/OpenCore-Install-Guide/config.plist/comet-lake.html)
+- [Dortania：显卡购买指南](https://dortania.github.io/GPU-Buyers-Guide/)
+- [Dortania：反黑苹果购买指南](https://dortania.github.io/Anti-Hackintosh-Buyers-Guide/)
+- [WhateverGreen：DRM 兼容性说明](https://github.com/acidanthera/WhateverGreen/blob/master/Manual/FAQ.Chart.md)
+- [AppleALC](https://github.com/acidanthera/AppleALC)、[NVMeFix](https://github.com/acidanthera/NVMeFix)
+- [AMD_Vanilla](https://github.com/AMD-OSX/AMD_Vanilla)、[CpuTopologyRebuild](https://github.com/b00t0x/CpuTopologyRebuild)
+- [NootRX](https://chefkiss.dev/applehax/nootrx/)、[NootedRed](https://chefkiss.dev/applehax/nootedred/)
+- [itlwm 常见问题](https://openintelwireless.github.io/itlwm/FAQ.html)、[itlwm issue #1062：Tahoe 上的 Intel 网卡](https://github.com/OpenIntelWireless/itlwm/issues/1062)
+- [IntelMausi](https://github.com/Mieze/IntelMausiEthernet)、[RealtekRTL8111](https://github.com/Mieze/RTL8111_driver_for_OS_X)、[LucyRTL8125Ethernet](https://github.com/Mieze/LucyRTL8125Ethernet)、[RTL812xLucy](https://github.com/Mieze/RTL812xLucy)、[AppleIGC](https://github.com/SongXiaoXi/AppleIGC)
+- [奋威 T919 规格](https://pcbuilder.net/component-details/wireless-network-adapter/fenvi-fv-t919-bcm94360cd/)
+- [黑苹果星球：黑苹果硬件配置推荐](https://heipg.cn/tutorial/diy-hackintosh-2020.html)
+- [黑苹果星球：RX 580 2048SP 刷 VBIOS 恢复免驱](https://heipg.cn/tutorial/polaris-flash-vbios.html)
