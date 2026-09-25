@@ -1,6 +1,12 @@
 {
-  "activeDays": 225,
+  "activeDays": 226,
   "books": [
+    {
+      "author": "岸见一郎 古贺史健",
+      "cover": "/images/reading/7695db38e4a1eb78.jpg",
+      "state": "reading",
+      "title": "被讨厌的勇气：“自我启发之父”阿德勒的哲学课"
+    },
     {
       "author": "理查德·费曼 拉尔夫·莱顿",
       "cover": "/images/reading/ebf913aa70fc24d6.jpg",
@@ -12,15 +18,9 @@
       "cover": "/images/reading/7066bcb284decdd2.jpg",
       "state": "reading",
       "title": "斗罗大陆II绝世唐门"
-    },
-    {
-      "author": "[英]亚当·斯密",
-      "cover": "/images/reading/65f2a073daf7e930.jpg",
-      "state": "reading",
-      "title": "《国富论》（经济学博导译）钟教授带你将西方经典读成中国人的经济思维课"
     }
   ],
   "finishedBooks": 13,
-  "totalMinutes": 3848,
-  "updatedAt": "2026-09-24T20:02:40.316Z"
+  "totalMinutes": 3856,
+  "updatedAt": "2026-09-25T20:04:11.712Z"
 }
