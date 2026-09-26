@@ -1,0 +1,78 @@
+---
+title: "Edge Copies a Blank Address Bar URL: Enable the URL Copy and Paste Format Toggle"
+description: "Copying a fully selected URL in Edge produced blank text with both Ctrl+C and right-click Copy. Enabling the URL copy and paste format toggle restored copying. Includes the setting screenshot and clipboard investigation."
+published: "2026-09-26"
+locale: "en"
+tags:
+  - "postmortem"
+draft: false
+pinned: false
+translationKey: "edge-address-bar-copy-empty"
+---
+
+Copying a fully selected URL from Edge's address bar produced blank text, whether using `Ctrl+C` or right-click Copy; copying webpage text or part of the URL worked. Enabling **Change URL copy and paste format** in Settings restored full-URL copying in this case.
+
+## Solution
+
+1. Open Edge **Settings** and search for **copy**. The Chinese interface in the screenshot uses **复制**.
+2. Find **Change URL copy and paste format** under **Appearance → Browser behavior and features → URL formatting**.
+3. Turn on the switch on the right so it matches the blue state inside the red box below.
+
+![Edge Settings in Chinese, with Change URL copy and paste format outlined in red and its switch turned on](/images/posts/edge-address-bar-copy-empty/edge-url-copy-paste-setting.png)
+
+The screenshot shows the setting after copying recovered. The relevant control is the URL formatting toggle inside the red box.
+
+You can also enter this address in Edge and press Enter to open the browser behavior and features settings directly:
+
+```text
+edge://settings/appearance/browserBehavior
+```
+
+Microsoft's help page also describes **Link** and **Plain text** formats. The successful action recorded here was **enabling the pictured toggle**; there is no record of a further change to Plain text. If your settings look different, follow the controls shown in your version and Microsoft's guidance.
+
+## Problem details
+
+The failure occurred when copying the current page's entire URL. With the address bar fully selected, copying and then pasting elsewhere should have produced the address. It produced blank text through both the keyboard shortcut and the context menu.
+
+The recorded results were:
+
+| Action                                                     | Result            |
+| ---------------------------------------------------------- | ----------------- |
+| Copy selected text from a webpage                          | Worked            |
+| Copy only part of the address bar URL                      | Worked            |
+| Select the entire address bar URL and press `Ctrl+C`       | Pasted blank text |
+| Select the entire address bar URL and use right-click Copy | Pasted blank text |
+
+Partial selection working while full selection failed was the most useful distinction. It narrowed the investigation to how the address bar handles copying a complete URL.
+
+## Investigation and cause
+
+### Inspect the clipboard before and after copying
+
+An initial system clipboard check could write and read text normally. Together with successful copying from webpage content, this gave no indication of a system-wide copying failure.
+
+The next check placed a known piece of text in the clipboard before copying the fully selected address. The troubleshooting record reports that the original text was cleared. Further inspection found a text format present in the clipboard, but its contents read as an empty string.
+
+This showed that the clipboard's text contents changed after copying. That observation alone could not determine whether Edge produced empty text or another program interfered during the operation.
+
+### InPrivate and an English input layout did not help
+
+Repeating the operation in an InPrivate window still produced blank text. Switching to an English input layout made no difference either. Neither attempt bypassed the failure.
+
+The investigation also asked about screenshot or clipboard tools such as Snipaste and ShareX, but the record contains no controlled test with each tool shut down. It also does not fully document which extensions were enabled in InPrivate, so extensions and background tools cannot be ruled out completely.
+
+### Why investigate URL copy formatting?
+
+Microsoft's official documentation confirms that Edge has a dedicated copy and paste formatting feature for address bar URLs. It supports pasting a web address or a hyperlink whose text is the page title. This feature can therefore affect the result of copying a complete URL.
+
+Because the failure affected only full-URL copying, the investigation moved to URL formatting settings. Enabling the pictured toggle restored copying. The evidence connects this incident to address bar URL copy formatting behavior; the suggestion that rich-text generation produced an empty plain-text component remains a hypothesis, without an internal call trace or browser source debugging to establish it.
+
+## Verification results
+
+Full-URL copying recovered after the toggle was enabled. The original record did not preserve an Edge version number, and no tests across devices or versions were recorded. The result does not establish a common cause for every address bar copying failure.
+
+After changing the setting, return to a webpage, press `Ctrl+L` to select the full address, copy with `Ctrl+C`, and paste into Notepad. Repeat with right-click Copy. Both methods should paste a nonempty URL to confirm that the original symptom is gone on that device.
+
+## References
+
+- [Microsoft Support: Improved copy and paste of URLs in Microsoft Edge](https://support.microsoft.com/en-us/microsoft-edge/improved-copy-and-paste-of-urls-in-microsoft-edge-d3bd3956-603a-0033-1fbc-9588a30645b4): documents address bar URL formats, settings navigation, and paste behavior. It does not confirm the cause of the blank-copy failure described here.
